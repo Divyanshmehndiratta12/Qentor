@@ -1,0 +1,20 @@
+# Qentor backend dependencies — pinned to versions resolved and installed together
+# without conflict on Python 3.12.10 (pip check: "No broken requirements found").
+#
+# Install: py -3.12 -m venv backend/.venv
+#          backend/.venv/Scripts/python.exe -m pip install -r backend/requirements.txt
+#
+# NOTE: on a Windows host with "Smart App Control" enabled and enforcing, qiskit's
+# native extension (qiskit/_accelerate.pyd, an unsigned Rust-compiled .pyd) is blocked
+# at import time with "An Application Control policy has blocked this file." This is a
+# Windows OS security policy, not a dependency problem — see docs/BUILD_STATE.md.
+
+fastapi==0.141.1
+uvicorn==0.54.0
+pydantic==2.13.5
+qiskit==2.5.2
+qiskit-aer==0.17.2
+qiskit-qasm3-import==0.6.0
+cirq-core==1.7.0
+pennylane==0.45.1
+numpy==2.5.3
