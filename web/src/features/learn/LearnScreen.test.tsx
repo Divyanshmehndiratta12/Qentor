@@ -260,4 +260,92 @@ describe('LearnScreen', () => {
     expect(useBuildStore.getState().result).toBeNull()
     expect(useBuildStore.getState().isExecuting).toBe(false)
   })
+
+  describe('learner insight summary', () => {
+    it('shows zero-progress state across the whole catalog before anything is touched', async () => {
+      listLessons.mockResolvedValueOnce([LESSON_A, LESSON_B])
+
+      render(<LearnScreen onOpenLab={vi.fn()} />)
+      await waitFor(() => expect(screen.getByText('Lesson A')).toBeInTheDocument())
+
+      const summary = screen.getByLabelText('Learner insights')
+      expect(summary).toHaveTextContent('0/2')
+      expect(summary).toHaveTextContent('0%')
+      expect(summary).toHaveTextContent('Not started: 2')
+      expect(summary).toHaveTextContent('No open signals right now.')
+      // Priority B: Lesson A has no prerequisites, so it's the recommendation.
+      expect(summary).toHaveTextContent('"Lesson A" is next in your learning path.')
+    })
+
+    it('updates overall progress and mastery once a lesson is completed', async () => {
+      listLessons.mockResolvedValueOnce([LESSON_A, LESSON_B])
+
+      render(<LearnScreen onOpenLab={vi.fn()} />)
+      await waitFor(() => expect(screen.getByText('Lesson A')).toBeInTheDocument())
+      await completeLessonA()
+
+      const summary = screen.getByLabelText('Learner insights')
+      expect(summary).toHaveTextContent('1/2')
+      expect(summary).toHaveTextContent('50%')
+      expect(summary).toHaveTextContent('Mastered: 1')
+      // Lesson B is now the recommended next challenge.
+      expect(summary).toHaveTextContent('Lesson B" is next in your learning path.')
+    })
+
+    it('flags a repeated-incorrect-answer misconception under "Needs attention" and the button navigates to that lesson', async () => {
+      listLessons.mockResolvedValueOnce([LESSON_A, LESSON_B])
+
+      render(<LearnScreen onOpenLab={vi.fn()} />)
+      await waitFor(() => expect(screen.getByText('Lesson A')).toBeInTheDocument())
+      await completeLessonA()
+      fireEvent.click(screen.getByRole('button', { name: /^Lesson B/ }))
+      await screen.findByText('Explain body.')
+
+      // Answer wrong twice.
+      fireEvent.click(screen.getByLabelText('Y'))
+      fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
+      fireEvent.click(screen.getByLabelText('Y'))
+      fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
+
+      const summary = screen.getByLabelText('Learner insights')
+      expect(summary).toHaveTextContent('advanced: 2 incorrect attempts')
+
+      // Navigate away to Lesson A's detail view first...
+      fireEvent.click(screen.getByRole('button', { name: /^Lesson A/ }))
+      expect(await screen.findByText('A body.')).toBeInTheDocument()
+      expect(screen.queryByText('Explain body.')).not.toBeInTheDocument()
+
+      // ...then use the "Needs attention" signal to jump straight back to Lesson B.
+      const attentionButton = screen.getByRole('button', { name: /advanced: 2 incorrect attempts/ })
+      fireEvent.click(attentionButton)
+
+      expect(await screen.findByText('Explain body.')).toBeInTheDocument()
+    })
+
+    it('shows the catalog-complete message once every lesson has been completed', async () => {
+      listLessons.mockResolvedValueOnce([LESSON_A])
+
+      render(<LearnScreen onOpenLab={vi.fn()} />)
+      await waitFor(() => expect(screen.getByText('Lesson A')).toBeInTheDocument())
+      await completeLessonA()
+
+      const summary = screen.getByLabelText('Learner insights')
+      expect(summary).toHaveTextContent('Every lesson in the current catalog is complete.')
+    })
+
+    it('the "Go to lesson" next-challenge action selects that lesson without touching the Build circuit', async () => {
+      listLessons.mockResolvedValueOnce([LESSON_A, LESSON_B])
+
+      render(<LearnScreen onOpenLab={vi.fn()} />)
+      await waitFor(() => expect(screen.getByText('Lesson A')).toBeInTheDocument())
+
+      const circuitBefore = useBuildStore.getState().circuit
+
+      fireEvent.click(screen.getByRole('button', { name: 'Go to lesson' }))
+
+      expect(await screen.findByText('Learn A')).toBeInTheDocument()
+      expect(useBuildStore.getState().circuit).toBe(circuitBefore)
+    })
+  })
 })

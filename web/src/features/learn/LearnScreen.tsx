@@ -20,6 +20,7 @@ import { useLearnStore } from './store'
 import { isLessonComplete } from './lessonState'
 import { LessonCard } from './LessonCard'
 import { LessonDetailPanel } from './LessonDetailPanel'
+import { LearnerSummaryPanel } from './LearnerSummaryPanel'
 
 export function LearnScreen({ onOpenLab }: { onOpenLab: (circuit: Circuit) => void }) {
   const lessons = useLearnStore((s) => s.lessons)
@@ -51,6 +52,15 @@ export function LearnScreen({ onOpenLab }: { onOpenLab: (circuit: Circuit) => vo
             here comes from a real backend execution, never a guess.
           </p>
         </div>
+
+        {!isLoading && !error && lessons.length > 0 && (
+          <LearnerSummaryPanel
+            lessons={lessons}
+            lessonProgress={lessonProgress}
+            startedLessonIds={startedLessonIds}
+            onSelectLesson={selectLesson}
+          />
+        )}
 
         <div className="min-h-0 flex-1 overflow-auto p-3">
           {isLoading && <p className="p-2 text-xs text-slate-500">Loading lessons…</p>}
