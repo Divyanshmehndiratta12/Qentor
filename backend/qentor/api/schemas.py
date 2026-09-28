@@ -14,6 +14,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 from qentor.circuit.model import Circuit
+from qentor.lessons import Lesson
 
 
 class ExecuteRequest(BaseModel):
@@ -241,3 +242,18 @@ class OptimizeResponse(BaseModel):
     # an unverified candidate's definition is withheld, not just labelled.
     candidate_circuit: Circuit | None
     result_id: str | None
+
+
+class LessonCatalogResponse(BaseModel):
+    """GET /api/lessons's entire response — the read-only lesson catalog.
+
+    ``lessons`` reuses the domain model (``qentor.lessons.Lesson``) directly,
+    the same way ``OptimizeResponse.candidate_circuit`` reuses ``Circuit``:
+    one shape, not a parallel API-only copy that could drift from it. There is
+    no learner progress/state field anywhere on this response — that stays
+    out of scope for this milestone.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    lessons: list[Lesson]

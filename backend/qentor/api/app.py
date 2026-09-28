@@ -1,5 +1,6 @@
 """FastAPI app — POST /api/execute, POST /api/verify/bell-state,
-POST /api/tutor, POST /api/test/multi-input and POST /api/optimize.
+POST /api/tutor, POST /api/test/multi-input, POST /api/optimize and
+GET /api/lessons.
 
 This module imports ``circuit``, ``execution``, ``provenance``, ``storage``,
 ``verification`` and ``tutor`` — exactly the ``api -> tutor -> verification ->
@@ -32,6 +33,7 @@ from qentor.execution.adapter import AdapterExecutionError, AdapterUnavailable, 
 from qentor.execution.aer import AerAdapter
 from qentor.execution.cirq_adapter import CirqAdapter
 from qentor.execution.pennylane_adapter import PennyLaneAdapter
+from qentor.lessons import LESSONS
 from qentor.provenance.models import ProvenanceClass, ProvenanceRecord, VerificationStatus
 from qentor.provenance.store import ProvenanceStore
 from qentor.tutor import (
@@ -51,6 +53,7 @@ from qentor.verification.optimizer import optimize_circuit
 from .schemas import (
     ExecuteRequest,
     ExecuteResponse,
+    LessonCatalogResponse,
     MultiInputCaseResponse,
     MultiInputCounterexampleResponse,
     MultiInputTestRequest,
@@ -362,3 +365,16 @@ def optimize_endpoint(request: OptimizeRequest) -> OptimizeResponse:
         candidate_circuit=report.candidate_circuit,
         result_id=report.result_id,
     )
+
+
+@app.get("/api/lessons", response_model=LessonCatalogResponse)
+def list_lessons() -> LessonCatalogResponse:
+    """The read-only lesson catalog (``qentor.lessons``), already validated
+    at process startup (``qentor.lessons.registry.build_registry``).
+
+    Metadata and section structure only — no learner progress/state exists
+    yet, and nothing here executes, verifies or computes anything: a lesson's
+    ``linked_circuit`` is a plain canonical circuit definition, the same shape
+    ``/api/execute`` itself accepts, not a result.
+    """
+    return LessonCatalogResponse(lessons=LESSONS)
