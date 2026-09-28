@@ -21,7 +21,7 @@ from typing import Protocol
 
 from .models import TutorFact
 
-DEFAULT_MODEL = "claude-opus-5"
+DEFAULT_MODEL = "claude-opus-5-5"
 
 # docs/AI_BOUNDARY.md §"Fallback": "a timeout of 8 seconds ... the server
 # builds a template explanation from the same facts".
