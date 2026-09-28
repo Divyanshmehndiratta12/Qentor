@@ -7,6 +7,12 @@ calls ``ProvenanceStore.get``/``insert``: ``qentor.tutor`` (like
 ``qentor.verification``) takes an already-fetched ``ProvenanceRecord`` as a
 plain argument and never imports the store itself — see
 backend/tests/test_architecture_rule.py.
+
+The tutor's optional LLM layer (``qentor.tutor.llm``/``config``) only ever
+runs here, server-side, and is built once at startup from environment
+variables (see backend/.env.example) — a browser can never reach it directly,
+and with no key configured this process behaves exactly as it did before the
+LLM layer existed.
 """
 
 from __future__ import annotations
@@ -18,7 +24,12 @@ from qentor.execution.adapter import AdapterExecutionError, AdapterUnavailable
 from qentor.execution.aer import AerAdapter
 from qentor.provenance.models import ProvenanceClass, ProvenanceRecord, VerificationStatus
 from qentor.provenance.store import ProvenanceStore
-from qentor.tutor import answer_failed_execution, answer_question, build_fact_sheet
+from qentor.tutor import (
+    answer_failed_execution,
+    answer_question_with_llm,
+    build_default_llm_adapter,
+    build_fact_sheet,
+)
 from qentor.verification.bell_state import verify_bell_state
 
 from .schemas import (
@@ -36,6 +47,10 @@ app = FastAPI(title="Qentor backend", version="0.1.0")
 
 _adapter = AerAdapter()
 _store = ProvenanceStore()
+# None unless QENTOR_TUTOR_LLM_ENABLED and an API key are both set in the
+# server's own environment (qentor.tutor.config) — read once at process
+# startup, like _adapter/_store above. See backend/.env.example.
+_llm_adapter = build_default_llm_adapter()
 
 
 @app.post("/api/execute", response_model=ExecuteResponse)
@@ -130,13 +145,18 @@ def verify_bell_state_endpoint(request: VerifyBellStateRequest) -> VerifyBellSta
 
 @app.post("/api/tutor", response_model=TutorResponse)
 def tutor_endpoint(request: TutorRequest) -> TutorResponse:
-    """Grounded, deterministic tutor answer (no LLM yet — see qentor.tutor).
+    """Grounded tutor answer — deterministic by default, optionally backed by
+    a server-only LLM (see qentor.tutor.answer / qentor.tutor.guard).
 
     Never re-executes the circuit and never trusts a client-supplied number:
     every fact in the response is built from the persisted provenance record
     named by ``result_id``, looked up once here. A circuit that doesn't match
     that record's own circuit hash is rejected outright, not silently
-    explained as if it were the executed one.
+    explained as if it were the executed one. If an LLM is configured, its
+    output only ever reaches the response after ``validate_llm_draft`` confirms
+    every cited fact id exists and every number in it is already grounded in
+    the fact sheet; anything that fails falls back to the deterministic
+    template, exactly as if no LLM were configured at all.
     """
     record = _store.get(request.result_id)
     if record is None:
@@ -156,11 +176,12 @@ def tutor_endpoint(request: TutorRequest) -> TutorResponse:
         )
 
     facts = build_fact_sheet(request.circuit, record)
-    answer = (
-        answer_failed_execution(record)
-        if record.verification_status != VerificationStatus.VERIFIED
-        else answer_question(request.question, facts, record)
-    )
+    if record.verification_status != VerificationStatus.VERIFIED:
+        answer, used_fallback_template = answer_failed_execution(record), True
+    else:
+        answer, used_fallback_template = answer_question_with_llm(
+            request.question, facts, record, _llm_adapter
+        )
 
     return TutorResponse(
         answer=answer,
@@ -168,7 +189,7 @@ def tutor_endpoint(request: TutorRequest) -> TutorResponse:
         circuit_hash=record.circuit_hash,
         provenance_class=record.provenance_class.value,
         verification_status=record.verification_status.value,
-        used_fallback_template=True,
+        used_fallback_template=used_fallback_template,
         facts=[
             TutorFactResponse(id=f.id, kind=f.kind, description=f.description, result_id=f.result_id)
             for f in facts

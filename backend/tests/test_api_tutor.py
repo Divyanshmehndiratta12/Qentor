@@ -24,6 +24,7 @@ from qentor.provenance.models import ProvenanceClass, ProvenanceRecord
 from qentor.provenance.models import VerificationStatus as ExecutionStatus
 from qentor.provenance.store import ProvenanceStore
 from qentor.tutor.deterministic import UNSUPPORTED_QUESTION_ANSWER
+from qentor.tutor.llm import LLMDraft, LLMUnavailable
 
 BELL = Circuit(
     num_qubits=2,
@@ -176,6 +177,119 @@ class TestUnsupportedQuestion(TutorEndpointTestCase):
         )
 
         self.assertEqual(response.answer, UNSUPPORTED_QUESTION_ANSWER)
+
+
+class FakeLLMAdapter:
+    """Test double for qentor.tutor.llm.LLMAdapter — never makes a real call."""
+
+    name = "fake"
+
+    def __init__(self, draft: LLMDraft | None = None, *, raises: Exception | None = None) -> None:
+        self._draft = draft
+        self._raises = raises
+
+    def generate(self, question: str, facts: list) -> LLMDraft:
+        if self._raises is not None:
+            raise self._raises
+        assert self._draft is not None
+        return self._draft
+
+
+class TestLlmIntegrationEndToEnd(TutorEndpointTestCase):
+    """The endpoint with the module-level ``_llm_adapter`` patched — proves the
+    guard/fallback wiring holds through the real request path, not just the
+    orchestrator function in isolation (see test_tutor_llm.py for that)."""
+
+    def _patch_llm(self, adapter) -> None:
+        patcher = patch.object(app_module, "_llm_adapter", adapter)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def test_no_llm_configured_uses_deterministic_template(self) -> None:
+        self._patch_llm(None)
+        record = self._insert_record(BELL, "shots", shots=2000)
+
+        response = app_module.tutor_endpoint(
+            TutorRequest(result_id=record.result_id, circuit=BELL, question="What was the result?")
+        )
+
+        self.assertTrue(response.used_fallback_template)
+
+    def test_successful_llm_response_is_returned_and_not_flagged_as_fallback(self) -> None:
+        record = self._insert_record(BELL, "shots", shots=2000)
+        facts = app_module.build_fact_sheet(BELL, record)
+        probability_fact = next(f for f in facts if f.kind == "probability")
+        self._patch_llm(
+            FakeLLMAdapter(
+                draft=LLMDraft(
+                    answer=f"This circuit shows {probability_fact.description} ({probability_fact.id}).",
+                    cited_fact_ids=[probability_fact.id],
+                )
+            )
+        )
+
+        response = app_module.tutor_endpoint(
+            TutorRequest(result_id=record.result_id, circuit=BELL, question="What was the result?")
+        )
+
+        self.assertFalse(response.used_fallback_template)
+        self.assertIn(probability_fact.description, response.answer)
+
+    def test_llm_citing_an_unknown_fact_falls_back(self) -> None:
+        record = self._insert_record(BELL, "shots", shots=2000)
+        self._patch_llm(FakeLLMAdapter(draft=LLMDraft(answer="Trust me (F999).", cited_fact_ids=["F999"])))
+
+        response = app_module.tutor_endpoint(
+            TutorRequest(result_id=record.result_id, circuit=BELL, question="What was the result?")
+        )
+
+        self.assertTrue(response.used_fallback_template)
+        self.assertNotIn("Trust me", response.answer)
+
+    def test_llm_provider_failure_falls_back(self) -> None:
+        record = self._insert_record(BELL, "shots", shots=2000)
+        self._patch_llm(FakeLLMAdapter(raises=LLMUnavailable("connection refused")))
+
+        response = app_module.tutor_endpoint(
+            TutorRequest(result_id=record.result_id, circuit=BELL, question="What was the result?")
+        )
+
+        self.assertTrue(response.used_fallback_template)
+        self.assertGreater(len(response.answer), 0)
+
+    def test_hallucinated_probability_never_reaches_the_response(self) -> None:
+        record = self._insert_record(BELL, "shots", shots=2000)
+        self._patch_llm(
+            FakeLLMAdapter(draft=LLMDraft(answer="P(01) = 0.123456, remarkably!", cited_fact_ids=[]))
+        )
+
+        response = app_module.tutor_endpoint(
+            TutorRequest(result_id=record.result_id, circuit=BELL, question="What was the result?")
+        )
+
+        self.assertTrue(response.used_fallback_template)
+        self.assertNotIn("0.123456", response.answer)
+        for fact in response.facts:
+            self.assertNotIn("0.123456", fact.description)
+
+    def test_failed_execution_never_calls_the_llm(self) -> None:
+        calls: list[str] = []
+
+        class RecordingAdapter(FakeLLMAdapter):
+            def generate(self, question: str, facts: list) -> LLMDraft:
+                calls.append(question)
+                return LLMDraft(answer="should not be reached", cited_fact_ids=[])
+
+        self._patch_llm(RecordingAdapter())
+        record = self._insert_failed_record(BELL)
+
+        response = app_module.tutor_endpoint(
+            TutorRequest(result_id=record.result_id, circuit=BELL, question="What was the result?")
+        )
+
+        self.assertEqual(calls, [])
+        self.assertTrue(response.used_fallback_template)
+        self.assertNotEqual(response.answer, "should not be reached")
 
 
 class TestRequestSchemaRejectsClientSuppliedResults(unittest.TestCase):
