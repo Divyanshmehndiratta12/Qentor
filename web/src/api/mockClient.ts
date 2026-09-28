@@ -25,6 +25,8 @@ import type {
   Backend,
   ExecutePayload,
   ExecutionMode,
+  MultiInputTestCase,
+  MultiInputTestResult,
   OptimizationResult,
   TutorAnswerResult,
   VerifyBellStateResult,
@@ -256,6 +258,58 @@ export class MockApiClient implements ApiClient {
       reason: null,
       candidateCircuit,
       resultId: null,
+    }
+  }
+
+  /** FIXTURE only: the real harness (qentor.verification.multi_input_harness)
+   * runs each case statevector-exact server-side. This just checks whether
+   * `inputBits === expectedOutput` (an "identity function" fixture rule) so
+   * the Build screen's multi-input test panel has something to show without
+   * a running backend — `backend` is accepted but unused, and every id/hash
+   * is fixture-prefixed so it can never be mistaken for a real one. */
+  async runMultiInputTest(
+    _circuit: Circuit,
+    inputQubits: number[],
+    outputQubits: number[],
+    cases: MultiInputTestCase[],
+    _backend?: Backend,
+  ): Promise<MultiInputTestResult> {
+    await delay(150)
+
+    const resultCases = cases.map((c, i) => {
+      const passes = c.inputBits === c.expectedOutput
+      const observedDistribution = passes ? { [c.expectedOutput]: 1 } : { [c.inputBits]: 1 }
+      return {
+        inputBits: c.inputBits,
+        expectedOutput: c.expectedOutput,
+        status: passes ? ('PASS' as const) : ('FAIL' as const),
+        observedDistribution,
+        error: null,
+        resultId: nextFixtureId(),
+        circuitHash: `qc_mockmockmock_case${i}`,
+      }
+    })
+
+    const counterexamples = resultCases
+      .filter((c) => c.status === 'FAIL')
+      .map((c) => ({
+        inputBits: c.inputBits,
+        expectedOutput: c.expectedOutput,
+        observedDistribution: c.observedDistribution,
+        circuitHash: c.circuitHash,
+        resultId: c.resultId,
+      }))
+
+    return {
+      testId: `test_fixture_${nextFixtureId()}`,
+      circuitHash: 'qc_mockmockmock',
+      backend: 'mock-adapter',
+      backendVersion: '0.0.0-dev',
+      inputQubits,
+      outputQubits,
+      cases: resultCases,
+      counterexamples,
+      overallStatus: counterexamples.length > 0 ? 'SOME_FAILED' : 'ALL_PASSED',
     }
   }
 }

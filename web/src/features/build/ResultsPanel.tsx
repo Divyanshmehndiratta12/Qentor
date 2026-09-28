@@ -11,6 +11,7 @@ import Plotly from 'plotly.js-basic-dist-min'
 import { useBuildStore } from './store'
 import { VerificationPanel } from './VerificationPanel'
 import { OptimizePanel } from './OptimizePanel'
+import { MultiInputTestPanel } from './MultiInputTestPanel'
 import { VerifiedValueInline } from '@/provenance/VerifiedValue'
 import { ProvenanceBadge } from '@/provenance/ProvenanceBadge'
 import { toQuantumValue } from '@/provenance/QuantumValue'
@@ -102,6 +103,7 @@ export function ResultsPanel() {
 
         <VerificationPanel />
         <OptimizePanel />
+        <MultiInputTestPanel />
       </div>
     </div>
   )

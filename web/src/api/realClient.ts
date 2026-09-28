@@ -8,6 +8,7 @@ import { CircuitSchema, type Circuit } from '@/circuit/types'
 import { provenanceFromExecuteResponse, toQuantumValue, type QuantumValue } from '@/provenance/QuantumValue'
 import {
   ExecuteResponseSchema,
+  MultiInputTestResponseSchema,
   OptimizeResponseSchema,
   ShotsPayloadSchema,
   StatevectorPayloadSchema,
@@ -21,6 +22,8 @@ import {
   type Backend,
   type ExecutePayload,
   type ExecutionMode,
+  type MultiInputTestCase,
+  type MultiInputTestResult,
   type OptimizationResult,
   type TutorAnswerResult,
   type VerifyBellStateResult,
@@ -219,6 +222,72 @@ export class RealApiClient implements ApiClient {
       reason: response.reason,
       candidateCircuit: response.candidate_circuit,
       resultId: response.result_id,
+    }
+  }
+
+  async runMultiInputTest(
+    circuit: Circuit,
+    inputQubits: number[],
+    outputQubits: number[],
+    cases: MultiInputTestCase[],
+    backend?: Backend,
+  ): Promise<MultiInputTestResult> {
+    // Same discipline as every other write path here: the request body has
+    // exactly circuit/input_qubits/output_qubits/cases/backend — there is no
+    // way to reach this method with an observed distribution, a status, or a
+    // counterexample attached.
+    const validCircuit = CircuitSchema.parse(circuit)
+
+    let res: Response
+    try {
+      res = await fetch(`${this.baseUrl}/api/test/multi-input`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          circuit: validCircuit,
+          input_qubits: inputQubits,
+          output_qubits: outputQubits,
+          cases: cases.map((c) => ({ input_bits: c.inputBits, expected_output: c.expectedOutput })),
+          ...(backend ? { backend } : {}),
+        }),
+      })
+    } catch (err) {
+      throw new BackendUnavailableError(
+        `could not reach the Qentor backend: ${err instanceof Error ? err.message : String(err)}`,
+      )
+    }
+
+    if (!res.ok) {
+      const detail = await safeErrorDetail(res)
+      throw new BackendUnavailableError(detail, res.status)
+    }
+
+    const response = MultiInputTestResponseSchema.parse(await res.json())
+
+    return {
+      testId: response.test_id,
+      circuitHash: response.circuit_hash,
+      backend: response.backend,
+      backendVersion: response.backend_version,
+      inputQubits: response.input_qubits,
+      outputQubits: response.output_qubits,
+      cases: response.cases.map((c) => ({
+        inputBits: c.input_bits,
+        expectedOutput: c.expected_output,
+        status: c.status,
+        observedDistribution: c.observed_distribution,
+        error: c.error,
+        resultId: c.result_id,
+        circuitHash: c.circuit_hash,
+      })),
+      counterexamples: response.counterexamples.map((c) => ({
+        inputBits: c.input_bits,
+        expectedOutput: c.expected_output,
+        observedDistribution: c.observed_distribution,
+        circuitHash: c.circuit_hash,
+        resultId: c.result_id,
+      })),
+      overallStatus: response.overall_status,
     }
   }
 }

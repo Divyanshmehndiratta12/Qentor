@@ -159,3 +159,47 @@ export const OptimizeResponseSchema = z.object({
   result_id: z.string().nullable(),
 })
 export type OptimizeResponse = z.infer<typeof OptimizeResponseSchema>
+
+// backend/qentor/verification/multi_input_harness.py::CaseStatus
+export const MultiInputCaseStatusSchema = z.enum(['PASS', 'FAIL', 'EXECUTION_ERROR'])
+export type MultiInputCaseStatus = z.infer<typeof MultiInputCaseStatusSchema>
+
+// backend/qentor/verification/multi_input_harness.py::OverallStatus
+export const MultiInputOverallStatusSchema = z.enum(['ALL_PASSED', 'SOME_FAILED', 'INCOMPLETE'])
+export type MultiInputOverallStatus = z.infer<typeof MultiInputOverallStatusSchema>
+
+// backend/qentor/api/schemas.py::MultiInputCaseResponse
+export const MultiInputCaseResponseSchema = z.object({
+  input_bits: z.string(),
+  expected_output: z.string(),
+  status: MultiInputCaseStatusSchema,
+  observed_distribution: z.record(z.string(), z.number()).nullable(),
+  error: z.string().nullable(),
+  result_id: z.string().nullable(),
+  circuit_hash: z.string(),
+})
+export type MultiInputCaseResponse = z.infer<typeof MultiInputCaseResponseSchema>
+
+// backend/qentor/api/schemas.py::MultiInputCounterexampleResponse
+export const MultiInputCounterexampleResponseSchema = z.object({
+  input_bits: z.string(),
+  expected_output: z.string(),
+  observed_distribution: z.record(z.string(), z.number()),
+  circuit_hash: z.string(),
+  result_id: z.string().nullable(),
+})
+export type MultiInputCounterexampleResponse = z.infer<typeof MultiInputCounterexampleResponseSchema>
+
+// backend/qentor/api/schemas.py::MultiInputTestResponse
+export const MultiInputTestResponseSchema = z.object({
+  test_id: z.string(),
+  circuit_hash: z.string(),
+  backend: z.string(),
+  backend_version: z.string().nullable(),
+  input_qubits: z.array(z.number().int()),
+  output_qubits: z.array(z.number().int()),
+  cases: z.array(MultiInputCaseResponseSchema),
+  counterexamples: z.array(MultiInputCounterexampleResponseSchema),
+  overall_status: MultiInputOverallStatusSchema,
+})
+export type MultiInputTestResponse = z.infer<typeof MultiInputTestResponseSchema>

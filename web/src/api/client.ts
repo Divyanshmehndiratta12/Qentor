@@ -134,6 +134,49 @@ export interface OptimizationResult {
   resultId: string | null
 }
 
+/**
+ * Structured evidence from POST /api/test/multi-input. Shaped after
+ * `backend/qentor/api/schemas.py::MultiInputTestResponse`, normalised to
+ * camelCase. `observedDistribution` is the server's own Born-rule bookkeeping
+ * on real amplitudes an adapter produced (`qentor.verification.multi_input_harness`)
+ * — never computed here, and never just a pass/fail boolean: the full
+ * distribution is kept so a near-miss is visible, not hidden behind a verdict.
+ */
+export interface MultiInputTestCase {
+  inputBits: string
+  expectedOutput: string
+}
+
+export interface MultiInputCaseResult {
+  inputBits: string
+  expectedOutput: string
+  status: 'PASS' | 'FAIL' | 'EXECUTION_ERROR'
+  observedDistribution: Record<string, number> | null
+  error: string | null
+  resultId: string | null
+  circuitHash: string
+}
+
+export interface MultiInputCounterexampleResult {
+  inputBits: string
+  expectedOutput: string
+  observedDistribution: Record<string, number>
+  circuitHash: string
+  resultId: string | null
+}
+
+export interface MultiInputTestResult {
+  testId: string
+  circuitHash: string
+  backend: string
+  backendVersion: string | null
+  inputQubits: number[]
+  outputQubits: number[]
+  cases: MultiInputCaseResult[]
+  counterexamples: MultiInputCounterexampleResult[]
+  overallStatus: 'ALL_PASSED' | 'SOME_FAILED' | 'INCOMPLETE'
+}
+
 export class EndpointNotImplementedError extends Error {
   constructor(endpoint: string) {
     super(`${endpoint} has no backend implementation yet`)
@@ -190,4 +233,21 @@ export interface ApiClient {
    * to persist supporting evidence; it plays no part in the verdict itself.
    */
   optimizeCircuit(circuit: Circuit, backend?: Backend): Promise<OptimizationResult>
+
+  /**
+   * POST /api/test/multi-input — a basis-sweep multi-input test (explicit,
+   * caller-supplied cases; never auto-enumerated here). Sends only the
+   * canonical `circuit`, the declared qubit subsets, the explicit
+   * `(inputBits, expectedOutput)` cases, and an optional backend choice —
+   * never an observed distribution, a pass/fail verdict, or a counterexample
+   * computed client-side. Every number and verdict in the result comes from
+   * the server's own statevector-exact bookkeeping.
+   */
+  runMultiInputTest(
+    circuit: Circuit,
+    inputQubits: number[],
+    outputQubits: number[],
+    cases: MultiInputTestCase[],
+    backend?: Backend,
+  ): Promise<MultiInputTestResult>
 }

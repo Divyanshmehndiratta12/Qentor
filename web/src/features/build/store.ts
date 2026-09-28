@@ -8,7 +8,16 @@
  */
 import { create } from 'zustand'
 import { getApiClient, BackendUnavailableError, EndpointNotImplementedError } from '@/api'
-import type { ExecutePayload, ExecutionMode, OptimizationResult, TutorAnswerResult, VerifyBellStateResult } from '@/api'
+import type {
+  Backend,
+  ExecutePayload,
+  ExecutionMode,
+  MultiInputTestCase,
+  MultiInputTestResult,
+  OptimizationResult,
+  TutorAnswerResult,
+  VerifyBellStateResult,
+} from '@/api'
 import type { QuantumValue } from '@/provenance/QuantumValue'
 import { emptyCircuit, gateArityError, type Circuit, type GateName, type GateOp } from '@/circuit/types'
 import { toQasm3 } from '@/circuit/qasmEmitter'
@@ -55,6 +64,10 @@ interface BuildState {
   optimization: OptimizationResult | null
   optimizationError: string | null
 
+  isMultiInputTesting: boolean
+  multiInputTest: MultiInputTestResult | null
+  multiInputTestError: string | null
+
   setNumQubits: (n: number) => void
   selectGate: (gate: GateName | null) => void
   setPendingAngle: (angle: number) => void
@@ -68,6 +81,12 @@ interface BuildState {
   askTutor: (question: string) => Promise<void>
   runOptimization: () => Promise<void>
   applyOptimizedCircuit: () => void
+  runMultiInputTest: (
+    inputQubits: number[],
+    outputQubits: number[],
+    cases: MultiInputTestCase[],
+    backend?: Backend,
+  ) => Promise<void>
 }
 
 function syncFromCircuit(circuit: Circuit) {
@@ -100,6 +119,10 @@ export const useBuildStore = create<BuildState>((set, get) => ({
   optimization: null,
   optimizationError: null,
 
+  isMultiInputTesting: false,
+  multiInputTest: null,
+  multiInputTestError: null,
+
   setNumQubits: (n) => {
     set({
       ...syncFromCircuit(emptyCircuit(Math.max(1, Math.min(8, n)))),
@@ -112,6 +135,8 @@ export const useBuildStore = create<BuildState>((set, get) => ({
       isAskingTutor: false,
       optimization: null,
       optimizationError: null,
+      multiInputTest: null,
+      multiInputTestError: null,
     })
   },
 
@@ -167,6 +192,8 @@ export const useBuildStore = create<BuildState>((set, get) => ({
       isAskingTutor: false,
       optimization: null,
       optimizationError: null,
+      multiInputTest: null,
+      multiInputTestError: null,
     })
   },
 
@@ -184,6 +211,8 @@ export const useBuildStore = create<BuildState>((set, get) => ({
         isAskingTutor: false,
         optimization: null,
         optimizationError: null,
+        multiInputTest: null,
+        multiInputTestError: null,
       })
       return { ok: true }
     } catch (err) {
@@ -204,6 +233,8 @@ export const useBuildStore = create<BuildState>((set, get) => ({
       isAskingTutor: false,
       optimization: null,
       optimizationError: null,
+      multiInputTest: null,
+      multiInputTestError: null,
     }),
   setShots: (shots) => set({ shots: Math.max(1, Math.floor(shots)) }),
 
@@ -219,6 +250,8 @@ export const useBuildStore = create<BuildState>((set, get) => ({
         isAskingTutor: false,
         optimization: null,
         optimizationError: null,
+        multiInputTest: null,
+        multiInputTestError: null,
       })
       return
     }
@@ -231,6 +264,8 @@ export const useBuildStore = create<BuildState>((set, get) => ({
       isAskingTutor: false,
       optimization: null,
       optimizationError: null,
+      multiInputTest: null,
+      multiInputTestError: null,
     })
     try {
       const client = getApiClient()
@@ -307,7 +342,30 @@ export const useBuildStore = create<BuildState>((set, get) => ({
       isAskingTutor: false,
       optimization: null,
       optimizationError: null,
+      multiInputTest: null,
+      multiInputTestError: null,
     })
+  },
+
+  runMultiInputTest: async (inputQubits, outputQubits, cases, backend) => {
+    const { circuit } = get()
+    // Multi-input testing operates on the circuit itself, not an execution
+    // result — same as runOptimization, it never gates on `result` existing.
+    if (inputQubits.length === 0 || outputQubits.length === 0 || cases.length === 0) return
+    set({ isMultiInputTesting: true, multiInputTestError: null })
+    try {
+      const client = getApiClient()
+      const multiInputTest = await client.runMultiInputTest(circuit, inputQubits, outputQubits, cases, backend)
+      set({ multiInputTest, isMultiInputTesting: false })
+    } catch (err) {
+      const message =
+        err instanceof BackendUnavailableError || err instanceof EndpointNotImplementedError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : String(err)
+      set({ multiInputTestError: message, multiInputTest: null, isMultiInputTesting: false })
+    }
   },
 
   askTutor: async (question) => {
@@ -371,5 +429,7 @@ function addOp(
     isAskingTutor: false,
     optimization: null,
     optimizationError: null,
+    multiInputTest: null,
+    multiInputTestError: null,
   })
 }
