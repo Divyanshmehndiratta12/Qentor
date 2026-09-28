@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import tempfile
+import threading
 import unittest
 from pathlib import Path
 
@@ -60,6 +61,50 @@ class TestProvenanceStore(unittest.TestCase):
         r1 = self._record()
         r2 = self._record()
         self.assertNotEqual(r1.result_id, r2.result_id)
+
+    def test_insert_and_get_from_different_thread(self) -> None:
+        # Mirrors qentor/api/app.py: a module-level ProvenanceStore constructed on
+        # one thread (here, the test's main thread) but used from another, the way
+        # FastAPI dispatches sync path operations to a worker threadpool. Before the
+        # fix this raised sqlite3.ProgrammingError: "SQLite objects created in a
+        # thread can only be used in that same thread."
+        record = self._record(circuit_hash="cross-thread")
+        errors: list[BaseException] = []
+
+        def worker() -> None:
+            try:
+                self.store.insert(record)
+            except BaseException as exc:  # noqa: BLE001 - want to see it fail loudly if raised
+                errors.append(exc)
+
+        thread = threading.Thread(target=worker)
+        thread.start()
+        thread.join()
+
+        self.assertEqual(errors, [])
+        fetched = self.store.get(record.result_id)
+        self.assertIsNotNone(fetched)
+        self.assertEqual(fetched.circuit_hash, "cross-thread")
+
+    def test_concurrent_inserts_from_many_threads_all_persist(self) -> None:
+        records = [self._record(circuit_hash="concurrent") for _ in range(20)]
+        errors: list[BaseException] = []
+
+        def worker(rec: ProvenanceRecord) -> None:
+            try:
+                self.store.insert(rec)
+            except BaseException as exc:  # noqa: BLE001
+                errors.append(exc)
+
+        threads = [threading.Thread(target=worker, args=(r,)) for r in records]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+        self.assertEqual(errors, [])
+        stored = self.store.list_by_circuit_hash("concurrent")
+        self.assertEqual({r.result_id for r in stored}, {r.result_id for r in records})
 
     def test_reopening_store_preserves_data(self) -> None:
         record = self._record()

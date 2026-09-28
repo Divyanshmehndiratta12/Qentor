@@ -8,6 +8,7 @@ to ``insert``.
 from __future__ import annotations
 
 import sqlite3
+import threading
 from pathlib import Path
 
 from qentor.storage.db import DEFAULT_DB_PATH, connect
@@ -16,32 +17,46 @@ from .models import ProvenanceRecord
 
 
 class ProvenanceStore:
+    """Thread-safe: FastAPI runs sync path operations in a worker threadpool, so a
+    single ``ProvenanceStore`` instance (e.g. the module-level singleton in
+    ``api/app.py``) is routinely called from a different thread than the one that
+    constructed it. The connection is opened with ``check_same_thread=False`` and
+    every access is serialized through ``self._lock``, since a single sqlite3
+    connection is not safe for concurrent use from multiple threads even when the
+    same-thread check is disabled.
+    """
+
     def __init__(self, db_path: Path | str = DEFAULT_DB_PATH) -> None:
-        self._conn: sqlite3.Connection = connect(db_path)
+        self._conn: sqlite3.Connection = connect(db_path, check_same_thread=False)
+        self._lock = threading.Lock()
 
     def insert(self, record: ProvenanceRecord) -> None:
-        self._conn.execute(
-            """
-            INSERT INTO results (
-                result_id, circuit_hash, backend, backend_version, execution_mode,
-                provenance_class, verification_status, created_at, payload_json
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            record.to_row(),
-        )
-        self._conn.commit()
+        with self._lock:
+            self._conn.execute(
+                """
+                INSERT INTO results (
+                    result_id, circuit_hash, backend, backend_version, execution_mode,
+                    provenance_class, verification_status, created_at, payload_json
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                record.to_row(),
+            )
+            self._conn.commit()
 
     def get(self, result_id: str) -> ProvenanceRecord | None:
-        row = self._conn.execute(
-            "SELECT * FROM results WHERE result_id = ?", (result_id,)
-        ).fetchone()
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT * FROM results WHERE result_id = ?", (result_id,)
+            ).fetchone()
         return ProvenanceRecord.from_row(row) if row else None
 
     def list_by_circuit_hash(self, circuit_hash: str) -> list[ProvenanceRecord]:
-        rows = self._conn.execute(
-            "SELECT * FROM results WHERE circuit_hash = ? ORDER BY created_at", (circuit_hash,)
-        ).fetchall()
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT * FROM results WHERE circuit_hash = ? ORDER BY created_at", (circuit_hash,)
+            ).fetchall()
         return [ProvenanceRecord.from_row(r) for r in rows]
 
     def close(self) -> None:
-        self._conn.close()
+        with self._lock:
+            self._conn.close()

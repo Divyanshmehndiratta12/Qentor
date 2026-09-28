@@ -1,0 +1,83 @@
+@import "tailwindcss";
+
+@theme {
+  /* Dark cool-graphite palette per the finalized Qentor design (Claude
+     Design canvas, "Qentor Workspace"). Semantic roles are preserved from
+     the previous palette — cyan for verified/real data, violet for
+     interactive/AI surfaces, amber for warnings, danger for errors — only
+     the exact hues moved from a deep-space blue-black to the design's
+     cooler graphite, and from sRGB hex to oklch to match it exactly. */
+  --color-void-950: #0e1014;
+  --color-void-900: #111318;
+  --color-void-800: #14171c;
+  --color-void-700: #181c22;
+  --color-void-600: #1c2027;
+  --color-void-500: #232830;
+  --color-void-400: #2e343d;
+  --color-void-300: #3d4450;
+  --color-void-200: #4a525e;
+
+  --color-cyan-glow: oklch(0.8 0.12 215);
+  --color-cyan-dim: oklch(0.32 0.05 215);
+
+  --color-violet-glow: oklch(0.74 0.14 292);
+  --color-violet-dim: oklch(0.28 0.06 292);
+
+  --color-amber-glow: oklch(0.82 0.13 80);
+  --color-amber-dim: oklch(0.3 0.05 80);
+
+  --color-danger-glow: oklch(0.72 0.16 25);
+  --color-danger-dim: oklch(0.28 0.07 25);
+
+  --font-mono-qasm: 'JetBrains Mono', ui-monospace, 'Cascadia Code', Consolas, monospace;
+  --font-sans-ui: 'Instrument Sans', system-ui, 'Segoe UI', sans-serif;
+  --font-serif-prose: 'Newsreader', Georgia, 'Times New Roman', serif;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-void-950);
+  color: #e2e8f0;
+  font-family: var(--font-sans-ui);
+  background-image:
+    radial-gradient(circle at 15% 10%, oklch(0.8 0.12 215 / 4%), transparent 40%),
+    radial-gradient(circle at 85% 90%, oklch(0.74 0.14 292 / 4%), transparent 40%);
+}
+
+/* Line-background highlight for the QASM editor's current parse-error line
+   (CircuitCanvas.tsx / QASMEditor.tsx error-line decoration). Plain CSS
+   class rather than an inline style because CodeMirror applies it via a
+   line-attribute decoration, not React. */
+.cm-error-line {
+  background: color-mix(in oklch, var(--color-danger-glow) 12%, transparent);
+}
+
+/* Faint circuit-board grid backdrop for the canvas surface, applied via this
+   utility class rather than inline so it stays themeable in one place. */
+.circuit-grid-bg {
+  background-image:
+    linear-gradient(rgba(148, 163, 184, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148, 163, 184, 0.06) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-void-900);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-void-600);
+  border-radius: 6px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-void-500);
+}
