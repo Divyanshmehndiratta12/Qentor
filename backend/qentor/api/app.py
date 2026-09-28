@@ -8,6 +8,13 @@ calls ``ProvenanceStore.get``/``insert``: ``qentor.tutor`` (like
 plain argument and never imports the store itself — see
 backend/tests/test_architecture_rule.py.
 
+``ExecuteRequest.backend`` selects which ``ExecutionAdapter`` runs the
+circuit (Qiskit Aer by default, or Cirq/PennyLane); every one builds its
+native circuit from the same canonical ``Circuit`` model and returns a
+``qentor.execution.adapter.ExecutionResult`` in the same q[n-1]...q[0]
+bit-order convention, so results from different adapters for the same
+circuit are directly comparable.
+
 The tutor's optional LLM layer (``qentor.tutor.llm``/``config``) only ever
 runs here, server-side, and is built once at startup from environment
 variables (see backend/.env.example) — a browser can never reach it directly,
@@ -22,6 +29,8 @@ from fastapi import FastAPI, HTTPException
 from qentor.circuit.hashing import circuit_hash
 from qentor.execution.adapter import AdapterExecutionError, AdapterUnavailable
 from qentor.execution.aer import AerAdapter
+from qentor.execution.cirq_adapter import CirqAdapter
+from qentor.execution.pennylane_adapter import PennyLaneAdapter
 from qentor.provenance.models import ProvenanceClass, ProvenanceRecord, VerificationStatus
 from qentor.provenance.store import ProvenanceStore
 from qentor.tutor import (
@@ -46,6 +55,15 @@ from .schemas import (
 app = FastAPI(title="Qentor backend", version="0.1.0")
 
 _adapter = AerAdapter()
+# Keyed by each adapter's own `.name`, matching ExecuteRequest.backend's
+# Literal values exactly. _adapter (Aer) stays the untouched default so a
+# request that never specifies `backend` behaves exactly as before this
+# registry existed.
+_adapters = {
+    _adapter.name: _adapter,
+    CirqAdapter.name: CirqAdapter(),
+    PennyLaneAdapter.name: PennyLaneAdapter(),
+}
 _store = ProvenanceStore()
 # None unless QENTOR_TUTOR_LLM_ENABLED and an API key are both set in the
 # server's own environment (qentor.tutor.config) — read once at process
@@ -56,18 +74,19 @@ _llm_adapter = build_default_llm_adapter()
 @app.post("/api/execute", response_model=ExecuteResponse)
 def execute(request: ExecuteRequest) -> ExecuteResponse:
     chash = circuit_hash(request.circuit)
+    adapter = _adapters[request.backend]
 
     try:
-        result = _adapter.run(request.circuit, request.mode, request.shots)
+        result = adapter.run(request.circuit, request.mode, request.shots)
     except AdapterUnavailable as exc:
         raise HTTPException(
             status_code=503,
-            detail=f"Backend '{_adapter.name}' is unavailable in this environment: {exc}",
+            detail=f"Backend '{adapter.name}' is unavailable in this environment: {exc}",
         ) from exc
     except AdapterExecutionError as exc:
         record = ProvenanceRecord.new(
             circuit_hash=chash,
-            backend=_adapter.name,
+            backend=adapter.name,
             backend_version="unknown",
             execution_mode=request.mode,
             provenance_class=ProvenanceClass.SIMULATION,

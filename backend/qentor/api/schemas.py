@@ -22,6 +22,10 @@ class ExecuteRequest(BaseModel):
     circuit: Circuit
     mode: Literal["statevector", "shots"]
     shots: int | None = Field(default=None, gt=0)
+    # Defaults to the original, only-ever-existed backend so a request that
+    # predates this field behaves identically. Each value matches the
+    # selected adapter's own `.name` exactly (qentor.api.app's registry).
+    backend: Literal["qiskit-aer", "cirq", "pennylane"] = "qiskit-aer"
 
 
 class ExecuteResponse(BaseModel):
