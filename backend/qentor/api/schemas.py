@@ -70,3 +70,40 @@ class VerifyBellStateResponse(BaseModel):
     checks: list[VerificationCheckResponse]
     expected_support: list[str]
     observed_support: list[str]
+
+
+class TutorRequest(BaseModel):
+    """``circuit`` is the same canonical shape ``ExecuteRequest``/
+    ``VerifyBellStateRequest`` take — the client's current circuit context,
+    never a probability, count, amplitude or verdict. ``result_id`` names the
+    already-persisted execution the tutor grounds its answer in; a circuit
+    that doesn't hash to that record's own ``circuit_hash`` is rejected
+    outright (HTTP 422), not silently answered against the wrong result.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    result_id: str
+    circuit: Circuit
+    question: str = Field(min_length=1)
+
+
+class TutorFactResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: str
+    kind: str
+    description: str
+    result_id: str
+
+
+class TutorResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    answer: str
+    result_id: str
+    circuit_hash: str
+    provenance_class: str
+    verification_status: str
+    used_fallback_template: bool
+    facts: list[TutorFactResponse]

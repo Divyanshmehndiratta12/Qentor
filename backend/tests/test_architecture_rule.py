@@ -62,6 +62,28 @@ class TestNoTutorImportFromExecutionOrVerification(unittest.TestCase):
         imported = _imported_module_names(aer_file)
         self.assertNotIn("qentor.provenance.store", imported)
 
+    def test_tutor_never_imports_the_provenance_writer(self) -> None:
+        """CLAUDE.md: "The tutor receives result ids and reads facts from the
+        provenance log. It never receives numbers from the client and never
+        writes results" — and the required test "Import-graph test: tutor cannot
+        reach the provenance writer". qentor.tutor takes an already-fetched
+        ProvenanceRecord as a plain argument; only qentor.api calls
+        ProvenanceStore.get/insert. If any file under qentor/tutor ever imports
+        qentor.provenance.store, this fails immediately."""
+        tutor_dir = BACKEND_ROOT / "qentor" / "tutor"
+        self.assertTrue(tutor_dir.is_dir(), f"expected package directory {tutor_dir} to exist")
+        checked_any_file = False
+        for py_file in tutor_dir.rglob("*.py"):
+            checked_any_file = True
+            imported = _imported_module_names(py_file)
+            with self.subTest(file=str(py_file.relative_to(BACKEND_ROOT))):
+                self.assertNotIn(
+                    "qentor.provenance.store",
+                    imported,
+                    f"{py_file} imports qentor.provenance.store, which would let the tutor write results",
+                )
+        self.assertTrue(checked_any_file, "no .py files were found to check — test would pass vacuously")
+
 
 if __name__ == "__main__":
     unittest.main()

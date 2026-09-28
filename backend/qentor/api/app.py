@@ -1,9 +1,12 @@
-"""FastAPI app — POST /api/execute and POST /api/verify/bell-state.
+"""FastAPI app — POST /api/execute, POST /api/verify/bell-state and POST /api/tutor.
 
-No frontend is served here yet. No tutor endpoint exists yet. This module imports
-``circuit``, ``execution``, ``provenance``, ``storage`` and ``verification`` — never
-``tutor``, because ``tutor`` does not exist yet and, per the architecture rule, never
-will be imported from here in a way that lets it write results.
+This module imports ``circuit``, ``execution``, ``provenance``, ``storage``,
+``verification`` and ``tutor`` — exactly the ``api -> tutor -> verification ->
+execution -> circuit`` chain in docs/ARCHITECTURE.md §1. Only this module ever
+calls ``ProvenanceStore.get``/``insert``: ``qentor.tutor`` (like
+``qentor.verification``) takes an already-fetched ``ProvenanceRecord`` as a
+plain argument and never imports the store itself — see
+backend/tests/test_architecture_rule.py.
 """
 
 from __future__ import annotations
@@ -15,11 +18,15 @@ from qentor.execution.adapter import AdapterExecutionError, AdapterUnavailable
 from qentor.execution.aer import AerAdapter
 from qentor.provenance.models import ProvenanceClass, ProvenanceRecord, VerificationStatus
 from qentor.provenance.store import ProvenanceStore
+from qentor.tutor import answer_failed_execution, answer_question, build_fact_sheet
 from qentor.verification.bell_state import verify_bell_state
 
 from .schemas import (
     ExecuteRequest,
     ExecuteResponse,
+    TutorFactResponse,
+    TutorRequest,
+    TutorResponse,
     VerificationCheckResponse,
     VerifyBellStateRequest,
     VerifyBellStateResponse,
@@ -118,4 +125,52 @@ def verify_bell_state_endpoint(request: VerifyBellStateRequest) -> VerifyBellSta
         ],
         expected_support=report.expected_support,
         observed_support=report.observed_support,
+    )
+
+
+@app.post("/api/tutor", response_model=TutorResponse)
+def tutor_endpoint(request: TutorRequest) -> TutorResponse:
+    """Grounded, deterministic tutor answer (no LLM yet — see qentor.tutor).
+
+    Never re-executes the circuit and never trusts a client-supplied number:
+    every fact in the response is built from the persisted provenance record
+    named by ``result_id``, looked up once here. A circuit that doesn't match
+    that record's own circuit hash is rejected outright, not silently
+    explained as if it were the executed one.
+    """
+    record = _store.get(request.result_id)
+    if record is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"no provenance record found for result_id '{request.result_id}'",
+        )
+
+    request_hash = circuit_hash(request.circuit)
+    if request_hash != record.circuit_hash:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"circuit does not match provenance record '{request.result_id}': "
+                f"got circuit hash '{request_hash}', expected '{record.circuit_hash}'"
+            ),
+        )
+
+    facts = build_fact_sheet(request.circuit, record)
+    answer = (
+        answer_failed_execution(record)
+        if record.verification_status != VerificationStatus.VERIFIED
+        else answer_question(request.question, facts, record)
+    )
+
+    return TutorResponse(
+        answer=answer,
+        result_id=record.result_id,
+        circuit_hash=record.circuit_hash,
+        provenance_class=record.provenance_class.value,
+        verification_status=record.verification_status.value,
+        used_fallback_template=True,
+        facts=[
+            TutorFactResponse(id=f.id, kind=f.kind, description=f.description, result_id=f.result_id)
+            for f in facts
+        ],
     )
