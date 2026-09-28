@@ -17,7 +17,6 @@
  */
 import type { Circuit } from '@/circuit/types'
 import type { QuantumValue } from '@/provenance/QuantumValue'
-import type { Lesson, LessonSummary } from './types'
 
 export type ExecutionMode = 'statevector' | 'shots'
 
@@ -30,6 +29,70 @@ export type TutorLanguage = 'en' | 'hi' | 'kn'
 /** Matches `backend/qentor/api/schemas.py`'s `backend: Literal[...]` field —
  * every endpoint that accepts one uses this same three-value set. */
 export type Backend = 'qiskit-aer' | 'cirq' | 'pennylane'
+
+/**
+ * The Learn catalog — shaped after `backend/qentor/lessons/models.py::Lesson`
+ * and its section types, normalised to camelCase like every other client
+ * result. `linkedCircuit` is a plain canonical circuit definition (the same
+ * shape `/api/execute` accepts), never a result — a lesson never carries a
+ * probability, count or verdict of its own. There is no `completed`/progress
+ * field anywhere on this type: that stays purely local, session-only UI state
+ * (see `@/features/learn/store.ts`), never something the backend reports.
+ */
+export type LessonDifficulty = 'beginner' | 'intermediate' | 'advanced'
+
+/** The already-existing backend endpoints an interactive lab may point a
+ * learner at (matches `backend/qentor/lessons/models.py::LabCapability`
+ * exactly) — never a capability invented client-side. */
+export type LabCapability = 'execute' | 'verify_bell_state' | 'multi_input_test' | 'optimize'
+
+export interface LessonExplanationSection {
+  type: 'explanation'
+  id: string
+  title: string
+  body: string
+}
+
+export interface LessonConceptCheckSection {
+  type: 'concept_check'
+  id: string
+  title: string
+  prompt: string
+}
+
+export interface LessonInteractiveLabSection {
+  type: 'interactive_lab'
+  id: string
+  title: string
+  instructions: string
+  capability: LabCapability
+}
+
+export interface LessonReflectionSection {
+  type: 'reflection'
+  id: string
+  title: string
+  prompt: string
+}
+
+export type LessonSection =
+  | LessonExplanationSection
+  | LessonConceptCheckSection
+  | LessonInteractiveLabSection
+  | LessonReflectionSection
+
+export interface Lesson {
+  id: string
+  title: string
+  shortDescription: string
+  concept: string
+  difficulty: LessonDifficulty
+  estimatedMinutes: number
+  learningObjectives: string[]
+  sections: LessonSection[]
+  linkedCircuit: Circuit | null
+  prerequisiteLessonIds: string[]
+}
 
 /**
  * Client-facing execution payload. Shaped after
@@ -216,9 +279,13 @@ export interface ApiClient {
    */
   verifyBellState(resultId: string, circuit: Circuit): Promise<VerifyBellStateResult>
 
-  /** No `/api/lessons` route exists yet. Real client throws `EndpointNotImplementedError`. */
-  listLessons(): Promise<LessonSummary[]>
-  getLesson(id: string): Promise<Lesson>
+  /**
+   * GET /api/lessons — the real, read-only lesson catalog. There is no
+   * per-lesson endpoint: the full catalog (metadata and section structure)
+   * comes back in one call, and a lesson's detail view is derived from it
+   * client-side rather than fetched separately.
+   */
+  listLessons(): Promise<Lesson[]>
 
   /**
    * POST /api/tutor — a deterministic, grounded answer (no LLM yet). Sends

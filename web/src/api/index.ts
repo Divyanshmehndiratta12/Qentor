@@ -15,6 +15,14 @@ export type {
   Backend,
   ExecutePayload,
   ExecutionMode,
+  LabCapability,
+  Lesson,
+  LessonConceptCheckSection,
+  LessonDifficulty,
+  LessonExplanationSection,
+  LessonInteractiveLabSection,
+  LessonReflectionSection,
+  LessonSection,
   MultiInputCaseResult,
   MultiInputCounterexampleResult,
   MultiInputTestCase,
@@ -29,7 +37,6 @@ export type {
   VerifyBellStateResult,
 } from './client'
 export { BackendUnavailableError, EndpointNotImplementedError } from './client'
-export type { Lesson, LessonSummary } from './types'
 
 let cached: ApiClient | null = null
 

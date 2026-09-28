@@ -8,6 +8,7 @@ import { CircuitSchema, type Circuit } from '@/circuit/types'
 import { provenanceFromExecuteResponse, toQuantumValue, type QuantumValue } from '@/provenance/QuantumValue'
 import {
   ExecuteResponseSchema,
+  LessonCatalogResponseSchema,
   MultiInputTestResponseSchema,
   OptimizeResponseSchema,
   ShotsPayloadSchema,
@@ -17,11 +18,11 @@ import {
 } from '@/provenance/schema'
 import {
   BackendUnavailableError,
-  EndpointNotImplementedError,
   type ApiClient,
   type Backend,
   type ExecutePayload,
   type ExecutionMode,
+  type Lesson,
   type MultiInputTestCase,
   type MultiInputTestResult,
   type OptimizationResult,
@@ -29,7 +30,6 @@ import {
   type TutorLanguage,
   type VerifyBellStateResult,
 } from './client'
-import type { Lesson, LessonSummary } from './types'
 
 export class RealApiClient implements ApiClient {
   private readonly baseUrl: string
@@ -124,12 +124,35 @@ export class RealApiClient implements ApiClient {
     }
   }
 
-  async listLessons(): Promise<LessonSummary[]> {
-    throw new EndpointNotImplementedError('GET /api/lessons')
-  }
+  async listLessons(): Promise<Lesson[]> {
+    let res: Response
+    try {
+      res = await fetch(`${this.baseUrl}/api/lessons`)
+    } catch (err) {
+      throw new BackendUnavailableError(
+        `could not reach the Qentor backend: ${err instanceof Error ? err.message : String(err)}`,
+      )
+    }
 
-  async getLesson(_id: string): Promise<Lesson> {
-    throw new EndpointNotImplementedError('GET /api/lessons/:id')
+    if (!res.ok) {
+      const detail = await safeErrorDetail(res)
+      throw new BackendUnavailableError(detail, res.status)
+    }
+
+    const response = LessonCatalogResponseSchema.parse(await res.json())
+
+    return response.lessons.map((lesson) => ({
+      id: lesson.id,
+      title: lesson.title,
+      shortDescription: lesson.short_description,
+      concept: lesson.concept,
+      difficulty: lesson.difficulty,
+      estimatedMinutes: lesson.estimated_minutes,
+      learningObjectives: lesson.learning_objectives,
+      sections: lesson.sections,
+      linkedCircuit: lesson.linked_circuit,
+      prerequisiteLessonIds: lesson.prerequisite_lesson_ids,
+    }))
   }
 
   async askTutor(

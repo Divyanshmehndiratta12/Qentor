@@ -85,6 +85,16 @@ interface BuildState {
   runVerification: () => Promise<void>
   askTutor: (question: string) => Promise<void>
   setTutorLanguage: (language: TutorLanguage) => void
+  /**
+   * Loads an externally-supplied canonical circuit (e.g. a Learn lesson's
+   * `linkedCircuit`, via an interactive_lab section's "Open in Lab" action)
+   * into the Build workspace — the same full reset every circuit-mutating
+   * action here already performs. Never computes or fabricates anything: the
+   * circuit itself must already be a real, already-validated canonical
+   * `Circuit`, and running/verifying it still goes through the normal
+   * `/api/execute` etc. flow once the learner acts on it here.
+   */
+  loadCircuit: (circuit: Circuit) => void
   runOptimization: () => Promise<void>
   applyOptimizedCircuit: () => void
   runMultiInputTest: (
@@ -416,6 +426,25 @@ export const useBuildStore = create<BuildState>((set, get) => ({
   // A pure learner preference — deliberately does not touch the circuit,
   // result, or any other derived tutor/verification/optimization state.
   setTutorLanguage: (language) => set({ tutorLanguage: language }),
+
+  loadCircuit: (circuit) => {
+    set({
+      ...syncFromCircuit(circuit),
+      canvasError: null,
+      selectedGate: null,
+      pendingControl: null,
+      result: null,
+      executionError: null,
+      verification: null,
+      verificationError: null,
+      tutorTurns: [],
+      isAskingTutor: false,
+      optimization: null,
+      optimizationError: null,
+      multiInputTest: null,
+      multiInputTestError: null,
+    })
+  },
 }))
 
 function addOp(

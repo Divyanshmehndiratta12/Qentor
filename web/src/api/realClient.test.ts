@@ -311,3 +311,131 @@ describe('RealApiClient.askTutor', () => {
     )
   })
 })
+
+describe('RealApiClient.listLessons', () => {
+  let fetchMock: ReturnType<typeof vi.fn>
+
+  beforeEach(() => {
+    fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('fetches GET /api/lessons and maps the real catalog to camelCase', async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        lessons: [
+          {
+            id: 'bell-state',
+            title: 'Bell State',
+            short_description: 'The simplest maximally entangled two-qubit state.',
+            concept: 'bell-state',
+            difficulty: 'intermediate',
+            estimated_minutes: 15,
+            learning_objectives: ['Build the standard Bell-state circuit.'],
+            sections: [
+              { type: 'explanation', id: 's1', title: 'The Bell state', body: 'H then CX.' },
+              {
+                type: 'interactive_lab',
+                id: 's2',
+                title: 'Verify it',
+                instructions: 'Execute, then verify.',
+                capability: 'verify_bell_state',
+              },
+            ],
+            linked_circuit: BELL_CIRCUIT,
+            prerequisite_lesson_ids: ['entanglement'],
+          },
+        ],
+      }),
+    )
+
+    const client = new RealApiClient()
+    const lessons = await client.listLessons()
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit | undefined]
+    expect(url).toBe('/api/lessons')
+    expect(init?.method ?? 'GET').toBe('GET')
+
+    expect(lessons).toHaveLength(1)
+    expect(lessons[0]).toEqual({
+      id: 'bell-state',
+      title: 'Bell State',
+      shortDescription: 'The simplest maximally entangled two-qubit state.',
+      concept: 'bell-state',
+      difficulty: 'intermediate',
+      estimatedMinutes: 15,
+      learningObjectives: ['Build the standard Bell-state circuit.'],
+      sections: [
+        { type: 'explanation', id: 's1', title: 'The Bell state', body: 'H then CX.' },
+        {
+          type: 'interactive_lab',
+          id: 's2',
+          title: 'Verify it',
+          instructions: 'Execute, then verify.',
+          capability: 'verify_bell_state',
+        },
+      ],
+      linkedCircuit: BELL_CIRCUIT,
+      prerequisiteLessonIds: ['entanglement'],
+    })
+  })
+
+  it('handles a lesson with no linked circuit', async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        lessons: [
+          {
+            id: 'bloch-sphere',
+            title: 'Bloch Sphere',
+            short_description: 'A geometric picture of a qubit.',
+            concept: 'bloch-sphere',
+            difficulty: 'beginner',
+            estimated_minutes: 12,
+            learning_objectives: ['Locate |0> and |1> on the sphere.'],
+            sections: [{ type: 'reflection', id: 's1', title: 'Reflect', prompt: 'Why a sphere?' }],
+            linked_circuit: null,
+            prerequisite_lesson_ids: [],
+          },
+        ],
+      }),
+    )
+
+    const client = new RealApiClient()
+    const lessons = await client.listLessons()
+
+    expect(lessons[0]?.linkedCircuit).toBeNull()
+  })
+
+  it('handles an empty catalog cleanly', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ lessons: [] }))
+
+    const client = new RealApiClient()
+    const lessons = await client.listLessons()
+
+    expect(lessons).toEqual([])
+  })
+
+  it('throws BackendUnavailableError when the endpoint fails', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ detail: 'internal error' }, 500))
+
+    const client = new RealApiClient()
+
+    await expect(client.listLessons()).rejects.toMatchObject({
+      name: 'BackendUnavailableError',
+      status: 500,
+    })
+  })
+
+  it('never fabricates a catalog when the network fails', async () => {
+    fetchMock.mockRejectedValueOnce(new TypeError('network down'))
+
+    const client = new RealApiClient()
+
+    await expect(client.listLessons()).rejects.toBeInstanceOf(BackendUnavailableError)
+  })
+})

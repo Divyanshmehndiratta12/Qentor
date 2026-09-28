@@ -8,6 +8,78 @@
 import { z } from 'zod'
 import { CircuitSchema } from '@/circuit/types'
 
+// backend/qentor/lessons/models.py::Difficulty
+export const LessonDifficultySchema = z.enum(['beginner', 'intermediate', 'advanced'])
+export type LessonDifficulty = z.infer<typeof LessonDifficultySchema>
+
+// backend/qentor/lessons/models.py::LabCapability — the set of already-real
+// backend endpoints an interactive_lab section may point at. Never a new
+// capability invented client-side.
+export const LabCapabilitySchema = z.enum(['execute', 'verify_bell_state', 'multi_input_test', 'optimize'])
+export type LabCapability = z.infer<typeof LabCapabilitySchema>
+
+// backend/qentor/lessons/models.py's four section models, discriminated on
+// `type` exactly like the backend's own discriminated union.
+export const ExplanationSectionSchema = z.object({
+  type: z.literal('explanation'),
+  id: z.string(),
+  title: z.string(),
+  body: z.string(),
+})
+
+export const ConceptCheckSectionSchema = z.object({
+  type: z.literal('concept_check'),
+  id: z.string(),
+  title: z.string(),
+  prompt: z.string(),
+})
+
+export const InteractiveLabSectionSchema = z.object({
+  type: z.literal('interactive_lab'),
+  id: z.string(),
+  title: z.string(),
+  instructions: z.string(),
+  capability: LabCapabilitySchema,
+})
+
+export const ReflectionSectionSchema = z.object({
+  type: z.literal('reflection'),
+  id: z.string(),
+  title: z.string(),
+  prompt: z.string(),
+})
+
+export const LessonSectionSchema = z.discriminatedUnion('type', [
+  ExplanationSectionSchema,
+  ConceptCheckSectionSchema,
+  InteractiveLabSectionSchema,
+  ReflectionSectionSchema,
+])
+export type LessonSectionResponse = z.infer<typeof LessonSectionSchema>
+
+// backend/qentor/lessons/models.py::Lesson — `linked_circuit` reuses
+// `CircuitSchema` exactly, the same canonical shape every execute/verify/
+// optimize/multi-input request already validates against.
+export const LessonSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  short_description: z.string(),
+  concept: z.string(),
+  difficulty: LessonDifficultySchema,
+  estimated_minutes: z.number().int(),
+  learning_objectives: z.array(z.string()),
+  sections: z.array(LessonSectionSchema),
+  linked_circuit: CircuitSchema.nullable(),
+  prerequisite_lesson_ids: z.array(z.string()),
+})
+export type LessonResponse = z.infer<typeof LessonSchema>
+
+// backend/qentor/api/schemas.py::LessonCatalogResponse
+export const LessonCatalogResponseSchema = z.object({
+  lessons: z.array(LessonSchema),
+})
+export type LessonCatalogResponse = z.infer<typeof LessonCatalogResponseSchema>
+
 // backend/qentor/provenance/models.py::ProvenanceClass
 export const ProvenanceClassSchema = z.enum([
   'SIMULATION',

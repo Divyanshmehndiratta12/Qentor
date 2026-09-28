@@ -25,6 +25,7 @@ import type {
   Backend,
   ExecutePayload,
   ExecutionMode,
+  Lesson,
   MultiInputTestCase,
   MultiInputTestResult,
   OptimizationResult,
@@ -32,7 +33,6 @@ import type {
   TutorLanguage,
   VerifyBellStateResult,
 } from './client'
-import type { Lesson, LessonSummary } from './types'
 
 let fixtureCounter = 0
 function nextFixtureId(): string {
@@ -145,25 +145,63 @@ export class MockApiClient implements ApiClient {
     }
   }
 
-  async listLessons(): Promise<LessonSummary[]> {
+  /** FIXTURE only: the real catalog (`qentor.lessons`) lives server-side and
+   * is served whole by GET /api/lessons. This returns a small, clearly
+   * FIXTURE-labelled catalog in the same shape so the Learn screen has
+   * something to show without a running backend — ids are prefixed
+   * `fixture-` so they can never collide with, or be mistaken for, a real
+   * registered lesson id. */
+  async listLessons(): Promise<Lesson[]> {
     await delay(80)
     return [
-      { id: 'bell-primer', title: 'Superposition & the Bell state', concept: 'superposition', masteryFraction: 0.4 },
-      { id: 'phase-kickback', title: 'Phase kickback', concept: 'phase-kickback', masteryFraction: 0 },
-      { id: 'deutsch-jozsa', title: 'Deutsch–Jozsa', concept: 'oracle-algorithms', masteryFraction: 0 },
-      { id: 'bernstein-vazirani', title: 'Bernstein–Vazirani', concept: 'oracle-algorithms', masteryFraction: null },
+      {
+        id: 'fixture-superposition',
+        title: 'FIXTURE — Superposition',
+        shortDescription: 'FIXTURE — the real catalog lives server-side (GET /api/lessons).',
+        concept: 'superposition',
+        difficulty: 'beginner',
+        estimatedMinutes: 12,
+        learningObjectives: ['FIXTURE — mock adapter objective.'],
+        sections: [
+          {
+            type: 'explanation',
+            id: 's1',
+            title: 'FIXTURE',
+            body: 'FIXTURE — mock adapter content only, not real lesson prose.',
+          },
+        ],
+        linkedCircuit: null,
+        prerequisiteLessonIds: [],
+      },
+      {
+        id: 'fixture-bell-state',
+        title: 'FIXTURE — Bell State',
+        shortDescription: 'FIXTURE — the real catalog lives server-side (GET /api/lessons).',
+        concept: 'bell-state',
+        difficulty: 'intermediate',
+        estimatedMinutes: 15,
+        learningObjectives: ['FIXTURE — mock adapter objective.'],
+        sections: [
+          {
+            type: 'interactive_lab',
+            id: 's1',
+            title: 'FIXTURE lab',
+            instructions: 'FIXTURE — mock adapter content only.',
+            capability: 'execute',
+          },
+        ],
+        linkedCircuit: {
+          schema: 'qentor.circuit/1',
+          num_qubits: 2,
+          num_clbits: 2,
+          ops: [
+            { gate: 'h', targets: [0], controls: [], params: [], clbits: [] },
+            { gate: 'cx', targets: [1], controls: [0], params: [], clbits: [] },
+          ],
+        },
+        prerequisiteLessonIds: ['fixture-superposition'],
+      },
     ]
-  }
-
-  async getLesson(id: string): Promise<Lesson> {
-    const summary = (await this.listLessons()).find((l) => l.id === id)
-    if (!summary) throw new Error(`no fixture lesson with id ${id}`)
-    return {
-      ...summary,
-      steps: [
-        { kind: 'explain', body: 'FIXTURE lesson content — backend /api/lessons does not exist yet.' },
-      ],
-    }
   }
 
   /** FIXTURE only: the real deterministic tutor lives server-side
