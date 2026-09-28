@@ -8,13 +8,25 @@
  */
 import { create } from 'zustand'
 import { getApiClient, BackendUnavailableError, EndpointNotImplementedError } from '@/api'
-import type { ExecutePayload, ExecutionMode, VerifyBellStateResult } from '@/api'
+import type { ExecutePayload, ExecutionMode, TutorAnswerResult, VerifyBellStateResult } from '@/api'
 import type { QuantumValue } from '@/provenance/QuantumValue'
 import { emptyCircuit, gateArityError, type Circuit, type GateName, type GateOp } from '@/circuit/types'
 import { toQasm3 } from '@/circuit/qasmEmitter'
 import { parseQasm3, QasmParseError } from '@/circuit/qasmParser'
 
 export const ROTATION_DEFAULT_ANGLE = Math.PI / 2
+
+/**
+ * One turn in the Tutor panel's conversation. A `tutor` turn's `answer` is
+ * exactly what POST /api/tutor returned — this store never adds, rounds or
+ * invents a fact of its own. Cleared in full (not just the pending answer)
+ * whenever the circuit or execution result changes, since every past answer
+ * was grounded in the circuit/result that is now stale.
+ */
+export type TutorTurn =
+  | { role: 'learner'; text: string }
+  | { role: 'tutor'; answer: TutorAnswerResult }
+  | { role: 'error'; message: string }
 
 interface BuildState {
   circuit: Circuit
@@ -36,6 +48,9 @@ interface BuildState {
   verification: VerifyBellStateResult | null
   verificationError: string | null
 
+  tutorTurns: TutorTurn[]
+  isAskingTutor: boolean
+
   setNumQubits: (n: number) => void
   selectGate: (gate: GateName | null) => void
   setPendingAngle: (angle: number) => void
@@ -46,6 +61,7 @@ interface BuildState {
   setShots: (shots: number) => void
   runExecution: () => Promise<void>
   runVerification: () => Promise<void>
+  askTutor: (question: string) => Promise<void>
 }
 
 function syncFromCircuit(circuit: Circuit) {
@@ -71,6 +87,9 @@ export const useBuildStore = create<BuildState>((set, get) => ({
   verification: null,
   verificationError: null,
 
+  tutorTurns: [],
+  isAskingTutor: false,
+
   setNumQubits: (n) => {
     set({
       ...syncFromCircuit(emptyCircuit(Math.max(1, Math.min(8, n)))),
@@ -79,6 +98,8 @@ export const useBuildStore = create<BuildState>((set, get) => ({
       pendingControl: null,
       verification: null,
       verificationError: null,
+      tutorTurns: [],
+      isAskingTutor: false,
     })
   },
 
@@ -125,13 +146,29 @@ export const useBuildStore = create<BuildState>((set, get) => ({
   removeOpAt: (index) => {
     const { circuit } = get()
     const ops = circuit.ops.filter((_, i) => i !== index)
-    set({ ...syncFromCircuit({ ...circuit, ops }), result: null, verification: null, verificationError: null })
+    set({
+      ...syncFromCircuit({ ...circuit, ops }),
+      result: null,
+      verification: null,
+      verificationError: null,
+      tutorTurns: [],
+      isAskingTutor: false,
+    })
   },
 
   applyQasmEdit: (text) => {
     try {
       const circuit = parseQasm3(text)
-      set({ circuit, qasmText: text, canvasError: null, result: null, verification: null, verificationError: null })
+      set({
+        circuit,
+        qasmText: text,
+        canvasError: null,
+        result: null,
+        verification: null,
+        verificationError: null,
+        tutorTurns: [],
+        isAskingTutor: false,
+      })
       return { ok: true }
     } catch (err) {
       if (err instanceof QasmParseError) {
@@ -141,16 +178,31 @@ export const useBuildStore = create<BuildState>((set, get) => ({
     }
   },
 
-  setMode: (mode) => set({ mode, result: null, verification: null, verificationError: null }),
+  setMode: (mode) =>
+    set({ mode, result: null, verification: null, verificationError: null, tutorTurns: [], isAskingTutor: false }),
   setShots: (shots) => set({ shots: Math.max(1, Math.floor(shots)) }),
 
   runExecution: async () => {
     const { circuit, mode, shots } = get()
     if (circuit.ops.length === 0) {
-      set({ result: null, executionError: null, verification: null, verificationError: null })
+      set({
+        result: null,
+        executionError: null,
+        verification: null,
+        verificationError: null,
+        tutorTurns: [],
+        isAskingTutor: false,
+      })
       return
     }
-    set({ isExecuting: true, executionError: null, verification: null, verificationError: null })
+    set({
+      isExecuting: true,
+      executionError: null,
+      verification: null,
+      verificationError: null,
+      tutorTurns: [],
+      isAskingTutor: false,
+    })
     try {
       const client = getApiClient()
       const result = await client.executeCircuit(circuit, mode, mode === 'shots' ? shots : undefined)
@@ -186,6 +238,44 @@ export const useBuildStore = create<BuildState>((set, get) => ({
       set({ verificationError: message, verification: null, isVerifying: false })
     }
   },
+
+  askTutor: async (question) => {
+    const trimmed = question.trim()
+    if (!trimmed) return
+    const { circuit, result } = get()
+    // Only ever ask about a real, already-executed result — same discipline
+    // as runVerification. resultId comes from the backend's own provenance,
+    // never guessed or typed in by the learner.
+    if (!result) return
+    const resultId = result.provenance.resultId
+
+    set((state) => ({
+      tutorTurns: [...state.tutorTurns, { role: 'learner', text: trimmed }],
+      isAskingTutor: true,
+    }))
+
+    // If the circuit/result changes while this request is in flight, the
+    // reset above (setMode/addOp/runExecution/...) already clears tutorTurns
+    // and isAskingTutor — discard this response rather than resurrecting a
+    // stale conversation grounded in a circuit that no longer applies.
+    const isStale = () => get().result?.provenance.resultId !== resultId
+
+    try {
+      const client = getApiClient()
+      const answer = await client.askTutor(resultId, circuit, trimmed)
+      if (isStale()) return
+      set((state) => ({ tutorTurns: [...state.tutorTurns, { role: 'tutor', answer }], isAskingTutor: false }))
+    } catch (err) {
+      if (isStale()) return
+      const message =
+        err instanceof BackendUnavailableError || err instanceof EndpointNotImplementedError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : String(err)
+      set((state) => ({ tutorTurns: [...state.tutorTurns, { role: 'error', message }], isAskingTutor: false }))
+    }
+  },
 }))
 
 function addOp(
@@ -206,5 +296,7 @@ function addOp(
     result: null,
     verification: null,
     verificationError: null,
+    tutorTurns: [],
+    isAskingTutor: false,
   })
 }

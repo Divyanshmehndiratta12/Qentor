@@ -17,7 +17,7 @@
  */
 import type { Circuit } from '@/circuit/types'
 import type { QuantumValue } from '@/provenance/QuantumValue'
-import type { Lesson, LessonSummary, TutorQuery, TutorReply } from './types'
+import type { Lesson, LessonSummary } from './types'
 
 export type ExecutionMode = 'statevector' | 'shots'
 
@@ -60,6 +60,36 @@ export interface VerifyBellStateResult {
   observedSupport: string[]
 }
 
+/**
+ * A single citable fact from POST /api/tutor's fact sheet — shaped after
+ * `backend/qentor/api/schemas.py::TutorFactResponse`. Every number the tutor's
+ * answer text references traces back to one of these, built server-side from
+ * the persisted execution result, never computed or guessed here.
+ */
+export interface TutorFactResult {
+  id: string
+  kind: string
+  description: string
+  resultId: string
+}
+
+/**
+ * Structured evidence from POST /api/tutor. Shaped after
+ * `backend/qentor/api/schemas.py::TutorResponse`, normalised to camelCase.
+ * `verificationStatus`/`provenanceClass` here describe the *execution* this
+ * answer is grounded in (VERIFIED/FAILED/ERROR — the same three values
+ * `/api/execute` itself reports), not a Bell-verifier verdict.
+ */
+export interface TutorAnswerResult {
+  answer: string
+  resultId: string
+  circuitHash: string
+  provenanceClass: string
+  verificationStatus: string
+  usedFallbackTemplate: boolean
+  facts: TutorFactResult[]
+}
+
 export class EndpointNotImplementedError extends Error {
   constructor(endpoint: string) {
     super(`${endpoint} has no backend implementation yet`)
@@ -97,6 +127,12 @@ export interface ApiClient {
   listLessons(): Promise<LessonSummary[]>
   getLesson(id: string): Promise<Lesson>
 
-  /** No tutor module exists yet. Real client throws `EndpointNotImplementedError`. */
-  askTutor(query: TutorQuery): Promise<TutorReply>
+  /**
+   * POST /api/tutor — a deterministic, grounded answer (no LLM yet). Sends
+   * only `resultId`, the canonical `circuit` and the learner's `question` —
+   * never a probability, count, amplitude or verdict computed client-side.
+   * The backend looks up the persisted execution by `resultId` and is the
+   * only source of every fact in the reply.
+   */
+  askTutor(resultId: string, circuit: Circuit, question: string): Promise<TutorAnswerResult>
 }

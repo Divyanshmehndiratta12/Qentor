@@ -10,6 +10,7 @@ import {
   ExecuteResponseSchema,
   ShotsPayloadSchema,
   StatevectorPayloadSchema,
+  TutorResponseSchema,
   VerifyBellStateResponseSchema,
 } from '@/provenance/schema'
 import {
@@ -18,9 +19,10 @@ import {
   type ApiClient,
   type ExecutePayload,
   type ExecutionMode,
+  type TutorAnswerResult,
   type VerifyBellStateResult,
 } from './client'
-import type { Lesson, LessonSummary, TutorQuery, TutorReply } from './types'
+import type { Lesson, LessonSummary } from './types'
 
 export class RealApiClient implements ApiClient {
   private readonly baseUrl: string
@@ -123,8 +125,46 @@ export class RealApiClient implements ApiClient {
     throw new EndpointNotImplementedError('GET /api/lessons/:id')
   }
 
-  async askTutor(_query: TutorQuery): Promise<TutorReply> {
-    throw new EndpointNotImplementedError('POST /api/tutor')
+  async askTutor(resultId: string, circuit: Circuit, question: string): Promise<TutorAnswerResult> {
+    // Same discipline as verifyBellState: the request body has exactly three
+    // fields — result_id, circuit and question. There is no way to reach this
+    // method with a probability, count, amplitude or verdict attached.
+    const validCircuit = CircuitSchema.parse(circuit)
+
+    let res: Response
+    try {
+      res = await fetch(`${this.baseUrl}/api/tutor`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ result_id: resultId, circuit: validCircuit, question }),
+      })
+    } catch (err) {
+      throw new BackendUnavailableError(
+        `could not reach the Qentor backend: ${err instanceof Error ? err.message : String(err)}`,
+      )
+    }
+
+    if (!res.ok) {
+      const detail = await safeErrorDetail(res)
+      throw new BackendUnavailableError(detail, res.status)
+    }
+
+    const response = TutorResponseSchema.parse(await res.json())
+
+    return {
+      answer: response.answer,
+      resultId: response.result_id,
+      circuitHash: response.circuit_hash,
+      provenanceClass: response.provenance_class,
+      verificationStatus: response.verification_status,
+      usedFallbackTemplate: response.used_fallback_template,
+      facts: response.facts.map((f) => ({
+        id: f.id,
+        kind: f.kind,
+        description: f.description,
+        resultId: f.result_id,
+      })),
+    }
   }
 }
 

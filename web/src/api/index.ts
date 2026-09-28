@@ -10,9 +10,17 @@ import type { ApiClient } from './client'
 import { RealApiClient } from './realClient'
 import { MockApiClient } from './mockClient'
 
-export type { ApiClient, ExecutePayload, ExecutionMode, VerificationCheckResult, VerifyBellStateResult } from './client'
+export type {
+  ApiClient,
+  ExecutePayload,
+  ExecutionMode,
+  TutorAnswerResult,
+  TutorFactResult,
+  VerificationCheckResult,
+  VerifyBellStateResult,
+} from './client'
 export { BackendUnavailableError, EndpointNotImplementedError } from './client'
-export type { Lesson, LessonSummary, TutorQuery, TutorReply } from './types'
+export type { Lesson, LessonSummary } from './types'
 
 let cached: ApiClient | null = null
 

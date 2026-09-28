@@ -79,3 +79,26 @@ export const VerifyBellStateResponseSchema = z.object({
   observed_support: z.array(z.string()),
 })
 export type VerifyBellStateResponse = z.infer<typeof VerifyBellStateResponseSchema>
+
+// backend/qentor/api/schemas.py::TutorFactResponse
+export const TutorFactSchema = z.object({
+  id: z.string(),
+  kind: z.string(),
+  description: z.string(),
+  result_id: z.string(),
+})
+export type TutorFact = z.infer<typeof TutorFactSchema>
+
+// backend/qentor/api/schemas.py::TutorResponse — `verification_status` here is
+// the *execution's* own status (VERIFIED/FAILED/ERROR, see
+// `VerificationStatusSchema` above), not a Bell-verifier verdict.
+export const TutorResponseSchema = z.object({
+  answer: z.string(),
+  result_id: z.string(),
+  circuit_hash: z.string(),
+  provenance_class: z.string(),
+  verification_status: z.string(),
+  used_fallback_template: z.boolean(),
+  facts: z.array(TutorFactSchema),
+})
+export type TutorResponse = z.infer<typeof TutorResponseSchema>

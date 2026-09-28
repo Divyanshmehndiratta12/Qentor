@@ -20,8 +20,8 @@
  */
 import type { Circuit } from '@/circuit/types'
 import { FIXTURE, toQuantumValue, type Provenance, type QuantumValue } from '@/provenance/QuantumValue'
-import type { ApiClient, ExecutePayload, ExecutionMode, VerifyBellStateResult } from './client'
-import type { Lesson, LessonSummary, TutorQuery, TutorReply } from './types'
+import type { ApiClient, ExecutePayload, ExecutionMode, TutorAnswerResult, VerifyBellStateResult } from './client'
+import type { Lesson, LessonSummary } from './types'
 
 let fixtureCounter = 0
 function nextFixtureId(): string {
@@ -155,17 +155,32 @@ export class MockApiClient implements ApiClient {
     }
   }
 
-  async askTutor(query: TutorQuery): Promise<TutorReply> {
-    await delay(300)
+  /** FIXTURE only: the real deterministic tutor lives server-side
+   * (qentor.tutor). This builds a tiny fact sheet from the circuit alone so
+   * the Build screen's Tutor panel has something to show without a running
+   * backend — clearly labelled FIXTURE, never confusable with a grounded
+   * server answer. */
+  async askTutor(resultId: string, circuit: Circuit, question: string): Promise<TutorAnswerResult> {
+    await delay(200)
+
+    const gateList = circuit.ops.map((op) => op.gate).join(', ') || 'no operations'
+    const circuitFact = {
+      id: 'F1',
+      kind: 'circuit_summary',
+      description: `FIXTURE — ${circuit.num_qubits}-qubit, ${circuit.num_clbits}-clbit circuit: ${gateList}`,
+      resultId,
+    }
+
     return {
-      segments: [
-        'FIXTURE tutor reply — no tutor module exists server-side yet.',
-        `You asked about ${query.resultIds.length} result(s).`,
-      ],
-      factReferences: query.resultIds.map((id) => ({ resultId: id, label: 'referenced result' })),
-      candidateCircuit: null,
+      answer:
+        `FIXTURE — the real tutor lives server-side. You asked "${question}" about ` +
+        `a ${circuit.num_qubits}-qubit circuit (${gateList}). See ${circuitFact.id}.`,
+      resultId,
+      circuitHash: 'qc_mockmockmock',
+      provenanceClass: FIXTURE,
+      verificationStatus: 'VERIFIED',
       usedFallbackTemplate: true,
-      rejectedClaimCount: 0,
+      facts: [circuitFact],
     }
   }
 }
