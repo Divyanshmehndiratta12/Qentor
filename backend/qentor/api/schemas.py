@@ -111,3 +111,68 @@ class TutorResponse(BaseModel):
     verification_status: str
     used_fallback_template: bool
     facts: list[TutorFactResponse]
+
+
+class MultiInputTestCaseRequest(BaseModel):
+    """One explicit, reproducible input — never a probability, count or
+    verdict. ``input_bits``/``expected_output`` are read positionally against
+    the request's own ``input_qubits``/``output_qubits`` (see
+    ``qentor.verification.multi_input_harness.TestCaseSpec``).
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    input_bits: str
+    expected_output: str
+
+
+class MultiInputTestRequest(BaseModel):
+    """``circuit`` is the same canonical shape every other endpoint takes.
+    Each case in ``cases`` is executed statevector-exact after prepending an
+    X gate per '1' bit in ``input_bits`` on ``input_qubits``; this harness
+    never accepts a client-supplied probability, count or pass/fail verdict.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    circuit: Circuit
+    input_qubits: list[int]
+    output_qubits: list[int]
+    cases: list[MultiInputTestCaseRequest] = Field(min_length=1)
+    backend: Literal["qiskit-aer", "cirq", "pennylane"] = "qiskit-aer"
+
+
+class MultiInputCaseResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    input_bits: str
+    expected_output: str
+    status: str
+    observed_distribution: dict[str, float] | None
+    error: str | None
+    result_id: str | None
+    circuit_hash: str
+
+
+class MultiInputCounterexampleResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    input_bits: str
+    expected_output: str
+    observed_distribution: dict[str, float]
+    circuit_hash: str
+    result_id: str | None
+
+
+class MultiInputTestResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    test_id: str
+    circuit_hash: str
+    backend: str
+    backend_version: str | None
+    input_qubits: list[int]
+    output_qubits: list[int]
+    cases: list[MultiInputCaseResponse]
+    counterexamples: list[MultiInputCounterexampleResponse]
+    overall_status: str

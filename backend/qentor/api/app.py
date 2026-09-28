@@ -1,4 +1,5 @@
-"""FastAPI app — POST /api/execute, POST /api/verify/bell-state and POST /api/tutor.
+"""FastAPI app — POST /api/execute, POST /api/verify/bell-state,
+POST /api/tutor and POST /api/test/multi-input.
 
 This module imports ``circuit``, ``execution``, ``provenance``, ``storage``,
 ``verification`` and ``tutor`` — exactly the ``api -> tutor -> verification ->
@@ -27,7 +28,7 @@ from __future__ import annotations
 from fastapi import FastAPI, HTTPException
 
 from qentor.circuit.hashing import circuit_hash
-from qentor.execution.adapter import AdapterExecutionError, AdapterUnavailable
+from qentor.execution.adapter import AdapterExecutionError, AdapterUnavailable, ExecutionResult
 from qentor.execution.aer import AerAdapter
 from qentor.execution.cirq_adapter import CirqAdapter
 from qentor.execution.pennylane_adapter import PennyLaneAdapter
@@ -40,10 +41,19 @@ from qentor.tutor import (
     build_fact_sheet,
 )
 from qentor.verification.bell_state import verify_bell_state
+from qentor.verification.multi_input_harness import (
+    HarnessValidationError,
+    TestCaseSpec,
+    run_multi_input_test,
+)
 
 from .schemas import (
     ExecuteRequest,
     ExecuteResponse,
+    MultiInputCaseResponse,
+    MultiInputCounterexampleResponse,
+    MultiInputTestRequest,
+    MultiInputTestResponse,
     TutorFactResponse,
     TutorRequest,
     TutorResponse,
@@ -213,4 +223,77 @@ def tutor_endpoint(request: TutorRequest) -> TutorResponse:
             TutorFactResponse(id=f.id, kind=f.kind, description=f.description, result_id=f.result_id)
             for f in facts
         ],
+    )
+
+
+@app.post("/api/test/multi-input", response_model=MultiInputTestResponse)
+def multi_input_test_endpoint(request: MultiInputTestRequest) -> MultiInputTestResponse:
+    """Basis-sweep multi-input test harness (docs/VERIFICATION_ARCHITECTURE.md
+    §4.2, ``qentor.verification.multi_input_harness``).
+
+    Every case's own execution is persisted exactly like ``/api/execute``
+    would (this is the only place ``multi_input_harness`` touches
+    ``ProvenanceStore`` — the harness module itself never imports it, it only
+    calls back into this closure once per case). A request that doesn't fit
+    the circuit (an out-of-range qubit, a wrong-width bitstring, too many
+    qubits/cases) is rejected outright as HTTP 422, never silently
+    reinterpreted or truncated.
+    """
+    adapter = _adapters[request.backend]
+
+    def record_execution(result: ExecutionResult, case_circuit_hash: str) -> str:
+        record = ProvenanceRecord.new(
+            circuit_hash=case_circuit_hash,
+            backend=result.backend_name,
+            backend_version=result.backend_version,
+            execution_mode=result.execution_mode,
+            provenance_class=ProvenanceClass.SIMULATION,
+            verification_status=VerificationStatus.VERIFIED,
+            payload=result.to_payload(),
+        )
+        _store.insert(record)
+        return record.result_id
+
+    try:
+        report = run_multi_input_test(
+            circuit=request.circuit,
+            adapter=adapter,
+            input_qubits=request.input_qubits,
+            output_qubits=request.output_qubits,
+            cases=[TestCaseSpec(input_bits=c.input_bits, expected_output=c.expected_output) for c in request.cases],
+            record_execution=record_execution,
+        )
+    except HarnessValidationError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    return MultiInputTestResponse(
+        test_id=report.test_id,
+        circuit_hash=report.circuit_hash,
+        backend=report.backend,
+        backend_version=report.backend_version,
+        input_qubits=report.input_qubits,
+        output_qubits=report.output_qubits,
+        cases=[
+            MultiInputCaseResponse(
+                input_bits=c.input_bits,
+                expected_output=c.expected_output,
+                status=c.status.value,
+                observed_distribution=c.observed_distribution,
+                error=c.error,
+                result_id=c.result_id,
+                circuit_hash=c.circuit_hash,
+            )
+            for c in report.cases
+        ],
+        counterexamples=[
+            MultiInputCounterexampleResponse(
+                input_bits=c.input_bits,
+                expected_output=c.expected_output,
+                observed_distribution=c.observed_distribution,
+                circuit_hash=c.circuit_hash,
+                result_id=c.result_id,
+            )
+            for c in report.counterexamples
+        ],
+        overall_status=report.overall_status.value,
     )
