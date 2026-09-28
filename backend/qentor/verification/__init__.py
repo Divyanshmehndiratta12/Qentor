@@ -1,7 +1,33 @@
-"""Verification layer — reserved for a later milestone.
+"""Verification layer (docs/ARCHITECTURE.md §7, docs/VERIFICATION_ARCHITECTURE.md).
 
-Multi-input test harness, equivalence checker and optimiser are NOT part of
-Milestone 1 (canonical circuit -> Aer -> provenance). This package exists now so
-the module boundary from docs/ARCHITECTURE.md is in place, and so the import-graph
-rule ("execution and verification never import tutor") has somewhere real to point.
+This package only ever reads a canonical ``Circuit`` and a real, already-persisted
+``ProvenanceRecord`` and reports structured evidence about them. It never executes a
+circuit, never invents a probability or count, and never writes to the provenance
+log — see ``qentor.execution`` and ``qentor.provenance`` for those. It must never
+import ``tutor``; see ``backend/tests/test_architecture_rule.py``.
+
+Milestone 2 foundation: the general test harness, equivalence checker and optimiser
+from docs/VERIFICATION_ARCHITECTURE.md §4 are not built yet. ``bell_state`` is the
+first concrete verifier.
 """
+
+from __future__ import annotations
+
+from .bell_state import (
+    VERIFIER_NAME,
+    BellPatternMismatch,
+    UnsupportedExecutionMode,
+    verify_bell_state,
+)
+from .models import CheckStatus, VerificationCheck, VerificationReport, VerificationStatus
+
+__all__ = [
+    "VERIFIER_NAME",
+    "BellPatternMismatch",
+    "UnsupportedExecutionMode",
+    "verify_bell_state",
+    "CheckStatus",
+    "VerificationCheck",
+    "VerificationReport",
+    "VerificationStatus",
+]
