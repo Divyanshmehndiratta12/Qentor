@@ -1,9 +1,9 @@
-"""FastAPI app — Milestone 1 scope: POST /api/execute only.
+"""FastAPI app — POST /api/execute and POST /api/verify/bell-state.
 
 No frontend is served here yet. No tutor endpoint exists yet. This module imports
-only ``circuit``, ``execution``, ``provenance`` and ``storage`` — never ``tutor``,
-because ``tutor`` does not exist yet and, per the architecture rule, never will be
-imported from here in a way that lets it write results.
+``circuit``, ``execution``, ``provenance``, ``storage`` and ``verification`` — never
+``tutor``, because ``tutor`` does not exist yet and, per the architecture rule, never
+will be imported from here in a way that lets it write results.
 """
 
 from __future__ import annotations
@@ -15,8 +15,15 @@ from qentor.execution.adapter import AdapterExecutionError, AdapterUnavailable
 from qentor.execution.aer import AerAdapter
 from qentor.provenance.models import ProvenanceClass, ProvenanceRecord, VerificationStatus
 from qentor.provenance.store import ProvenanceStore
+from qentor.verification.bell_state import verify_bell_state
 
-from .schemas import ExecuteRequest, ExecuteResponse
+from .schemas import (
+    ExecuteRequest,
+    ExecuteResponse,
+    VerificationCheckResponse,
+    VerifyBellStateRequest,
+    VerifyBellStateResponse,
+)
 
 app = FastAPI(title="Qentor backend", version="0.1.0")
 
@@ -69,4 +76,46 @@ def execute(request: ExecuteRequest) -> ExecuteResponse:
         verification_status=record.verification_status.value,
         created_at=record.created_at,
         payload=record.payload,
+    )
+
+
+@app.post("/api/verify/bell-state", response_model=VerifyBellStateResponse)
+def verify_bell_state_endpoint(request: VerifyBellStateRequest) -> VerifyBellStateResponse:
+    """Verify an already-executed result against the ideal Bell-state circuit.
+
+    Never re-executes the circuit: the result comes only from the provenance record
+    the original ``/api/execute`` call persisted, looked up by ``result_id``. The
+    request's ``circuit`` is the learner's own canonical circuit (the same shape
+    ``/api/execute`` accepts, never a probability/count/verdict); ``verify_bell_state``
+    itself rejects it with an ERROR report if its hash doesn't match the record's.
+    """
+    record = _store.get(request.result_id)
+    if record is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"no provenance record found for result_id '{request.result_id}'",
+        )
+
+    try:
+        report = verify_bell_state(request.circuit, record)
+    except Exception as exc:  # noqa: BLE001 - surface a malformed/inconsistent record, don't crash
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"could not verify provenance record '{request.result_id}': "
+                f"{type(exc).__name__}: {exc}"
+            ),
+        ) from exc
+
+    return VerifyBellStateResponse(
+        result_id=report.result_id,
+        circuit_hash=report.circuit_hash,
+        verifier=report.verifier,
+        verification_status=report.verification_status.value,
+        checks=[
+            VerificationCheckResponse(name=c.name, status=c.status.value, detail=c.detail)
+            for c in report.checks
+        ],
+        expected_support=report.expected_support,
+        observed_support=report.observed_support,
     )
