@@ -10,6 +10,7 @@ import {
   ExecuteResponseSchema,
   ShotsPayloadSchema,
   StatevectorPayloadSchema,
+  VerifyBellStateResponseSchema,
 } from '@/provenance/schema'
 import {
   BackendUnavailableError,
@@ -17,6 +18,7 @@ import {
   type ApiClient,
   type ExecutePayload,
   type ExecutionMode,
+  type VerifyBellStateResult,
 } from './client'
 import type { Lesson, LessonSummary, TutorQuery, TutorReply } from './types'
 
@@ -72,6 +74,45 @@ export class RealApiClient implements ApiClient {
     }
 
     return toQuantumValue(payload, provenance)
+  }
+
+  async verifyBellState(resultId: string, circuit: Circuit): Promise<VerifyBellStateResult> {
+    // Same discipline as executeCircuit: validate the circuit locally, and the
+    // request body below has exactly two fields — result_id and circuit. There
+    // is no way to reach this method with a probability, count, amplitude or
+    // verification_status field attached; nothing here reads or forwards any
+    // such value.
+    const validCircuit = CircuitSchema.parse(circuit)
+
+    let res: Response
+    try {
+      res = await fetch(`${this.baseUrl}/api/verify/bell-state`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ result_id: resultId, circuit: validCircuit }),
+      })
+    } catch (err) {
+      throw new BackendUnavailableError(
+        `could not reach the Qentor backend: ${err instanceof Error ? err.message : String(err)}`,
+      )
+    }
+
+    if (!res.ok) {
+      const detail = await safeErrorDetail(res)
+      throw new BackendUnavailableError(detail, res.status)
+    }
+
+    const response = VerifyBellStateResponseSchema.parse(await res.json())
+
+    return {
+      resultId: response.result_id,
+      circuitHash: response.circuit_hash,
+      verifier: response.verifier,
+      verificationStatus: response.verification_status,
+      checks: response.checks,
+      expectedSupport: response.expected_support,
+      observedSupport: response.observed_support,
+    }
   }
 
   async listLessons(): Promise<LessonSummary[]> {

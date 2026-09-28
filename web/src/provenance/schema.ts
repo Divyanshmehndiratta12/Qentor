@@ -48,3 +48,34 @@ export const ShotsPayloadSchema = z.object({
   probabilities: z.record(z.string(), z.number()),
 })
 export type ShotsPayload = z.infer<typeof ShotsPayloadSchema>
+
+// backend/qentor/verification/models.py::CheckStatus
+export const VerificationCheckStatusSchema = z.enum(['PASS', 'FAIL'])
+export type VerificationCheckStatus = z.infer<typeof VerificationCheckStatusSchema>
+
+// backend/qentor/verification/models.py::VerificationStatus — a verifier's
+// judgement (VERIFIED/FAILED/UNVERIFIABLE/ERROR), deliberately a distinct type
+// from `VerificationStatusSchema` above, which is the *execution's* own status
+// (VERIFIED/FAILED/ERROR, no UNVERIFIABLE) reported by /api/execute.
+export const BellVerificationStatusSchema = z.enum(['VERIFIED', 'FAILED', 'UNVERIFIABLE', 'ERROR'])
+export type BellVerificationStatus = z.infer<typeof BellVerificationStatusSchema>
+
+// backend/qentor/api/schemas.py::VerificationCheckResponse
+export const VerificationCheckSchema = z.object({
+  name: z.string(),
+  status: VerificationCheckStatusSchema,
+  detail: z.string(),
+})
+export type VerificationCheck = z.infer<typeof VerificationCheckSchema>
+
+// backend/qentor/api/schemas.py::VerifyBellStateResponse
+export const VerifyBellStateResponseSchema = z.object({
+  result_id: z.string(),
+  circuit_hash: z.string(),
+  verifier: z.string(),
+  verification_status: BellVerificationStatusSchema,
+  checks: z.array(VerificationCheckSchema),
+  expected_support: z.array(z.string()),
+  observed_support: z.array(z.string()),
+})
+export type VerifyBellStateResponse = z.infer<typeof VerifyBellStateResponseSchema>

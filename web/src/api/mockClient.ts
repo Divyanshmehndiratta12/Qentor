@@ -20,7 +20,7 @@
  */
 import type { Circuit } from '@/circuit/types'
 import { FIXTURE, toQuantumValue, type Provenance, type QuantumValue } from '@/provenance/QuantumValue'
-import type { ApiClient, ExecutePayload, ExecutionMode } from './client'
+import type { ApiClient, ExecutePayload, ExecutionMode, VerifyBellStateResult } from './client'
 import type { Lesson, LessonSummary, TutorQuery, TutorReply } from './types'
 
 let fixtureCounter = 0
@@ -84,6 +84,54 @@ export class MockApiClient implements ApiClient {
           }
 
     return toQuantumValue(payload, provenance)
+  }
+
+  /** FIXTURE only: the real verifier lives server-side. This recognises the
+   * same h -> cx shape `qentor.verification.bell_state` does, purely so the
+   * Build screen's Verify action has something to show without a running
+   * backend — every field is clearly labelled FIXTURE, never confusable with
+   * a real verification report. */
+  async verifyBellState(resultId: string, circuit: Circuit): Promise<VerifyBellStateResult> {
+    await delay(150)
+
+    const nonMeasureOps = circuit.ops.filter((op) => op.gate !== 'measure')
+    const isBellShaped =
+      circuit.num_qubits === 2 &&
+      nonMeasureOps.length === 2 &&
+      nonMeasureOps[0]?.gate === 'h' &&
+      nonMeasureOps[1]?.gate === 'cx'
+
+    if (!isBellShaped) {
+      return {
+        resultId,
+        circuitHash: 'qc_mockmockmock',
+        verifier: 'bell_state/1 (FIXTURE)',
+        verificationStatus: 'UNVERIFIABLE',
+        checks: [
+          {
+            name: 'circuit_matches_bell_pattern',
+            status: 'FAIL',
+            detail: 'FIXTURE — the mock adapter only recognises h(q0) -> cx(q0, q1).',
+          },
+        ],
+        expectedSupport: [],
+        observedSupport: [],
+      }
+    }
+
+    return {
+      resultId,
+      circuitHash: 'qc_mockmockmock',
+      verifier: 'bell_state/1 (FIXTURE)',
+      verificationStatus: 'VERIFIED',
+      checks: [
+        { name: 'circuit_matches_bell_pattern', status: 'PASS', detail: 'FIXTURE — mock adapter check' },
+        { name: 'observed_support_within_expected', status: 'PASS', detail: 'FIXTURE — mock adapter check' },
+        { name: 'expected_support_fully_observed', status: 'PASS', detail: 'FIXTURE — mock adapter check' },
+      ],
+      expectedSupport: ['00', '11'],
+      observedSupport: ['00', '11'],
+    }
   }
 
   async listLessons(): Promise<LessonSummary[]> {

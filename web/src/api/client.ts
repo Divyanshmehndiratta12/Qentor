@@ -36,6 +36,30 @@ export interface ExecutePayload {
   probabilities?: Record<string, number>
 }
 
+/**
+ * Structured evidence from POST /api/verify/bell-state. Shaped after
+ * `backend/qentor/api/schemas.py::VerifyBellStateResponse`, normalised to
+ * camelCase. Not wrapped in `QuantumValue` — it has no single numeric value
+ * and no full `Provenance` (the backend returns no backend/backendVersion/
+ * executionMode/createdAt for a verification report) — but every field on it
+ * still comes only from the server's own verifier, never invented client-side.
+ */
+export interface VerificationCheckResult {
+  name: string
+  status: 'PASS' | 'FAIL'
+  detail: string
+}
+
+export interface VerifyBellStateResult {
+  resultId: string
+  circuitHash: string
+  verifier: string
+  verificationStatus: 'VERIFIED' | 'FAILED' | 'UNVERIFIABLE' | 'ERROR'
+  checks: VerificationCheckResult[]
+  expectedSupport: string[]
+  observedSupport: string[]
+}
+
 export class EndpointNotImplementedError extends Error {
   constructor(endpoint: string) {
     super(`${endpoint} has no backend implementation yet`)
@@ -54,12 +78,20 @@ export class BackendUnavailableError extends Error {
 }
 
 export interface ApiClient {
-  /** POST /api/execute — the only endpoint that exists server-side today. */
+  /** POST /api/execute — executes a circuit. */
   executeCircuit(
     circuit: Circuit,
     mode: ExecutionMode,
     shots?: number,
   ): Promise<QuantumValue<ExecutePayload>>
+
+  /**
+   * POST /api/verify/bell-state — checks an already-executed result (by
+   * `resultId`) against the ideal Bell-state circuit. Never re-executes
+   * anything: sends only the result id and the canonical `circuit` already
+   * known to the client, never a probability, count, amplitude or verdict.
+   */
+  verifyBellState(resultId: string, circuit: Circuit): Promise<VerifyBellStateResult>
 
   /** No `/api/lessons` route exists yet. Real client throws `EndpointNotImplementedError`. */
   listLessons(): Promise<LessonSummary[]>

@@ -10,7 +10,7 @@ import type { ApiClient } from './client'
 import { RealApiClient } from './realClient'
 import { MockApiClient } from './mockClient'
 
-export type { ApiClient, ExecutePayload, ExecutionMode } from './client'
+export type { ApiClient, ExecutePayload, ExecutionMode, VerificationCheckResult, VerifyBellStateResult } from './client'
 export { BackendUnavailableError, EndpointNotImplementedError } from './client'
 export type { Lesson, LessonSummary, TutorQuery, TutorReply } from './types'
 

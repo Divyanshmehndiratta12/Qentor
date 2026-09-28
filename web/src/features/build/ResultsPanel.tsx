@@ -9,6 +9,7 @@
 import createPlotlyComponent from 'react-plotly.js/factory'
 import Plotly from 'plotly.js-basic-dist-min'
 import { useBuildStore } from './store'
+import { VerificationPanel } from './VerificationPanel'
 import { VerifiedValueInline } from '@/provenance/VerifiedValue'
 import { ProvenanceBadge } from '@/provenance/ProvenanceBadge'
 import { toQuantumValue } from '@/provenance/QuantumValue'
@@ -97,6 +98,8 @@ export function ResultsPanel() {
         {!isExecuting && result && result.value.statevector && (
           <StatevectorResult amplitudes={result.value.statevector} provenance={result.provenance} />
         )}
+
+        <VerificationPanel />
       </div>
     </div>
   )

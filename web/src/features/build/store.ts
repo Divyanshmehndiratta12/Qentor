@@ -8,7 +8,7 @@
  */
 import { create } from 'zustand'
 import { getApiClient, BackendUnavailableError, EndpointNotImplementedError } from '@/api'
-import type { ExecutePayload, ExecutionMode } from '@/api'
+import type { ExecutePayload, ExecutionMode, VerifyBellStateResult } from '@/api'
 import type { QuantumValue } from '@/provenance/QuantumValue'
 import { emptyCircuit, gateArityError, type Circuit, type GateName, type GateOp } from '@/circuit/types'
 import { toQasm3 } from '@/circuit/qasmEmitter'
@@ -32,6 +32,10 @@ interface BuildState {
   result: QuantumValue<ExecutePayload> | null
   executionError: string | null
 
+  isVerifying: boolean
+  verification: VerifyBellStateResult | null
+  verificationError: string | null
+
   setNumQubits: (n: number) => void
   selectGate: (gate: GateName | null) => void
   setPendingAngle: (angle: number) => void
@@ -41,6 +45,7 @@ interface BuildState {
   setMode: (mode: ExecutionMode) => void
   setShots: (shots: number) => void
   runExecution: () => Promise<void>
+  runVerification: () => Promise<void>
 }
 
 function syncFromCircuit(circuit: Circuit) {
@@ -62,8 +67,19 @@ export const useBuildStore = create<BuildState>((set, get) => ({
   result: null,
   executionError: null,
 
+  isVerifying: false,
+  verification: null,
+  verificationError: null,
+
   setNumQubits: (n) => {
-    set({ ...syncFromCircuit(emptyCircuit(Math.max(1, Math.min(8, n)))), result: null, canvasError: null, pendingControl: null })
+    set({
+      ...syncFromCircuit(emptyCircuit(Math.max(1, Math.min(8, n)))),
+      result: null,
+      canvasError: null,
+      pendingControl: null,
+      verification: null,
+      verificationError: null,
+    })
   },
 
   selectGate: (gate) => set({ selectedGate: gate, pendingControl: null, canvasError: null }),
@@ -109,13 +125,13 @@ export const useBuildStore = create<BuildState>((set, get) => ({
   removeOpAt: (index) => {
     const { circuit } = get()
     const ops = circuit.ops.filter((_, i) => i !== index)
-    set({ ...syncFromCircuit({ ...circuit, ops }), result: null })
+    set({ ...syncFromCircuit({ ...circuit, ops }), result: null, verification: null, verificationError: null })
   },
 
   applyQasmEdit: (text) => {
     try {
       const circuit = parseQasm3(text)
-      set({ circuit, qasmText: text, canvasError: null, result: null })
+      set({ circuit, qasmText: text, canvasError: null, result: null, verification: null, verificationError: null })
       return { ok: true }
     } catch (err) {
       if (err instanceof QasmParseError) {
@@ -125,16 +141,16 @@ export const useBuildStore = create<BuildState>((set, get) => ({
     }
   },
 
-  setMode: (mode) => set({ mode, result: null }),
+  setMode: (mode) => set({ mode, result: null, verification: null, verificationError: null }),
   setShots: (shots) => set({ shots: Math.max(1, Math.floor(shots)) }),
 
   runExecution: async () => {
     const { circuit, mode, shots } = get()
     if (circuit.ops.length === 0) {
-      set({ result: null, executionError: null })
+      set({ result: null, executionError: null, verification: null, verificationError: null })
       return
     }
-    set({ isExecuting: true, executionError: null })
+    set({ isExecuting: true, executionError: null, verification: null, verificationError: null })
     try {
       const client = getApiClient()
       const result = await client.executeCircuit(circuit, mode, mode === 'shots' ? shots : undefined)
@@ -147,6 +163,27 @@ export const useBuildStore = create<BuildState>((set, get) => ({
             ? err.message
             : String(err)
       set({ executionError: message, result: null, isExecuting: false })
+    }
+  },
+
+  runVerification: async () => {
+    const { circuit, result } = get()
+    // Only ever verify a real, already-executed result — the resultId comes
+    // from the provenance the backend returned for it, never a client guess.
+    if (!result) return
+    set({ isVerifying: true, verificationError: null })
+    try {
+      const client = getApiClient()
+      const verification = await client.verifyBellState(result.provenance.resultId, circuit)
+      set({ verification, isVerifying: false })
+    } catch (err) {
+      const message =
+        err instanceof BackendUnavailableError || err instanceof EndpointNotImplementedError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : String(err)
+      set({ verificationError: message, verification: null, isVerifying: false })
     }
   },
 }))
@@ -163,5 +200,11 @@ function addOp(
   }
   const { circuit } = get()
   const ops = [...circuit.ops, op]
-  set({ ...syncFromCircuit({ ...circuit, ops }), canvasError: null, result: null })
+  set({
+    ...syncFromCircuit({ ...circuit, ops }),
+    canvasError: null,
+    result: null,
+    verification: null,
+    verificationError: null,
+  })
 }
