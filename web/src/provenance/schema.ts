@@ -6,6 +6,7 @@
  * `QuantumValue.ts`.
  */
 import { z } from 'zod'
+import { CircuitSchema } from '@/circuit/types'
 
 // backend/qentor/provenance/models.py::ProvenanceClass
 export const ProvenanceClassSchema = z.enum([
@@ -102,3 +103,59 @@ export const TutorResponseSchema = z.object({
   facts: z.array(TutorFactSchema),
 })
 export type TutorResponse = z.infer<typeof TutorResponseSchema>
+
+// backend/qentor/verification/optimizer.py::OptimizationStatus
+export const OptimizationStatusSchema = z.enum([
+  'VERIFIED_SHORTER',
+  'NO_OPTIMIZATION_FOUND',
+  'REJECTED',
+  'UNVERIFIABLE',
+])
+export type OptimizationStatus = z.infer<typeof OptimizationStatusSchema>
+
+// backend/qentor/verification/equivalence.py::EquivalenceStatus — the
+// optimizer's supporting equivalence report always uses this vocabulary,
+// distinct from OptimizationStatusSchema above (an optimizer status) and from
+// BellVerificationStatusSchema (the Bell verifier's own status).
+export const EquivalenceStatusSchema = z.enum(['EQUIVALENT', 'NOT_EQUIVALENT', 'UNVERIFIABLE'])
+export type EquivalenceStatus = z.infer<typeof EquivalenceStatusSchema>
+
+// backend/qentor/api/schemas.py::OptimizeEquivalenceCheckResponse
+export const OptimizeEquivalenceCheckSchema = z.object({
+  name: z.string(),
+  status: VerificationCheckStatusSchema,
+  detail: z.string(),
+})
+export type OptimizeEquivalenceCheck = z.infer<typeof OptimizeEquivalenceCheckSchema>
+
+// backend/qentor/api/schemas.py::OptimizeEquivalenceResponse
+export const OptimizeEquivalenceSchema = z.object({
+  status: EquivalenceStatusSchema,
+  method: z.string(),
+  global_phase: z.number().nullable(),
+  checks: z.array(OptimizeEquivalenceCheckSchema),
+  reason: z.string().nullable(),
+})
+export type OptimizeEquivalence = z.infer<typeof OptimizeEquivalenceSchema>
+
+// backend/qentor/api/schemas.py::OptimizeResponse — `candidate_circuit` is
+// non-null only when `status === "VERIFIED_SHORTER"` (see the backend's own
+// OptimizationReport docstring): an unverified candidate's definition is
+// withheld by the server, not merely labelled, so nothing downstream can
+// apply it by mistake.
+export const OptimizeResponseSchema = z.object({
+  original_circuit_hash: z.string(),
+  candidate_circuit_hash: z.string(),
+  original_op_count: z.number().int(),
+  candidate_op_count: z.number().int(),
+  rules_applied: z.array(z.string()),
+  reduction_summary: z.string(),
+  status: OptimizationStatusSchema,
+  equivalence: OptimizeEquivalenceSchema.nullable(),
+  verifier_name: z.string(),
+  verifier_version: z.string(),
+  reason: z.string().nullable(),
+  candidate_circuit: CircuitSchema.nullable(),
+  result_id: z.string().nullable(),
+})
+export type OptimizeResponse = z.infer<typeof OptimizeResponseSchema>

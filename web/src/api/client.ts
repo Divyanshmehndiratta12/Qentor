@@ -21,6 +21,10 @@ import type { Lesson, LessonSummary } from './types'
 
 export type ExecutionMode = 'statevector' | 'shots'
 
+/** Matches `backend/qentor/api/schemas.py`'s `backend: Literal[...]` field —
+ * every endpoint that accepts one uses this same three-value set. */
+export type Backend = 'qiskit-aer' | 'cirq' | 'pennylane'
+
 /**
  * Client-facing execution payload. Shaped after
  * `backend/qentor/execution/adapter.py::ExecutionResult.to_payload()`, but
@@ -90,6 +94,46 @@ export interface TutorAnswerResult {
   facts: TutorFactResult[]
 }
 
+/**
+ * Structured evidence from POST /api/optimize. Shaped after
+ * `backend/qentor/api/schemas.py::OptimizeResponse`, normalised to camelCase.
+ * `equivalence` is the server's own Qiskit-Operator-equivalence report
+ * (`qentor.verification.equivalence`) — the one documented equivalence
+ * method, never recomputed here. `candidateCircuit` is non-null only when
+ * `status === 'VERIFIED_SHORTER'`: the server withholds an unverified
+ * candidate's definition entirely, so there is nothing for this app to
+ * accidentally apply.
+ */
+export interface OptimizationEquivalenceCheckResult {
+  name: string
+  status: 'PASS' | 'FAIL'
+  detail: string
+}
+
+export interface OptimizationEquivalenceResult {
+  status: 'EQUIVALENT' | 'NOT_EQUIVALENT' | 'UNVERIFIABLE'
+  method: string
+  globalPhase: number | null
+  checks: OptimizationEquivalenceCheckResult[]
+  reason: string | null
+}
+
+export interface OptimizationResult {
+  originalCircuitHash: string
+  candidateCircuitHash: string
+  originalOpCount: number
+  candidateOpCount: number
+  rulesApplied: string[]
+  reductionSummary: string
+  status: 'VERIFIED_SHORTER' | 'NO_OPTIMIZATION_FOUND' | 'REJECTED' | 'UNVERIFIABLE'
+  equivalence: OptimizationEquivalenceResult | null
+  verifierName: string
+  verifierVersion: string
+  reason: string | null
+  candidateCircuit: Circuit | null
+  resultId: string | null
+}
+
 export class EndpointNotImplementedError extends Error {
   constructor(endpoint: string) {
     super(`${endpoint} has no backend implementation yet`)
@@ -135,4 +179,15 @@ export interface ApiClient {
    * only source of every fact in the reply.
    */
   askTutor(resultId: string, circuit: Circuit, question: string): Promise<TutorAnswerResult>
+
+  /**
+   * POST /api/optimize — a small, deterministic rewrite of the circuit,
+   * reported as `VERIFIED_SHORTER` only once the server's own equivalence
+   * checker (Qiskit Operator equivalence) confirms it. Sends only the
+   * canonical `circuit` and an optional backend choice — never a probability,
+   * amplitude, count, or a client-decided equivalence verdict. `backend`
+   * selects which adapter runs the *already-verified* candidate once, purely
+   * to persist supporting evidence; it plays no part in the verdict itself.
+   */
+  optimizeCircuit(circuit: Circuit, backend?: Backend): Promise<OptimizationResult>
 }

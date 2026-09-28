@@ -8,7 +8,7 @@
  */
 import { create } from 'zustand'
 import { getApiClient, BackendUnavailableError, EndpointNotImplementedError } from '@/api'
-import type { ExecutePayload, ExecutionMode, TutorAnswerResult, VerifyBellStateResult } from '@/api'
+import type { ExecutePayload, ExecutionMode, OptimizationResult, TutorAnswerResult, VerifyBellStateResult } from '@/api'
 import type { QuantumValue } from '@/provenance/QuantumValue'
 import { emptyCircuit, gateArityError, type Circuit, type GateName, type GateOp } from '@/circuit/types'
 import { toQasm3 } from '@/circuit/qasmEmitter'
@@ -51,6 +51,10 @@ interface BuildState {
   tutorTurns: TutorTurn[]
   isAskingTutor: boolean
 
+  isOptimizing: boolean
+  optimization: OptimizationResult | null
+  optimizationError: string | null
+
   setNumQubits: (n: number) => void
   selectGate: (gate: GateName | null) => void
   setPendingAngle: (angle: number) => void
@@ -62,6 +66,8 @@ interface BuildState {
   runExecution: () => Promise<void>
   runVerification: () => Promise<void>
   askTutor: (question: string) => Promise<void>
+  runOptimization: () => Promise<void>
+  applyOptimizedCircuit: () => void
 }
 
 function syncFromCircuit(circuit: Circuit) {
@@ -90,6 +96,10 @@ export const useBuildStore = create<BuildState>((set, get) => ({
   tutorTurns: [],
   isAskingTutor: false,
 
+  isOptimizing: false,
+  optimization: null,
+  optimizationError: null,
+
   setNumQubits: (n) => {
     set({
       ...syncFromCircuit(emptyCircuit(Math.max(1, Math.min(8, n)))),
@@ -100,6 +110,8 @@ export const useBuildStore = create<BuildState>((set, get) => ({
       verificationError: null,
       tutorTurns: [],
       isAskingTutor: false,
+      optimization: null,
+      optimizationError: null,
     })
   },
 
@@ -153,6 +165,8 @@ export const useBuildStore = create<BuildState>((set, get) => ({
       verificationError: null,
       tutorTurns: [],
       isAskingTutor: false,
+      optimization: null,
+      optimizationError: null,
     })
   },
 
@@ -168,6 +182,8 @@ export const useBuildStore = create<BuildState>((set, get) => ({
         verificationError: null,
         tutorTurns: [],
         isAskingTutor: false,
+        optimization: null,
+        optimizationError: null,
       })
       return { ok: true }
     } catch (err) {
@@ -179,7 +195,16 @@ export const useBuildStore = create<BuildState>((set, get) => ({
   },
 
   setMode: (mode) =>
-    set({ mode, result: null, verification: null, verificationError: null, tutorTurns: [], isAskingTutor: false }),
+    set({
+      mode,
+      result: null,
+      verification: null,
+      verificationError: null,
+      tutorTurns: [],
+      isAskingTutor: false,
+      optimization: null,
+      optimizationError: null,
+    }),
   setShots: (shots) => set({ shots: Math.max(1, Math.floor(shots)) }),
 
   runExecution: async () => {
@@ -192,6 +217,8 @@ export const useBuildStore = create<BuildState>((set, get) => ({
         verificationError: null,
         tutorTurns: [],
         isAskingTutor: false,
+        optimization: null,
+        optimizationError: null,
       })
       return
     }
@@ -202,6 +229,8 @@ export const useBuildStore = create<BuildState>((set, get) => ({
       verificationError: null,
       tutorTurns: [],
       isAskingTutor: false,
+      optimization: null,
+      optimizationError: null,
     })
     try {
       const client = getApiClient()
@@ -237,6 +266,48 @@ export const useBuildStore = create<BuildState>((set, get) => ({
             : String(err)
       set({ verificationError: message, verification: null, isVerifying: false })
     }
+  },
+
+  runOptimization: async () => {
+    const { circuit } = get()
+    // Optimize operates on the circuit itself, not an execution result — it
+    // never needs a resultId, so unlike runVerification/askTutor it does not
+    // gate on `result` existing at all.
+    if (circuit.ops.length === 0) return
+    set({ isOptimizing: true, optimizationError: null })
+    try {
+      const client = getApiClient()
+      const optimization = await client.optimizeCircuit(circuit)
+      set({ optimization, isOptimizing: false })
+    } catch (err) {
+      const message =
+        err instanceof BackendUnavailableError || err instanceof EndpointNotImplementedError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : String(err)
+      set({ optimizationError: message, optimization: null, isOptimizing: false })
+    }
+  },
+
+  applyOptimizedCircuit: () => {
+    // Never automatic — this is only ever invoked from an explicit user
+    // click (OptimizePanel's "Apply optimized circuit" button), and only
+    // does anything for a report the server itself marked VERIFIED_SHORTER
+    // with an actual candidate circuit attached.
+    const { optimization } = get()
+    if (!optimization || optimization.status !== 'VERIFIED_SHORTER' || !optimization.candidateCircuit) return
+    set({
+      ...syncFromCircuit(optimization.candidateCircuit),
+      canvasError: null,
+      result: null,
+      verification: null,
+      verificationError: null,
+      tutorTurns: [],
+      isAskingTutor: false,
+      optimization: null,
+      optimizationError: null,
+    })
   },
 
   askTutor: async (question) => {
@@ -298,5 +369,7 @@ function addOp(
     verificationError: null,
     tutorTurns: [],
     isAskingTutor: false,
+    optimization: null,
+    optimizationError: null,
   })
 }

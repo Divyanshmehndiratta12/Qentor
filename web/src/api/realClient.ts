@@ -8,6 +8,7 @@ import { CircuitSchema, type Circuit } from '@/circuit/types'
 import { provenanceFromExecuteResponse, toQuantumValue, type QuantumValue } from '@/provenance/QuantumValue'
 import {
   ExecuteResponseSchema,
+  OptimizeResponseSchema,
   ShotsPayloadSchema,
   StatevectorPayloadSchema,
   TutorResponseSchema,
@@ -17,8 +18,10 @@ import {
   BackendUnavailableError,
   EndpointNotImplementedError,
   type ApiClient,
+  type Backend,
   type ExecutePayload,
   type ExecutionMode,
+  type OptimizationResult,
   type TutorAnswerResult,
   type VerifyBellStateResult,
 } from './client'
@@ -164,6 +167,58 @@ export class RealApiClient implements ApiClient {
         description: f.description,
         resultId: f.result_id,
       })),
+    }
+  }
+
+  async optimizeCircuit(circuit: Circuit, backend?: Backend): Promise<OptimizationResult> {
+    // Same discipline as every other write path here: the request body has
+    // exactly two fields — circuit and backend. There is no way to reach
+    // this method with a probability, amplitude, count or a "verified" flag
+    // attached.
+    const validCircuit = CircuitSchema.parse(circuit)
+
+    let res: Response
+    try {
+      res = await fetch(`${this.baseUrl}/api/optimize`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ circuit: validCircuit, ...(backend ? { backend } : {}) }),
+      })
+    } catch (err) {
+      throw new BackendUnavailableError(
+        `could not reach the Qentor backend: ${err instanceof Error ? err.message : String(err)}`,
+      )
+    }
+
+    if (!res.ok) {
+      const detail = await safeErrorDetail(res)
+      throw new BackendUnavailableError(detail, res.status)
+    }
+
+    const response = OptimizeResponseSchema.parse(await res.json())
+
+    return {
+      originalCircuitHash: response.original_circuit_hash,
+      candidateCircuitHash: response.candidate_circuit_hash,
+      originalOpCount: response.original_op_count,
+      candidateOpCount: response.candidate_op_count,
+      rulesApplied: response.rules_applied,
+      reductionSummary: response.reduction_summary,
+      status: response.status,
+      equivalence: response.equivalence
+        ? {
+            status: response.equivalence.status,
+            method: response.equivalence.method,
+            globalPhase: response.equivalence.global_phase,
+            checks: response.equivalence.checks,
+            reason: response.equivalence.reason,
+          }
+        : null,
+      verifierName: response.verifier_name,
+      verifierVersion: response.verifier_version,
+      reason: response.reason,
+      candidateCircuit: response.candidate_circuit,
+      resultId: response.result_id,
     }
   }
 }

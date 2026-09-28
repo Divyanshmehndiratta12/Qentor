@@ -20,7 +20,15 @@
  */
 import type { Circuit } from '@/circuit/types'
 import { FIXTURE, toQuantumValue, type Provenance, type QuantumValue } from '@/provenance/QuantumValue'
-import type { ApiClient, ExecutePayload, ExecutionMode, TutorAnswerResult, VerifyBellStateResult } from './client'
+import type {
+  ApiClient,
+  Backend,
+  ExecutePayload,
+  ExecutionMode,
+  OptimizationResult,
+  TutorAnswerResult,
+  VerifyBellStateResult,
+} from './client'
 import type { Lesson, LessonSummary } from './types'
 
 let fixtureCounter = 0
@@ -181,6 +189,73 @@ export class MockApiClient implements ApiClient {
       verificationStatus: 'VERIFIED',
       usedFallbackTemplate: true,
       facts: [circuitFact],
+    }
+  }
+
+  /** FIXTURE only: the real verified optimizer (qentor.verification.optimizer
+   * + equivalence) lives server-side. This only recognises the simplest case
+   * — two adjacent, identical single-qubit gates on the same qubit — purely
+   * so the Build screen's Optimize action has something to show without a
+   * running backend. Never confusable with a real, Operator-verified report:
+   * every field is labelled FIXTURE, and `backend` is accepted but unused,
+   * matching the real endpoint's shape without pretending to select an
+   * adapter that isn't actually running. */
+  async optimizeCircuit(circuit: Circuit, _backend?: Backend): Promise<OptimizationResult> {
+    await delay(150)
+
+    const cancellable = ['h', 'x', 'y', 'z']
+    let cancelIndex = -1
+    for (let i = 0; i < circuit.ops.length - 1; i += 1) {
+      const a = circuit.ops[i]
+      const b = circuit.ops[i + 1]
+      if (a && b && a.gate === b.gate && cancellable.includes(a.gate) && a.targets[0] === b.targets[0]) {
+        cancelIndex = i
+        break
+      }
+    }
+
+    if (cancelIndex === -1) {
+      return {
+        originalCircuitHash: 'qc_mockmockmock',
+        candidateCircuitHash: 'qc_mockmockmock',
+        originalOpCount: circuit.ops.length,
+        candidateOpCount: circuit.ops.length,
+        rulesApplied: [],
+        reductionSummary: `${circuit.ops.length} -> ${circuit.ops.length} operations (unchanged, FIXTURE)`,
+        status: 'NO_OPTIMIZATION_FOUND',
+        equivalence: null,
+        verifierName: 'qentor.verification.optimizer (FIXTURE)',
+        verifierVersion: '0',
+        reason: 'FIXTURE — the mock adapter only recognises two adjacent identical single-qubit gates.',
+        candidateCircuit: null,
+        resultId: null,
+      }
+    }
+
+    const ops = circuit.ops.filter((_, i) => i !== cancelIndex && i !== cancelIndex + 1)
+    const candidateCircuit: Circuit = { ...circuit, ops }
+    return {
+      originalCircuitHash: 'qc_mockmockmock',
+      candidateCircuitHash: 'qc_mockmockmock_candidate',
+      originalOpCount: circuit.ops.length,
+      candidateOpCount: ops.length,
+      rulesApplied: [`FIXTURE — cancelled adjacent ${circuit.ops[cancelIndex]?.gate} pair`],
+      reductionSummary: `${circuit.ops.length} -> ${ops.length} operations (FIXTURE)`,
+      status: 'VERIFIED_SHORTER',
+      equivalence: {
+        status: 'EQUIVALENT',
+        method: 'FIXTURE — mock adapter, no real equivalence check performed',
+        globalPhase: 0,
+        checks: [
+          { name: 'operator_equivalent_up_to_global_phase', status: 'PASS', detail: 'FIXTURE — mock adapter check' },
+        ],
+        reason: null,
+      },
+      verifierName: 'qentor.verification.optimizer (FIXTURE)',
+      verifierVersion: '0',
+      reason: null,
+      candidateCircuit,
+      resultId: null,
     }
   }
 }

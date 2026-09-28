@@ -12,8 +12,12 @@ import { MockApiClient } from './mockClient'
 
 export type {
   ApiClient,
+  Backend,
   ExecutePayload,
   ExecutionMode,
+  OptimizationEquivalenceCheckResult,
+  OptimizationEquivalenceResult,
+  OptimizationResult,
   TutorAnswerResult,
   TutorFactResult,
   VerificationCheckResult,
