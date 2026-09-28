@@ -24,18 +24,22 @@ def answer_question_with_llm(
     facts: list[TutorFact],
     record: ProvenanceRecord,
     llm: LLMAdapter | None,
+    language: str = "en",
 ) -> tuple[str, bool]:
     """Returns ``(answer, used_fallback_template)``.
 
     Only called for a successfully executed result — a failed execution is
     handled entirely by ``answer_failed_execution``, never sent to the LLM.
+    ``language`` selects which language the answer is written in — LLM or
+    deterministic template — and never changes which facts are built or what
+    numbers they contain.
     """
     if llm is not None:
         try:
-            draft = llm.generate(question, facts)
+            draft = llm.generate(question, facts, language)
             answer = validate_llm_draft(draft, facts)
             return answer, False
         except (LLMUnavailable, GuardRejection):
             pass  # fall through to the deterministic template below
 
-    return answer_question(question, facts, record), True
+    return answer_question(question, facts, record, language), True

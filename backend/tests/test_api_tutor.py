@@ -188,7 +188,7 @@ class FakeLLMAdapter:
         self._draft = draft
         self._raises = raises
 
-    def generate(self, question: str, facts: list) -> LLMDraft:
+    def generate(self, question: str, facts: list, language: str = "en") -> LLMDraft:
         if self._raises is not None:
             raise self._raises
         assert self._draft is not None
@@ -276,7 +276,7 @@ class TestLlmIntegrationEndToEnd(TutorEndpointTestCase):
         calls: list[str] = []
 
         class RecordingAdapter(FakeLLMAdapter):
-            def generate(self, question: str, facts: list) -> LLMDraft:
+            def generate(self, question: str, facts: list, language: str = "en") -> LLMDraft:
                 calls.append(question)
                 return LLMDraft(answer="should not be reached", cited_fact_ids=[])
 
@@ -290,6 +290,62 @@ class TestLlmIntegrationEndToEnd(TutorEndpointTestCase):
         self.assertEqual(calls, [])
         self.assertTrue(response.used_fallback_template)
         self.assertNotEqual(response.answer, "should not be reached")
+
+
+class TestLanguageField(TutorEndpointTestCase):
+    """POST /api/tutor's `language` field (docs/ARCHITECTURE.md §10) — omitted
+    means English, an explicit code selects the deterministic template's
+    wrapper text, and every numeric fact still comes through unchanged."""
+
+    def test_omitted_language_defaults_to_english(self) -> None:
+        record = self._insert_record(BELL, "shots", shots=2000)
+
+        response = app_module.tutor_endpoint(
+            TutorRequest(result_id=record.result_id, circuit=BELL, question="What was the result?")
+        )
+
+        self.assertIn("For this result:", response.answer)
+
+    def test_hindi_language_translates_the_wrapper_but_not_the_numbers(self) -> None:
+        record = self._insert_record(BELL, "shots", shots=2000)
+
+        response = app_module.tutor_endpoint(
+            TutorRequest(
+                result_id=record.result_id, circuit=BELL, question="What was the result?", language="hi"
+            )
+        )
+
+        self.assertIn("इस परिणाम के लिए", response.answer)
+        for fact in response.facts:
+            if fact.kind == "probability":
+                self.assertIn(fact.description, response.answer)
+
+    def test_kannada_language_translates_the_wrapper_but_not_the_numbers(self) -> None:
+        record = self._insert_record(BELL, "shots", shots=2000)
+
+        response = app_module.tutor_endpoint(
+            TutorRequest(
+                result_id=record.result_id, circuit=BELL, question="What was the result?", language="kn"
+            )
+        )
+
+        self.assertIn("ಈ ಫಲಿತಾಂಶಕ್ಕಾಗಿ", response.answer)
+        for fact in response.facts:
+            if fact.kind == "probability":
+                self.assertIn(fact.description, response.answer)
+
+    def test_unsupported_language_code_is_rejected_by_schema(self) -> None:
+        from pydantic import ValidationError
+
+        with self.assertRaises(ValidationError):
+            TutorRequest.model_validate(
+                {
+                    "result_id": "res_x",
+                    "circuit": BELL.canonical_dict(),
+                    "question": "What was the result?",
+                    "language": "fr",
+                }
+            )
 
 
 class TestRequestSchemaRejectsClientSuppliedResults(unittest.TestCase):

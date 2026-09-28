@@ -159,6 +159,74 @@ class TestAnswerQuestion(unittest.TestCase):
         self.assertNotIn("0.999999", answer)
 
 
+class TestAnswerQuestionMultilingual(unittest.TestCase):
+    """docs/ARCHITECTURE.md §10: only the wrapper text is translated — every
+    fact's own description (numbers, bitstrings, gate names) must appear in
+    the answer unchanged regardless of the selected language."""
+
+    def setUp(self) -> None:
+        self.record = _record(
+            BELL,
+            execution_mode="shots",
+            payload={
+                "execution_id": "aer-local-fake",
+                "probabilities": {"00": 0.5, "11": 0.5},
+                "counts": {"00": 500, "11": 500},
+            },
+        )
+        self.facts = build_fact_sheet(BELL, self.record)
+
+    def test_omitted_language_defaults_to_english(self) -> None:
+        answer = answer_question("What was the result?", self.facts, self.record)
+        self.assertIn("For this result:", answer)
+
+    def test_hindi_result_answer_is_translated_with_numbers_unchanged(self) -> None:
+        answer = answer_question("What was the result?", self.facts, self.record, "hi")
+        self.assertIn("इस परिणाम के लिए", answer)
+        for fact in self.facts:
+            if fact.kind == "probability":
+                self.assertIn(fact.description, answer)
+
+    def test_kannada_result_answer_is_translated_with_numbers_unchanged(self) -> None:
+        answer = answer_question("What was the result?", self.facts, self.record, "kn")
+        self.assertIn("ಈ ಫಲಿತಾಂಶಕ್ಕಾಗಿ", answer)
+        for fact in self.facts:
+            if fact.kind == "probability":
+                self.assertIn(fact.description, answer)
+
+    def test_hindi_circuit_answer_still_cites_the_real_gate_list(self) -> None:
+        answer = answer_question("What does this circuit do?", self.facts, self.record, "hi")
+        circuit_fact = next(f for f in self.facts if f.kind == "circuit_summary")
+        self.assertIn(circuit_fact.description, answer)
+        self.assertIn(circuit_fact.id, answer)
+
+    def test_unrecognised_language_falls_back_to_english_template(self) -> None:
+        answer = answer_question("What was the result?", self.facts, self.record, "fr")
+        self.assertIn("For this result:", answer)
+
+    def test_hindi_failed_execution_mentions_result_id_and_status_untranslated(self) -> None:
+        failed = _record(
+            BELL,
+            execution_mode="shots",
+            payload={"error": "shots mode requires shots > 0"},
+            status=ExecutionStatus.ERROR,
+        )
+        answer = answer_failed_execution(failed, "hi")
+        self.assertIn(failed.result_id, answer)
+        self.assertIn("ERROR", answer)
+
+    def test_kannada_failed_execution_mentions_result_id_and_status_untranslated(self) -> None:
+        failed = _record(
+            BELL,
+            execution_mode="shots",
+            payload={"error": "shots mode requires shots > 0"},
+            status=ExecutionStatus.ERROR,
+        )
+        answer = answer_failed_execution(failed, "kn")
+        self.assertIn(failed.result_id, answer)
+        self.assertIn("ERROR", answer)
+
+
 class TestAnswerFailedExecution(unittest.TestCase):
     def test_mentions_the_result_id_and_status_not_a_fabricated_number(self) -> None:
         record = _record(

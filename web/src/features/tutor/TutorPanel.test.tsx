@@ -87,6 +87,51 @@ describe('TutorPanel', () => {
     expect(screen.getByRole('button', { name: /ask/i })).toBeDisabled()
   })
 
+  it('renders a language selector defaulting to English', () => {
+    setExecutedResult()
+    render(<TutorPanel />)
+
+    const select = screen.getByLabelText('Tutor answer language') as HTMLSelectElement
+    expect(select).toBeInTheDocument()
+    expect(select.value).toBe('en')
+  })
+
+  it('sends the selected language on the next tutor request, without touching the circuit or result', async () => {
+    setExecutedResult()
+    const answer: TutorAnswerResult = {
+      answer: 'इस परिणाम के लिए: outcome 00: probability 0.500000 (F3).',
+      resultId: 'res_abc',
+      circuitHash: 'hash_abc',
+      provenanceClass: 'SIMULATION',
+      verificationStatus: 'VERIFIED',
+      usedFallbackTemplate: true,
+      facts: [],
+    }
+    askTutor.mockResolvedValueOnce(answer)
+
+    render(<TutorPanel />)
+
+    const circuitBeforeLanguageChange = useBuildStore.getState().circuit
+    const resultBeforeLanguageChange = useBuildStore.getState().result
+
+    act(() => {
+      fireEvent.change(screen.getByLabelText('Tutor answer language'), { target: { value: 'hi' } })
+    })
+
+    // Changing the language is a pure UI preference — it must not alter the
+    // circuit or the already-executed result in any way.
+    expect(useBuildStore.getState().circuit).toBe(circuitBeforeLanguageChange)
+    expect(useBuildStore.getState().result).toBe(resultBeforeLanguageChange)
+    expect(useBuildStore.getState().tutorLanguage).toBe('hi')
+
+    await act(async () => {
+      askViaInput('What was the result?')
+    })
+
+    await waitFor(() => expect(askTutor).toHaveBeenCalledTimes(1))
+    expect(askTutor).toHaveBeenCalledWith('res_abc', EXECUTED_CIRCUIT, 'What was the result?', 'hi')
+  })
+
   it('sends result_id, the executed circuit and the question — nothing computed', async () => {
     setExecutedResult()
     const answer: TutorAnswerResult = {
@@ -106,7 +151,7 @@ describe('TutorPanel', () => {
     })
 
     await waitFor(() => expect(askTutor).toHaveBeenCalledTimes(1))
-    expect(askTutor).toHaveBeenCalledWith('res_abc', EXECUTED_CIRCUIT, 'What does this circuit do?')
+    expect(askTutor).toHaveBeenCalledWith('res_abc', EXECUTED_CIRCUIT, 'What does this circuit do?', 'en')
   })
 
   it('renders a grounded answer with its facts and provenance reference', async () => {

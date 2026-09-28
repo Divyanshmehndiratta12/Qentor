@@ -24,6 +24,7 @@ export type {
   OptimizationResult,
   TutorAnswerResult,
   TutorFactResult,
+  TutorLanguage,
   VerificationCheckResult,
   VerifyBellStateResult,
 } from './client'

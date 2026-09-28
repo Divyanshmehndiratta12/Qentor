@@ -62,8 +62,8 @@ class FakeLLMAdapter:
         self._raises = raises
         self.calls: list[tuple[str, list]] = []
 
-    def generate(self, question: str, facts: list) -> LLMDraft:
-        self.calls.append((question, facts))
+    def generate(self, question: str, facts: list, language: str = "en") -> LLMDraft:
+        self.calls.append((question, facts, language))
         if self._raises is not None:
             raise self._raises
         assert self._draft is not None

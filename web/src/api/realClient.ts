@@ -26,6 +26,7 @@ import {
   type MultiInputTestResult,
   type OptimizationResult,
   type TutorAnswerResult,
+  type TutorLanguage,
   type VerifyBellStateResult,
 } from './client'
 import type { Lesson, LessonSummary } from './types'
@@ -131,10 +132,16 @@ export class RealApiClient implements ApiClient {
     throw new EndpointNotImplementedError('GET /api/lessons/:id')
   }
 
-  async askTutor(resultId: string, circuit: Circuit, question: string): Promise<TutorAnswerResult> {
-    // Same discipline as verifyBellState: the request body has exactly three
-    // fields — result_id, circuit and question. There is no way to reach this
-    // method with a probability, count, amplitude or verdict attached.
+  async askTutor(
+    resultId: string,
+    circuit: Circuit,
+    question: string,
+    language: TutorLanguage = 'en',
+  ): Promise<TutorAnswerResult> {
+    // Same discipline as verifyBellState: the request body has exactly four
+    // fields — result_id, circuit, question and language. There is no way to
+    // reach this method with a probability, count, amplitude or verdict
+    // attached. `language` only ever selects the answer's wrapper language.
     const validCircuit = CircuitSchema.parse(circuit)
 
     let res: Response
@@ -142,7 +149,7 @@ export class RealApiClient implements ApiClient {
       res = await fetch(`${this.baseUrl}/api/tutor`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ result_id: resultId, circuit: validCircuit, question }),
+        body: JSON.stringify({ result_id: resultId, circuit: validCircuit, question, language }),
       })
     } catch (err) {
       throw new BackendUnavailableError(

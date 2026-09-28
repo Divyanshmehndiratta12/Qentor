@@ -27,14 +27,29 @@ DEFAULT_MODEL = "claude-opus-5-5"
 # builds a template explanation from the same facts".
 REQUEST_TIMEOUT_SECONDS = 8.0
 
-_SYSTEM_PROMPT = (
+# Canonical language codes per docs/ARCHITECTURE.md §10. An unrecognised code
+# falls back to English rather than raising — the schema
+# (qentor.api.schemas.TutorRequest) is what rejects an unsupported code
+# outright, this is just a defensive default for direct callers of this module.
+_LANGUAGE_NAMES = {"en": "English", "hi": "Hindi", "kn": "Kannada"}
+_DEFAULT_LANGUAGE = "en"
+
+_SYSTEM_PROMPT_TEMPLATE = (
     "You are a quantum computing tutor. You are given a numbered fact sheet "
     "built from a real, already-executed quantum circuit. You must never "
     "invent a probability, amplitude, count or pass/fail verdict yourself — "
     "every number in your answer must already appear in one of the facts. "
-    "Cite every fact you rely on by its id. Reply with JSON only, no prose "
-    'outside the JSON: {"answer": "...", "cited_fact_ids": ["F1", ...]}.'
+    "Cite every fact you rely on by its id. Write the \"answer\" value in "
+    "{language_name}; fact ids, numbers and bitstrings must stay exactly as "
+    "given, in Latin digits, never translated or reformatted. Reply with "
+    'JSON only, no prose outside the JSON: {{"answer": "...", '
+    '"cited_fact_ids": ["F1", ...]}}.'
 )
+
+
+def _system_prompt(language: str) -> str:
+    language_name = _LANGUAGE_NAMES.get(language, _LANGUAGE_NAMES[_DEFAULT_LANGUAGE])
+    return _SYSTEM_PROMPT_TEMPLATE.format(language_name=language_name)
 
 
 class LLMDraft:
@@ -52,7 +67,7 @@ class LLMUnavailable(Exception):
 class LLMAdapter(Protocol):
     name: str
 
-    def generate(self, question: str, facts: list[TutorFact]) -> LLMDraft:
+    def generate(self, question: str, facts: list[TutorFact], language: str = "en") -> LLMDraft:
         """Raise ``LLMUnavailable`` on any failure — never return a guessed draft."""
         ...
 
@@ -71,13 +86,13 @@ class AnthropicAdapter:
         self._api_key = api_key
         self._model = model
 
-    def generate(self, question: str, facts: list[TutorFact]) -> LLMDraft:
+    def generate(self, question: str, facts: list[TutorFact], language: str = "en") -> LLMDraft:
         fact_lines = "\n".join(f"{f.id}: {f.description}" for f in facts) or "(no facts)"
         body = json.dumps(
             {
                 "model": self._model,
                 "max_tokens": 512,
-                "system": _SYSTEM_PROMPT,
+                "system": _system_prompt(language),
                 "messages": [
                     {"role": "user", "content": f"Facts:\n{fact_lines}\n\nQuestion: {question}"}
                 ],

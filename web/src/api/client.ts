@@ -21,6 +21,12 @@ import type { Lesson, LessonSummary } from './types'
 
 export type ExecutionMode = 'statevector' | 'shots'
 
+/** Matches `backend/qentor/api/schemas.py::TutorRequest.language`'s
+ * `Literal[...]` exactly — the canonical language codes this milestone
+ * supports (docs/ARCHITECTURE.md §10). Omitting it anywhere in this app means
+ * English, exactly as before this field existed. */
+export type TutorLanguage = 'en' | 'hi' | 'kn'
+
 /** Matches `backend/qentor/api/schemas.py`'s `backend: Literal[...]` field —
  * every endpoint that accepts one uses this same three-value set. */
 export type Backend = 'qiskit-aer' | 'cirq' | 'pennylane'
@@ -216,12 +222,14 @@ export interface ApiClient {
 
   /**
    * POST /api/tutor — a deterministic, grounded answer (no LLM yet). Sends
-   * only `resultId`, the canonical `circuit` and the learner's `question` —
-   * never a probability, count, amplitude or verdict computed client-side.
-   * The backend looks up the persisted execution by `resultId` and is the
-   * only source of every fact in the reply.
+   * only `resultId`, the canonical `circuit`, the learner's `question` and
+   * their selected `language` — never a probability, count, amplitude or
+   * verdict computed client-side. The backend looks up the persisted
+   * execution by `resultId` and is the only source of every fact in the
+   * reply; `language` only ever selects which language the answer's wrapper
+   * text is written in and defaults to English when omitted.
    */
-  askTutor(resultId: string, circuit: Circuit, question: string): Promise<TutorAnswerResult>
+  askTutor(resultId: string, circuit: Circuit, question: string, language?: TutorLanguage): Promise<TutorAnswerResult>
 
   /**
    * POST /api/optimize — a small, deterministic rewrite of the circuit,

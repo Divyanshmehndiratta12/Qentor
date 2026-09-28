@@ -16,6 +16,7 @@ import type {
   MultiInputTestResult,
   OptimizationResult,
   TutorAnswerResult,
+  TutorLanguage,
   VerifyBellStateResult,
 } from '@/api'
 import type { QuantumValue } from '@/provenance/QuantumValue'
@@ -59,6 +60,10 @@ interface BuildState {
 
   tutorTurns: TutorTurn[]
   isAskingTutor: boolean
+  /** The learner's chosen answer language (docs/ARCHITECTURE.md §10). A pure
+   * UI preference, not derived from the circuit/result — unlike every other
+   * tutor field above, it is never cleared by a circuit-mutating action. */
+  tutorLanguage: TutorLanguage
 
   isOptimizing: boolean
   optimization: OptimizationResult | null
@@ -79,6 +84,7 @@ interface BuildState {
   runExecution: () => Promise<void>
   runVerification: () => Promise<void>
   askTutor: (question: string) => Promise<void>
+  setTutorLanguage: (language: TutorLanguage) => void
   runOptimization: () => Promise<void>
   applyOptimizedCircuit: () => void
   runMultiInputTest: (
@@ -114,6 +120,7 @@ export const useBuildStore = create<BuildState>((set, get) => ({
 
   tutorTurns: [],
   isAskingTutor: false,
+  tutorLanguage: 'en',
 
   isOptimizing: false,
   optimization: null,
@@ -371,7 +378,7 @@ export const useBuildStore = create<BuildState>((set, get) => ({
   askTutor: async (question) => {
     const trimmed = question.trim()
     if (!trimmed) return
-    const { circuit, result } = get()
+    const { circuit, result, tutorLanguage } = get()
     // Only ever ask about a real, already-executed result — same discipline
     // as runVerification. resultId comes from the backend's own provenance,
     // never guessed or typed in by the learner.
@@ -391,7 +398,7 @@ export const useBuildStore = create<BuildState>((set, get) => ({
 
     try {
       const client = getApiClient()
-      const answer = await client.askTutor(resultId, circuit, trimmed)
+      const answer = await client.askTutor(resultId, circuit, trimmed, tutorLanguage)
       if (isStale()) return
       set((state) => ({ tutorTurns: [...state.tutorTurns, { role: 'tutor', answer }], isAskingTutor: false }))
     } catch (err) {
@@ -405,6 +412,10 @@ export const useBuildStore = create<BuildState>((set, get) => ({
       set((state) => ({ tutorTurns: [...state.tutorTurns, { role: 'error', message }], isAskingTutor: false }))
     }
   },
+
+  // A pure learner preference — deliberately does not touch the circuit,
+  // result, or any other derived tutor/verification/optimization state.
+  setTutorLanguage: (language) => set({ tutorLanguage: language }),
 }))
 
 function addOp(

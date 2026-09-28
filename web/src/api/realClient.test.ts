@@ -179,10 +179,11 @@ describe('RealApiClient.askTutor', () => {
     expect(init.method).toBe('POST')
 
     const body = JSON.parse(init.body as string) as Record<string, unknown>
-    expect(Object.keys(body).sort()).toEqual(['circuit', 'question', 'result_id'])
+    expect(Object.keys(body).sort()).toEqual(['circuit', 'language', 'question', 'result_id'])
     expect(body.result_id).toBe('res_abc')
     expect(body.circuit).toEqual(BELL_CIRCUIT)
     expect(body.question).toBe('What does this circuit do?')
+    expect(body.language).toBe('en')
     for (const forbidden of [
       'probabilities',
       'counts',
@@ -195,6 +196,27 @@ describe('RealApiClient.askTutor', () => {
     ]) {
       expect(body).not.toHaveProperty(forbidden)
     }
+  })
+
+  it('sends an explicit non-default language unchanged', async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        answer: 'इस परिणाम के लिए: outcome 00: probability 0.500000 (F3).',
+        result_id: 'res_abc',
+        circuit_hash: 'hash_abc',
+        provenance_class: 'SIMULATION',
+        verification_status: 'VERIFIED',
+        used_fallback_template: true,
+        facts: [],
+      }),
+    )
+
+    const client = new RealApiClient()
+    await client.askTutor('res_abc', BELL_CIRCUIT, 'What was the result?', 'hi')
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+    const body = JSON.parse(init.body as string) as Record<string, unknown>
+    expect(body.language).toBe('hi')
   })
 
   it('parses a grounded answer with its facts', async () => {

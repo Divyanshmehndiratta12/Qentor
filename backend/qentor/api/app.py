@@ -211,10 +211,10 @@ def tutor_endpoint(request: TutorRequest) -> TutorResponse:
 
     facts = build_fact_sheet(request.circuit, record)
     if record.verification_status != VerificationStatus.VERIFIED:
-        answer, used_fallback_template = answer_failed_execution(record), True
+        answer, used_fallback_template = answer_failed_execution(record, request.language), True
     else:
         answer, used_fallback_template = answer_question_with_llm(
-            request.question, facts, record, _llm_adapter
+            request.question, facts, record, _llm_adapter, request.language
         )
 
     return TutorResponse(

@@ -83,6 +83,14 @@ class TutorRequest(BaseModel):
     already-persisted execution the tutor grounds its answer in; a circuit
     that doesn't hash to that record's own ``circuit_hash`` is rejected
     outright (HTTP 422), not silently answered against the wrong result.
+
+    ``language`` only ever selects which natural language the answer's
+    wrapper text is written in (docs/ARCHITECTURE.md §10) — omitting it means
+    English, exactly as every request before this field existed. It never
+    changes which facts are built or the numbers/bitstrings/gate names within
+    them; the ``Literal`` restricts it to the canonical codes this milestone
+    supports, so an unsupported code is a validation error, not a silent
+    fallback.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -90,6 +98,7 @@ class TutorRequest(BaseModel):
     result_id: str
     circuit: Circuit
     question: str = Field(min_length=1)
+    language: Literal["en", "hi", "kn"] = "en"
 
 
 class TutorFactResponse(BaseModel):

@@ -29,6 +29,7 @@ import type {
   MultiInputTestResult,
   OptimizationResult,
   TutorAnswerResult,
+  TutorLanguage,
   VerifyBellStateResult,
 } from './client'
 import type { Lesson, LessonSummary } from './types'
@@ -170,7 +171,12 @@ export class MockApiClient implements ApiClient {
    * the Build screen's Tutor panel has something to show without a running
    * backend — clearly labelled FIXTURE, never confusable with a grounded
    * server answer. */
-  async askTutor(resultId: string, circuit: Circuit, question: string): Promise<TutorAnswerResult> {
+  async askTutor(
+    resultId: string,
+    circuit: Circuit,
+    question: string,
+    _language: TutorLanguage = 'en',
+  ): Promise<TutorAnswerResult> {
     await delay(200)
 
     const gateList = circuit.ops.map((op) => op.gate).join(', ') || 'no operations'

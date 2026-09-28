@@ -18,11 +18,20 @@
  * AI_BOUNDARY.md forbids.
  */
 import { useState } from 'react'
+import type { TutorLanguage } from '@/api'
 import type { TutorTurn } from '@/features/build/store'
 import { useBuildStore } from '@/features/build/store'
 import { ProvenanceBadge } from '@/provenance/ProvenanceBadge'
 
 const STARTER_QUESTIONS = ['What does this circuit do?', 'What was the result?']
+
+/** Matches `TutorLanguage` — labels only, the code sent to the backend is
+ * what actually selects the deterministic template / LLM prompt language. */
+const LANGUAGE_LABELS: Record<TutorLanguage, string> = {
+  en: 'English',
+  hi: 'हिन्दी',
+  kn: 'ಕನ್ನಡ',
+}
 
 export function TutorPanel() {
   const [question, setQuestion] = useState('')
@@ -31,6 +40,8 @@ export function TutorPanel() {
   const turns = useBuildStore((s) => s.tutorTurns)
   const asking = useBuildStore((s) => s.isAskingTutor)
   const askTutor = useBuildStore((s) => s.askTutor)
+  const tutorLanguage = useBuildStore((s) => s.tutorLanguage)
+  const setTutorLanguage = useBuildStore((s) => s.setTutorLanguage)
 
   const canAsk = Boolean(result) && !asking
 
@@ -45,14 +56,28 @@ export function TutorPanel() {
     <div className="flex h-full flex-col">
       <div className="flex items-center justify-between border-b border-void-500 px-4 py-2">
         <h2 className="text-xs font-semibold tracking-wider text-slate-200 uppercase">Tutor</h2>
-        {result ? (
-          <ProvenanceBadge provenance={result.provenance} />
-        ) : (
-          <span className="flex items-center gap-1.5 font-mono-qasm text-[11px] text-void-200">
-            <span className="h-1.5 w-1.5 rounded-full bg-void-300" />
-            no result to ground on yet
-          </span>
-        )}
+        <div className="flex items-center gap-2.5">
+          <select
+            aria-label="Tutor answer language"
+            value={tutorLanguage}
+            onChange={(e) => setTutorLanguage(e.target.value as TutorLanguage)}
+            className="rounded-md border border-void-400 bg-void-800 px-1.5 py-1 text-[11px] text-slate-300 focus:border-violet-glow focus:outline-none"
+          >
+            {(Object.keys(LANGUAGE_LABELS) as TutorLanguage[]).map((code) => (
+              <option key={code} value={code}>
+                {LANGUAGE_LABELS[code]}
+              </option>
+            ))}
+          </select>
+          {result ? (
+            <ProvenanceBadge provenance={result.provenance} />
+          ) : (
+            <span className="flex items-center gap-1.5 font-mono-qasm text-[11px] text-void-200">
+              <span className="h-1.5 w-1.5 rounded-full bg-void-300" />
+              no result to ground on yet
+            </span>
+          )}
+        </div>
       </div>
 
       <div className="min-h-0 flex-1 overflow-auto px-4 py-3">
