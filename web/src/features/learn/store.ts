@@ -4,10 +4,24 @@
  * a second state-management system. `lessons` is always exactly what
  * `ApiClient.listLessons()` (GET /api/lessons) returned — this store never
  * fabricates or hand-writes a lesson.
+ *
+ * `startedLessonIds`/`lessonProgress` are session-local learning-progression
+ * state (docs/PRODUCT_CONTRACT.md: no persistent progress backend yet) —
+ * never sent to or read from the server, and lost on reload. Grading a
+ * concept-check answer happens entirely here, client-side, against the
+ * `correctOptionId` already present in the fetched lesson data; nothing here
+ * computes or invents a quantum value, and nothing here ever touches
+ * `useBuildStore` (the circuit/Lab state) — see `lessonState.ts` for the
+ * completion/mastery rules this progress data feeds.
  */
 import { create } from 'zustand'
 import { getApiClient, BackendUnavailableError, EndpointNotImplementedError } from '@/api'
 import type { Lesson } from '@/api'
+import type { ConceptCheckAttempt, LessonProgress } from './lessonState'
+
+function emptyProgress(): LessonProgress {
+  return { visitedSectionIds: new Set(), conceptCheckAttempts: {} }
+}
 
 interface LearnState {
   lessons: Lesson[]
@@ -15,19 +29,18 @@ interface LearnState {
   error: string | null
   selectedLessonId: string | null
 
-  /**
-   * Local-only, session-only "completed" marks a learner can toggle. There is
-   * no persistent learner-progress backend yet (docs/PRODUCT_CONTRACT.md) —
-   * this is never sent to the server, never read from it, and is lost on
-   * reload. It exists purely so the Learn screen can show a "completed"
-   * lesson state (and derive "locked" from it, see `./lessonState.ts`)
-   * without inventing authoritative backend progress.
-   */
-  completedLessonIds: Set<string>
+  startedLessonIds: Set<string>
+  lessonProgress: Record<string, LessonProgress>
 
   fetchLessons: () => Promise<void>
   selectLesson: (id: string | null) => void
-  toggleLessonCompleted: (id: string) => void
+  markSectionVisited: (lessonId: string, sectionId: string) => void
+  submitConceptCheckAnswer: (
+    lessonId: string,
+    sectionId: string,
+    selectedOptionId: string,
+    correctOptionId: string,
+  ) => void
 }
 
 export const useLearnStore = create<LearnState>((set, get) => ({
@@ -35,7 +48,9 @@ export const useLearnStore = create<LearnState>((set, get) => ({
   isLoading: false,
   error: null,
   selectedLessonId: null,
-  completedLessonIds: new Set(),
+
+  startedLessonIds: new Set(),
+  lessonProgress: {},
 
   fetchLessons: async () => {
     set({ isLoading: true, error: null })
@@ -54,15 +69,45 @@ export const useLearnStore = create<LearnState>((set, get) => ({
     }
   },
 
-  selectLesson: (id) => set({ selectedLessonId: id }),
-
-  toggleLessonCompleted: (id) => {
-    const next = new Set(get().completedLessonIds)
-    if (next.has(id)) {
-      next.delete(id)
-    } else {
+  selectLesson: (id) => {
+    set({ selectedLessonId: id })
+    if (id !== null && !get().startedLessonIds.has(id)) {
+      const next = new Set(get().startedLessonIds)
       next.add(id)
+      set({ startedLessonIds: next })
     }
-    set({ completedLessonIds: next })
+  },
+
+  markSectionVisited: (lessonId, sectionId) => {
+    const existing = get().lessonProgress[lessonId] ?? emptyProgress()
+    if (existing.visitedSectionIds.has(sectionId)) return // no-op: avoid churning a new Set every render
+
+    const visitedSectionIds = new Set(existing.visitedSectionIds)
+    visitedSectionIds.add(sectionId)
+    set({
+      lessonProgress: {
+        ...get().lessonProgress,
+        [lessonId]: { ...existing, visitedSectionIds },
+      },
+    })
+  },
+
+  submitConceptCheckAnswer: (lessonId, sectionId, selectedOptionId, correctOptionId) => {
+    const existing = get().lessonProgress[lessonId] ?? emptyProgress()
+    const previous = existing.conceptCheckAttempts[sectionId]
+    const attempt: ConceptCheckAttempt = {
+      selectedOptionId,
+      isCorrect: selectedOptionId === correctOptionId,
+      attemptCount: (previous?.attemptCount ?? 0) + 1,
+    }
+    set({
+      lessonProgress: {
+        ...get().lessonProgress,
+        [lessonId]: {
+          ...existing,
+          conceptCheckAttempts: { ...existing.conceptCheckAttempts, [sectionId]: attempt },
+        },
+      },
+    })
   },
 }))

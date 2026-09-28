@@ -13,6 +13,7 @@ import { MockApiClient } from './mockClient'
 export type {
   ApiClient,
   Backend,
+  ConceptCheckOption,
   ExecutePayload,
   ExecutionMode,
   LabCapability,

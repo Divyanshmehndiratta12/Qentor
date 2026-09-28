@@ -44,10 +44,31 @@ class ExplanationSection(BaseModel):
     body: str
 
 
+class ConceptCheckOption(BaseModel):
+    """One selectable answer choice. ``id`` (not array index) is what a
+    client submits back and what ``correct_option_id`` references, so
+    reordering ``options`` can never silently change which choice is
+    correct."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: str
+    text: str
+
+
 class ConceptCheckSection(BaseModel):
-    """A comprehension-check prompt. This milestone has no answer/scoring
-    model at all — see docs/48_HOUR_PLAN.md's cut line — so this section is
-    deliberately just a prompt, not a quiz question with a grading contract."""
+    """A comprehension-check. ``prompt`` alone (question/options/etc. all
+    omitted) is still valid — a plain, unscored check, as every concept_check
+    was before this milestone. When a real question is present, all of
+    ``question``/``options``/``correct_option_id``/``explanation`` must be
+    present together (enforced below): there is no partially-specified quiz.
+
+    Grading itself happens client-side against ``correct_option_id`` — this
+    milestone adds no server-side grading endpoint (CLAUDE.md's execution/
+    verification boundary is about quantum results, not quiz answers, so it
+    doesn't apply here). That does mean the correct answer is visible in the
+    GET /api/lessons response; see the frontend's own note on this.
+    """
 
     model_config = ConfigDict(extra="forbid")
 
@@ -55,6 +76,38 @@ class ConceptCheckSection(BaseModel):
     id: str
     title: str
     prompt: str
+    question: str | None = None
+    options: list[ConceptCheckOption] | None = None
+    correct_option_id: str | None = None
+    explanation: str | None = None
+    concept: str | None = None
+
+    @model_validator(mode="after")
+    def _question_fields_are_all_or_nothing(self) -> "ConceptCheckSection":
+        fields = (self.question, self.options, self.correct_option_id, self.explanation)
+        present = [f is not None for f in fields]
+        if any(present) and not all(present):
+            raise ValueError(
+                f"concept_check '{self.id}': question/options/correct_option_id/explanation "
+                "must all be present together, or all omitted"
+            )
+        return self
+
+    @model_validator(mode="after")
+    def _options_are_well_formed(self) -> "ConceptCheckSection":
+        if self.options is None:
+            return self
+        if len(self.options) < 2:
+            raise ValueError(f"concept_check '{self.id}': needs at least 2 options")
+        option_ids = [o.id for o in self.options]
+        if len(option_ids) != len(set(option_ids)):
+            raise ValueError(f"concept_check '{self.id}': option ids must be unique, got {option_ids}")
+        if self.correct_option_id not in option_ids:
+            raise ValueError(
+                f"concept_check '{self.id}': correct_option_id {self.correct_option_id!r} "
+                f"is not one of the option ids {option_ids}"
+            )
+        return self
 
 
 class InteractiveLabSection(BaseModel):

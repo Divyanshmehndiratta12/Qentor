@@ -6,9 +6,20 @@
  * Build/Lab workspace — the learner still has to Run it there, through the
  * real `/api/execute` (or whichever capability this section names) flow,
  * exactly like building a circuit by hand.
+ *
+ * Every section (of any type) is marked "visited" in `useLearnStore` on
+ * mount — this is the "section progress" half of the completion rule (see
+ * `lessonState.ts`). Because `LessonDetailPanel` renders every section of the
+ * selected lesson at once (no accordion/stepper in this milestone), "visited"
+ * is deliberately a simple "has this section's content been shown" signal,
+ * not a scroll/viewport check.
  */
+import { useEffect } from 'react'
 import type { Circuit } from '@/circuit/types'
 import type { LabCapability, LessonSection } from '@/api'
+import { useLearnStore } from './store'
+import { isFullConceptCheck } from './lessonState'
+import { ConceptCheckQuiz } from './ConceptCheckQuiz'
 
 const SECTION_LABEL: Record<LessonSection['type'], string> = {
   explanation: 'Explanation',
@@ -25,14 +36,22 @@ const CAPABILITY_LABEL: Record<LabCapability, string> = {
 }
 
 export function LessonSectionView({
+  lessonId,
   section,
   linkedCircuit,
   onOpenLab,
 }: {
+  lessonId: string
   section: LessonSection
   linkedCircuit: Circuit | null
   onOpenLab: (circuit: Circuit) => void
 }) {
+  const markSectionVisited = useLearnStore((s) => s.markSectionVisited)
+
+  useEffect(() => {
+    markSectionVisited(lessonId, section.id)
+  }, [lessonId, section.id, markSectionVisited])
+
   return (
     <section
       className="rounded-lg border border-void-500 bg-void-900 p-3.5"
@@ -49,12 +68,15 @@ export function LessonSectionView({
         <p className="mt-2 font-serif-prose text-[14px] leading-relaxed text-slate-300">{section.body}</p>
       )}
 
-      {section.type === 'concept_check' && (
-        <>
-          <p className="mt-2 text-sm text-slate-300">{section.prompt}</p>
-          <p className="mt-1.5 text-[11px] text-void-200">Not scored — for your own understanding only.</p>
-        </>
-      )}
+      {section.type === 'concept_check' &&
+        (isFullConceptCheck(section) ? (
+          <ConceptCheckQuiz lessonId={lessonId} section={section} />
+        ) : (
+          <>
+            <p className="mt-2 text-sm text-slate-300">{section.prompt}</p>
+            <p className="mt-1.5 text-[11px] text-void-200">Not scored — for your own understanding only.</p>
+          </>
+        ))}
 
       {section.type === 'reflection' && (
         <p className="mt-2 font-serif-prose text-[14px] leading-relaxed text-slate-300">{section.prompt}</p>

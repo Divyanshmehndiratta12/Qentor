@@ -4,17 +4,20 @@
  * a second, hardcoded copy of lesson content) and lets a learner browse
  * lesson metadata and open a lesson's detail view.
  *
- * There is no persistent learner-progress backend yet: "completed" is
- * local, session-only UI state (`useLearnStore`'s own docstring), and
- * "locked" is derived from that plus each lesson's own `prerequisiteLessonIds`
- * (`./lessonState.ts`) — never invented server data. Selecting a lesson or
- * toggling completion never touches `useBuildStore` (the circuit/Lab state);
- * the only bridge to Lab is `onOpenLab`, called explicitly from an
+ * There is no persistent learner-progress backend yet: completion is derived
+ * here, each render, from session-local `lessonProgress` via
+ * `isLessonComplete` (`./lessonState.ts`) — never invented server data, and
+ * never stored as its own boolean (so it can't drift from the progress it's
+ * computed from). "Locked" then follows from that plus each lesson's own
+ * `prerequisiteLessonIds`. Selecting a lesson, visiting a section or
+ * submitting a concept check never touches `useBuildStore` (the circuit/Lab
+ * state); the only bridge to Lab is `onOpenLab`, called explicitly from an
  * interactive_lab section.
  */
 import { useEffect } from 'react'
 import type { Circuit } from '@/circuit/types'
 import { useLearnStore } from './store'
+import { isLessonComplete } from './lessonState'
 import { LessonCard } from './LessonCard'
 import { LessonDetailPanel } from './LessonDetailPanel'
 
@@ -23,16 +26,20 @@ export function LearnScreen({ onOpenLab }: { onOpenLab: (circuit: Circuit) => vo
   const isLoading = useLearnStore((s) => s.isLoading)
   const error = useLearnStore((s) => s.error)
   const selectedLessonId = useLearnStore((s) => s.selectedLessonId)
-  const completedLessonIds = useLearnStore((s) => s.completedLessonIds)
+  const lessonProgress = useLearnStore((s) => s.lessonProgress)
+  const startedLessonIds = useLearnStore((s) => s.startedLessonIds)
   const fetchLessons = useLearnStore((s) => s.fetchLessons)
   const selectLesson = useLearnStore((s) => s.selectLesson)
-  const toggleLessonCompleted = useLearnStore((s) => s.toggleLessonCompleted)
 
   useEffect(() => {
     void fetchLessons()
   }, [fetchLessons])
 
   const selectedLesson = lessons.find((lesson) => lesson.id === selectedLessonId) ?? null
+
+  const completedLessonIds = new Set(
+    lessons.filter((lesson) => isLessonComplete(lesson, lessonProgress[lesson.id])).map((lesson) => lesson.id),
+  )
 
   return (
     <div className="flex h-full min-h-0 flex-1">
@@ -87,8 +94,8 @@ export function LearnScreen({ onOpenLab }: { onOpenLab: (circuit: Circuit) => vo
           <LessonDetailPanel
             lesson={selectedLesson}
             lessons={lessons}
-            completedLessonIds={completedLessonIds}
-            onToggleCompleted={() => toggleLessonCompleted(selectedLesson.id)}
+            progress={lessonProgress[selectedLesson.id]}
+            started={startedLessonIds.has(selectedLesson.id)}
             onOpenLab={onOpenLab}
           />
         ) : (

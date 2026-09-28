@@ -73,6 +73,32 @@ class TestRealRegistryLoadsCleanly(unittest.TestCase):
             if has_lab:
                 self.assertIsNotNone(lesson.linked_circuit, f"{lesson.id} has a lab but no linked_circuit")
 
+    def test_exactly_the_seven_planned_lessons_have_a_real_concept_check_question(self) -> None:
+        expected = {
+            "qubits-measurement",
+            "bloch-sphere",
+            "superposition",
+            "phase",
+            "interference",
+            "entanglement",
+            "bell-state",
+        }
+        with_question = {
+            lesson.id
+            for lesson in LESSONS
+            if any(s.type == "concept_check" and s.question is not None for s in lesson.sections)
+        }
+        self.assertEqual(with_question, expected)
+
+    def test_every_real_concept_check_options_contain_the_correct_answer(self) -> None:
+        for lesson in LESSONS:
+            for section in lesson.sections:
+                if section.type == "concept_check" and section.question is not None:
+                    assert section.options is not None
+                    option_ids = [o.id for o in section.options]
+                    self.assertIn(section.correct_option_id, option_ids, lesson.id)
+                    self.assertGreaterEqual(len(section.options), 2, lesson.id)
+
     def test_registry_loading_is_deterministic(self) -> None:
         first = build_registry()
         second = build_registry()
@@ -193,6 +219,83 @@ class TestMalformedLessonDataIsRejected(unittest.TestCase):
     def test_extra_unknown_field_is_rejected(self) -> None:
         with self.assertRaises(ValidationError):
             _minimal_lesson(mastery_fraction=0.5)
+
+
+class TestConceptCheckQuestionValidation(unittest.TestCase):
+    """The optional question/options/correct_option_id/explanation/concept
+    fields added for the concept-check milestone."""
+
+    def _concept_check_lesson(self, section: dict) -> Lesson:
+        return _minimal_lesson(sections=[{"type": "concept_check", "id": "s1", "title": "Check", "prompt": "p", **section}])
+
+    def test_prompt_only_concept_check_is_still_valid(self) -> None:
+        lesson = self._concept_check_lesson({})
+        section = lesson.sections[0]
+        assert section.type == "concept_check"
+        self.assertIsNone(section.question)
+        self.assertIsNone(section.options)
+
+    def test_fully_specified_concept_check_is_valid(self) -> None:
+        lesson = self._concept_check_lesson(
+            {
+                "question": "2+2?",
+                "options": [{"id": "a", "text": "3"}, {"id": "b", "text": "4"}],
+                "correct_option_id": "b",
+                "explanation": "Basic arithmetic.",
+                "concept": "arithmetic",
+            }
+        )
+        section = lesson.sections[0]
+        assert section.type == "concept_check"
+        self.assertEqual(section.question, "2+2?")
+        self.assertEqual(section.correct_option_id, "b")
+
+    def test_question_without_options_is_rejected(self) -> None:
+        with self.assertRaises(ValidationError):
+            self._concept_check_lesson({"question": "2+2?"})
+
+    def test_options_without_correct_option_id_is_rejected(self) -> None:
+        with self.assertRaises(ValidationError):
+            self._concept_check_lesson(
+                {
+                    "question": "2+2?",
+                    "options": [{"id": "a", "text": "3"}, {"id": "b", "text": "4"}],
+                    "explanation": "x",
+                }
+            )
+
+    def test_correct_option_id_not_among_options_is_rejected(self) -> None:
+        with self.assertRaises(ValidationError):
+            self._concept_check_lesson(
+                {
+                    "question": "2+2?",
+                    "options": [{"id": "a", "text": "3"}, {"id": "b", "text": "4"}],
+                    "correct_option_id": "z",
+                    "explanation": "x",
+                }
+            )
+
+    def test_duplicate_option_ids_are_rejected(self) -> None:
+        with self.assertRaises(ValidationError):
+            self._concept_check_lesson(
+                {
+                    "question": "2+2?",
+                    "options": [{"id": "a", "text": "3"}, {"id": "a", "text": "4"}],
+                    "correct_option_id": "a",
+                    "explanation": "x",
+                }
+            )
+
+    def test_fewer_than_two_options_is_rejected(self) -> None:
+        with self.assertRaises(ValidationError):
+            self._concept_check_lesson(
+                {
+                    "question": "2+2?",
+                    "options": [{"id": "a", "text": "4"}],
+                    "correct_option_id": "a",
+                    "explanation": "x",
+                }
+            )
 
 
 if __name__ == "__main__":

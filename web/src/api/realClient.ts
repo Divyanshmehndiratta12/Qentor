@@ -15,6 +15,7 @@ import {
   StatevectorPayloadSchema,
   TutorResponseSchema,
   VerifyBellStateResponseSchema,
+  type LessonSectionResponse,
 } from '@/provenance/schema'
 import {
   BackendUnavailableError,
@@ -23,6 +24,7 @@ import {
   type ExecutePayload,
   type ExecutionMode,
   type Lesson,
+  type LessonSection,
   type MultiInputTestCase,
   type MultiInputTestResult,
   type OptimizationResult,
@@ -30,6 +32,25 @@ import {
   type TutorLanguage,
   type VerifyBellStateResult,
 } from './client'
+
+/** The only section field that needs snake_case -> camelCase conversion
+ * (`correct_option_id`) — every other section field is already a
+ * single-word name shared verbatim between the wire shape and the domain
+ * type, so this is the one place that mapping actually has to happen. */
+function mapLessonSection(section: LessonSectionResponse): LessonSection {
+  if (section.type !== 'concept_check') return section
+  return {
+    type: 'concept_check',
+    id: section.id,
+    title: section.title,
+    prompt: section.prompt,
+    question: section.question,
+    options: section.options,
+    correctOptionId: section.correct_option_id,
+    explanation: section.explanation,
+    concept: section.concept,
+  }
+}
 
 export class RealApiClient implements ApiClient {
   private readonly baseUrl: string
@@ -149,7 +170,7 @@ export class RealApiClient implements ApiClient {
       difficulty: lesson.difficulty,
       estimatedMinutes: lesson.estimated_minutes,
       learningObjectives: lesson.learning_objectives,
-      sections: lesson.sections,
+      sections: lesson.sections.map(mapLessonSection),
       linkedCircuit: lesson.linked_circuit,
       prerequisiteLessonIds: lesson.prerequisite_lesson_ids,
     }))

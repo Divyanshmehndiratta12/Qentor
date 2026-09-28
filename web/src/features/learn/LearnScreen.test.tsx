@@ -61,7 +61,20 @@ const LESSON_B: Lesson = {
   learningObjectives: ['Learn B'],
   sections: [
     { type: 'explanation', id: 's1', title: 'Explain', body: 'Explain body.' },
-    { type: 'concept_check', id: 's2', title: 'Check', prompt: 'What is X?' },
+    {
+      type: 'concept_check',
+      id: 's2',
+      title: 'Check',
+      prompt: 'What is X?',
+      question: 'What is X?',
+      options: [
+        { id: 'x', text: 'X' },
+        { id: 'y', text: 'Y' },
+      ],
+      correctOptionId: 'x',
+      explanation: 'Because X.',
+      concept: 'advanced',
+    },
     { type: 'interactive_lab', id: 's3', title: 'Lab', instructions: 'Run it.', capability: 'execute' },
     { type: 'reflection', id: 's4', title: 'Reflect', prompt: 'Why?' },
   ],
@@ -71,6 +84,14 @@ const LESSON_B: Lesson = {
 
 const INITIAL_LEARN_STATE = useLearnStore.getState()
 const INITIAL_BUILD_STATE = useBuildStore.getState()
+
+/** Opens Lesson A, visits its one section, and (since it has no concept
+ * check) that alone satisfies the completion rule — used as a quick way to
+ * unlock Lesson B in tests that don't care about A's own progress detail. */
+async function completeLessonA() {
+  fireEvent.click(screen.getByRole('button', { name: /^Lesson A/ }))
+  await screen.findByText('A body.')
+}
 
 describe('LearnScreen', () => {
   beforeEach(() => {
@@ -145,27 +166,37 @@ describe('LearnScreen', () => {
     expect(screen.queryByText('Explain body.')).not.toBeInTheDocument()
   })
 
-  it('selecting an available lesson shows its detail view (title, description, objectives, section)', async () => {
+  it('selecting an available lesson shows its detail view with objectives and progress', async () => {
     listLessons.mockResolvedValueOnce([LESSON_A])
 
     render(<LearnScreen onOpenLab={vi.fn()} />)
     await waitFor(() => expect(screen.getByText('Lesson A')).toBeInTheDocument())
 
-    fireEvent.click(screen.getByRole('button', { name: /^Lesson A/ }))
+    await completeLessonA()
 
-    expect(await screen.findByText('A body.')).toBeInTheDocument()
     expect(screen.getByText('Learn A')).toBeInTheDocument()
     expect(screen.getByText('No hands-on lab for this lesson yet.')).toBeInTheDocument()
+    expect(screen.getByLabelText('Lesson progress')).toHaveTextContent('1/1')
   })
 
-  it('unlocks a dependent lesson once its prerequisite is marked complete, and renders every section type', async () => {
-    listLessons.mockResolvedValueOnce([LESSON_A, LESSON_B])
+  it('a lesson with no concept checks completes (and is mastered) once its only section is visited', async () => {
+    listLessons.mockResolvedValueOnce([LESSON_A])
 
     render(<LearnScreen onOpenLab={vi.fn()} />)
     await waitFor(() => expect(screen.getByText('Lesson A')).toBeInTheDocument())
 
-    fireEvent.click(screen.getByRole('button', { name: /^Lesson A/ }))
-    fireEvent.click(await screen.findByRole('button', { name: 'Mark as complete' }))
+    await completeLessonA()
+
+    expect(screen.getByLabelText('Lesson progress')).toHaveTextContent('Completed')
+    expect(screen.getByLabelText('Lesson progress')).toHaveTextContent('Mastered')
+  })
+
+  it('unlocks a dependent lesson once its prerequisite is complete, and renders every section type', async () => {
+    listLessons.mockResolvedValueOnce([LESSON_A, LESSON_B])
+
+    render(<LearnScreen onOpenLab={vi.fn()} />)
+    await waitFor(() => expect(screen.getByText('Lesson A')).toBeInTheDocument())
+    await completeLessonA()
 
     const lessonBButton = screen.getByRole('button', { name: /^Lesson B/ })
     expect(lessonBButton).not.toBeDisabled()
@@ -173,10 +204,28 @@ describe('LearnScreen', () => {
 
     expect(await screen.findByText('Explain body.')).toBeInTheDocument()
     expect(screen.getByText('What is X?')).toBeInTheDocument()
-    expect(screen.getByText('Not scored — for your own understanding only.')).toBeInTheDocument()
     expect(screen.getByText('Run it.')).toBeInTheDocument()
     expect(screen.getByText('Why?')).toBeInTheDocument()
-    expect(screen.getByText(/Includes a hands-on lab/)).toBeInTheDocument()
+  })
+
+  it('a lesson with a concept check is not complete until the check is attempted', async () => {
+    listLessons.mockResolvedValueOnce([LESSON_A, LESSON_B])
+
+    render(<LearnScreen onOpenLab={vi.fn()} />)
+    await waitFor(() => expect(screen.getByText('Lesson A')).toBeInTheDocument())
+    await completeLessonA()
+    fireEvent.click(screen.getByRole('button', { name: /^Lesson B/ }))
+    await screen.findByText('Explain body.')
+
+    // Every non-quiz section of B has been visited by opening it, but the
+    // concept check hasn't been attempted yet — B must not show complete.
+    expect(screen.getByLabelText('Lesson progress')).toHaveTextContent('In progress')
+
+    fireEvent.click(screen.getByLabelText('X'))
+    fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
+
+    expect(screen.getByLabelText('Lesson progress')).toHaveTextContent('Completed')
+    expect(screen.getByLabelText('Lesson progress')).toHaveTextContent('1/1 correct')
   })
 
   it('wires the interactive lab action to onOpenLab with the lesson’s real linked circuit', async () => {
@@ -185,9 +234,7 @@ describe('LearnScreen', () => {
 
     render(<LearnScreen onOpenLab={onOpenLab} />)
     await waitFor(() => expect(screen.getByText('Lesson A')).toBeInTheDocument())
-
-    fireEvent.click(screen.getByRole('button', { name: /^Lesson A/ }))
-    fireEvent.click(await screen.findByRole('button', { name: 'Mark as complete' }))
+    await completeLessonA()
     fireEvent.click(screen.getByRole('button', { name: /^Lesson B/ }))
 
     fireEvent.click(await screen.findByRole('button', { name: 'Open in Lab' }))
@@ -196,16 +243,18 @@ describe('LearnScreen', () => {
     expect(onOpenLab).toHaveBeenCalledWith(LAB_CIRCUIT)
   })
 
-  it('never mutates the Build circuit or execution state while browsing and completing lessons', async () => {
+  it('never mutates the Build circuit or execution state while browsing, completing and answering', async () => {
     listLessons.mockResolvedValueOnce([LESSON_A, LESSON_B])
 
     render(<LearnScreen onOpenLab={vi.fn()} />)
     await waitFor(() => expect(screen.getByText('Lesson A')).toBeInTheDocument())
 
     const circuitBefore = useBuildStore.getState().circuit
-    fireEvent.click(screen.getByRole('button', { name: /^Lesson A/ }))
-    fireEvent.click(await screen.findByRole('button', { name: 'Mark as complete' }))
+    await completeLessonA()
     fireEvent.click(screen.getByRole('button', { name: /^Lesson B/ }))
+    await screen.findByText('Explain body.')
+    fireEvent.click(screen.getByLabelText('X'))
+    fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
 
     expect(useBuildStore.getState().circuit).toBe(circuitBefore)
     expect(useBuildStore.getState().result).toBeNull()

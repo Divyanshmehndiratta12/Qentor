@@ -53,11 +53,30 @@ export interface LessonExplanationSection {
   body: string
 }
 
+export interface ConceptCheckOption {
+  id: string
+  text: string
+}
+
+/**
+ * `question`/`options`/`correctOptionId`/`explanation` are all `null`
+ * together, or all present together (the backend enforces this) — a
+ * prompt-only concept check (no scoring) has all four `null`, exactly as
+ * every concept_check was before this milestone. Grading happens client-side
+ * against `correctOptionId`: there is no server-side grading endpoint in this
+ * milestone, which does mean the correct answer is visible in the network
+ * response — see `@/features/learn/LessonSectionView.tsx`'s own note.
+ */
 export interface LessonConceptCheckSection {
   type: 'concept_check'
   id: string
   title: string
   prompt: string
+  question: string | null
+  options: ConceptCheckOption[] | null
+  correctOptionId: string | null
+  explanation: string | null
+  concept: string | null
 }
 
 export interface LessonInteractiveLabSection {

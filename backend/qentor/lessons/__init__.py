@@ -10,6 +10,7 @@ direction — this package never imports FastAPI or anything UI-related.
 from __future__ import annotations
 
 from .models import (
+    ConceptCheckOption,
     ConceptCheckSection,
     ExplanationSection,
     InteractiveLabSection,
@@ -20,6 +21,7 @@ from .models import (
 from .registry import LESSONS, LessonRegistryError, get_lesson
 
 __all__ = [
+    "ConceptCheckOption",
     "ConceptCheckSection",
     "ExplanationSection",
     "InteractiveLabSection",

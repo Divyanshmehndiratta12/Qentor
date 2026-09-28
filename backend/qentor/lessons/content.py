@@ -18,6 +18,7 @@ from __future__ import annotations
 from qentor.circuit.model import Circuit, GateOp
 
 from .models import (
+    ConceptCheckOption,
     ConceptCheckSection,
     ExplanationSection,
     InteractiveLabSection,
@@ -45,7 +46,22 @@ RAW_LESSONS: list[Lesson] = [
         sections=[
             ExplanationSection(id="s1", title="What is a qubit?", body="A qubit is a two-level quantum system."),
             ConceptCheckSection(
-                id="s2", title="Check your understanding", prompt="What happens to a qubit's state when it is measured?"
+                id="s2",
+                title="Check your understanding",
+                prompt="What happens to a qubit's state when it is measured?",
+                question="What happens to a qubit's superposition when you measure it?",
+                options=[
+                    ConceptCheckOption(id="a", text="It stays in superposition"),
+                    ConceptCheckOption(id="b", text="It collapses to a single classical outcome"),
+                    ConceptCheckOption(id="c", text="It doubles in amplitude"),
+                    ConceptCheckOption(id="d", text="It becomes entangled with itself"),
+                ],
+                correct_option_id="b",
+                explanation=(
+                    "Measurement forces the qubit into one of its basis states with a probability "
+                    "given by the Born rule; the superposition does not survive the measurement."
+                ),
+                concept="qubits-measurement",
             ),
             InteractiveLabSection(
                 id="s3",
@@ -73,7 +89,19 @@ RAW_LESSONS: list[Lesson] = [
                 id="s1", title="The Bloch sphere", body="Any single-qubit pure state is a point on a unit sphere."
             ),
             ConceptCheckSection(
-                id="s2", title="Check your understanding", prompt="Where on the sphere do |0> and |1> sit?"
+                id="s2",
+                title="Check your understanding",
+                prompt="Where on the sphere do |0> and |1> sit?",
+                question="Where does the state |1> sit on the Bloch sphere?",
+                options=[
+                    ConceptCheckOption(id="a", text="At the north pole"),
+                    ConceptCheckOption(id="b", text="At the south pole"),
+                    ConceptCheckOption(id="c", text="On the equator"),
+                    ConceptCheckOption(id="d", text="At the center"),
+                ],
+                correct_option_id="b",
+                explanation="By convention |0> is the north pole and |1> is the south pole of the Bloch sphere.",
+                concept="bloch-sphere",
             ),
             ReflectionSection(id="s3", title="Reflect", prompt="Why can't two qubits be pictured on one sphere?"),
         ],
@@ -96,7 +124,19 @@ RAW_LESSONS: list[Lesson] = [
                 id="s1", title="Superposition", body="The Hadamard gate puts a qubit into an equal superposition."
             ),
             ConceptCheckSection(
-                id="s2", title="Check your understanding", prompt="What outcomes are possible after measuring H|0>?"
+                id="s2",
+                title="Check your understanding",
+                prompt="What outcomes are possible after measuring H|0>?",
+                question="What does applying a Hadamard gate to |0> produce?",
+                options=[
+                    ConceptCheckOption(id="a", text="|0>, unchanged"),
+                    ConceptCheckOption(id="b", text="|1>, unchanged"),
+                    ConceptCheckOption(id="c", text="An equal superposition of |0> and |1>"),
+                    ConceptCheckOption(id="d", text="A mixed classical state"),
+                ],
+                correct_option_id="c",
+                explanation="H|0> = (|0> + |1>)/√2: measuring it gives 0 or 1 with equal probability.",
+                concept="superposition",
             ),
             InteractiveLabSection(
                 id="s3",
@@ -128,6 +168,19 @@ RAW_LESSONS: list[Lesson] = [
                 id="s2",
                 title="Check your understanding",
                 prompt="Does Z change the measurement probabilities of H|0>?",
+                question="Does applying a Z gate to H|0> change the measurement probabilities?",
+                options=[
+                    ConceptCheckOption(id="a", text="Yes, it flips the probabilities"),
+                    ConceptCheckOption(id="b", text="No, only the relative phase changes"),
+                    ConceptCheckOption(id="c", text="Yes, it collapses the state"),
+                    ConceptCheckOption(id="d", text="No, Z does nothing to any state"),
+                ],
+                correct_option_id="b",
+                explanation=(
+                    "Z flips the sign of the |1> amplitude, but the probabilities (|amplitude|²) "
+                    "are unchanged — the effect is invisible to a direct measurement in this basis."
+                ),
+                concept="phase",
             ),
             InteractiveLabSection(
                 id="s3",
@@ -165,7 +218,22 @@ RAW_LESSONS: list[Lesson] = [
                 id="s1", title="Interference", body="Recombining a superposition can concentrate probability onto one outcome."
             ),
             ConceptCheckSection(
-                id="s2", title="Check your understanding", prompt="What outcome should H, Z, H produce, and why?"
+                id="s2",
+                title="Check your understanding",
+                prompt="What outcome should H, Z, H produce, and why?",
+                question="What is the measured outcome of H, Z, H applied to |0>, and why?",
+                options=[
+                    ConceptCheckOption(id="a", text="Always 0, from constructive interference"),
+                    ConceptCheckOption(id="b", text="Always 1, from destructive interference on outcome 0"),
+                    ConceptCheckOption(id="c", text="50/50 — no interference occurs"),
+                    ConceptCheckOption(id="d", text="Always 0 — Z has no effect here"),
+                ],
+                correct_option_id="b",
+                explanation=(
+                    "H, Z, H equals the X gate up to global phase, which maps |0> to |1> "
+                    "deterministically — the amplitude for outcome 0 cancels out."
+                ),
+                concept="interference",
             ),
             InteractiveLabSection(
                 id="s3",
@@ -196,7 +264,22 @@ RAW_LESSONS: list[Lesson] = [
                 id="s1", title="Entanglement", body="H then CX correlates two qubits into a single joint state."
             ),
             ConceptCheckSection(
-                id="s2", title="Check your understanding", prompt="Can either qubit's state be described alone here?"
+                id="s2",
+                title="Check your understanding",
+                prompt="Can either qubit's state be described alone here?",
+                question="After H then CX on two qubits starting at |00>, can qubit 0's state be described on its own?",
+                options=[
+                    ConceptCheckOption(id="a", text="Yes, it's still in superposition alone"),
+                    ConceptCheckOption(id="b", text="No, the two qubits share one joint state"),
+                    ConceptCheckOption(id="c", text="Yes, it collapses to |0>"),
+                    ConceptCheckOption(id="d", text="No, because CX destroys qubit 0"),
+                ],
+                correct_option_id="b",
+                explanation=(
+                    "The resulting Bell state (|00> + |11>)/√2 cannot be factored into a state for "
+                    "qubit 0 times a state for qubit 1 — that is what makes it entangled."
+                ),
+                concept="entanglement",
             ),
             InteractiveLabSection(
                 id="s3",
@@ -234,7 +317,22 @@ RAW_LESSONS: list[Lesson] = [
                 id="s1", title="The Bell state", body="H then CX on two qubits produces a Bell state: only 00 and 11 occur."
             ),
             ConceptCheckSection(
-                id="s2", title="Check your understanding", prompt="Which two outcomes should a Bell-state measurement ever show?"
+                id="s2",
+                title="Check your understanding",
+                prompt="Which two outcomes should a Bell-state measurement ever show?",
+                question="Which two outcomes should a correctly prepared Bell-state measurement show?",
+                options=[
+                    ConceptCheckOption(id="a", text="00 and 01"),
+                    ConceptCheckOption(id="b", text="00 and 11"),
+                    ConceptCheckOption(id="c", text="01 and 10"),
+                    ConceptCheckOption(id="d", text="Any of the four, with equal probability"),
+                ],
+                correct_option_id="b",
+                explanation=(
+                    "The Bell state (|00> + |11>)/√2 only has support on 00 and 11 — "
+                    "01 and 10 should never be observed."
+                ),
+                concept="bell-state",
             ),
             InteractiveLabSection(
                 id="s3",

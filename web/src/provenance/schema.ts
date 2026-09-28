@@ -27,11 +27,28 @@ export const ExplanationSectionSchema = z.object({
   body: z.string(),
 })
 
+// backend/qentor/lessons/models.py::ConceptCheckOption
+export const ConceptCheckOptionSchema = z.object({
+  id: z.string(),
+  text: z.string(),
+})
+
+// backend/qentor/lessons/models.py::ConceptCheckSection — `question` et al.
+// are `.nullable()`, not `.optional()`, because pydantic/FastAPI serialise a
+// `None` field as JSON `null`, not an omitted key (same convention as every
+// other optional field in this file, e.g. `OptimizeResponseSchema.reason`).
+// The backend guarantees these four are present together or all null; this
+// schema doesn't re-enforce that (the backend catalog is already validated).
 export const ConceptCheckSectionSchema = z.object({
   type: z.literal('concept_check'),
   id: z.string(),
   title: z.string(),
   prompt: z.string(),
+  question: z.string().nullable(),
+  options: z.array(ConceptCheckOptionSchema).nullable(),
+  correct_option_id: z.string().nullable(),
+  explanation: z.string().nullable(),
+  concept: z.string().nullable(),
 })
 
 export const InteractiveLabSectionSchema = z.object({
