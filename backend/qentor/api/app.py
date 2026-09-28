@@ -1,5 +1,5 @@
 """FastAPI app — POST /api/execute, POST /api/verify/bell-state,
-POST /api/tutor and POST /api/test/multi-input.
+POST /api/tutor, POST /api/test/multi-input and POST /api/optimize.
 
 This module imports ``circuit``, ``execution``, ``provenance``, ``storage``,
 ``verification`` and ``tutor`` — exactly the ``api -> tutor -> verification ->
@@ -46,6 +46,7 @@ from qentor.verification.multi_input_harness import (
     TestCaseSpec,
     run_multi_input_test,
 )
+from qentor.verification.optimizer import optimize_circuit
 
 from .schemas import (
     ExecuteRequest,
@@ -54,6 +55,10 @@ from .schemas import (
     MultiInputCounterexampleResponse,
     MultiInputTestRequest,
     MultiInputTestResponse,
+    OptimizeEquivalenceCheckResponse,
+    OptimizeEquivalenceResponse,
+    OptimizeRequest,
+    OptimizeResponse,
     TutorFactResponse,
     TutorRequest,
     TutorResponse,
@@ -296,4 +301,64 @@ def multi_input_test_endpoint(request: MultiInputTestRequest) -> MultiInputTestR
             for c in report.counterexamples
         ],
         overall_status=report.overall_status.value,
+    )
+
+
+@app.post("/api/optimize", response_model=OptimizeResponse)
+def optimize_endpoint(request: OptimizeRequest) -> OptimizeResponse:
+    """Verified circuit optimisation (docs/VERIFICATION_ARCHITECTURE.md §4.4,
+    ``qentor.verification.optimizer``).
+
+    A rewrite rule alone never earns "verified": every candidate goes through
+    ``qentor.verification.equivalence`` (Qiskit Operator equivalence, the one
+    documented method) before this endpoint can report it as shorter.
+    ``backend`` only selects which adapter runs the already-verified candidate
+    once, to persist supporting evidence — it plays no part in the
+    equivalence verdict. If nothing survives verification, the response says
+    so explicitly and carries no candidate circuit definition at all.
+    """
+    adapter = _adapters[request.backend]
+
+    def record_execution(result: ExecutionResult, candidate_hash: str) -> str:
+        record = ProvenanceRecord.new(
+            circuit_hash=candidate_hash,
+            backend=result.backend_name,
+            backend_version=result.backend_version,
+            execution_mode=result.execution_mode,
+            provenance_class=ProvenanceClass.SIMULATION,
+            verification_status=VerificationStatus.VERIFIED,
+            payload=result.to_payload(),
+        )
+        _store.insert(record)
+        return record.result_id
+
+    report = optimize_circuit(request.circuit, adapter=adapter, record_execution=record_execution)
+
+    equivalence = None
+    if report.equivalence is not None:
+        equivalence = OptimizeEquivalenceResponse(
+            status=report.equivalence.status.value,
+            method=report.equivalence.method,
+            global_phase=report.equivalence.global_phase,
+            checks=[
+                OptimizeEquivalenceCheckResponse(name=c.name, status=c.status.value, detail=c.detail)
+                for c in report.equivalence.checks
+            ],
+            reason=report.equivalence.reason,
+        )
+
+    return OptimizeResponse(
+        original_circuit_hash=report.original_circuit_hash,
+        candidate_circuit_hash=report.candidate_circuit_hash,
+        original_op_count=report.original_op_count,
+        candidate_op_count=report.candidate_op_count,
+        rules_applied=report.rules_applied,
+        reduction_summary=report.reduction_summary,
+        status=report.status.value,
+        equivalence=equivalence,
+        verifier_name=report.verifier_name,
+        verifier_version=report.verifier_version,
+        reason=report.reason,
+        candidate_circuit=report.candidate_circuit,
+        result_id=report.result_id,
     )

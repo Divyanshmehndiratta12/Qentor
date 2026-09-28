@@ -176,3 +176,59 @@ class MultiInputTestResponse(BaseModel):
     cases: list[MultiInputCaseResponse]
     counterexamples: list[MultiInputCounterexampleResponse]
     overall_status: str
+
+
+class OptimizeRequest(BaseModel):
+    """``circuit`` is the same canonical shape every other endpoint takes.
+    ``backend`` selects which adapter (if any) runs the *verified* candidate
+    once, purely to persist a supporting statevector result — it plays no
+    part in the equivalence verdict itself, which always comes from
+    ``qentor.verification.equivalence`` (Qiskit's own Operator equivalence,
+    the one documented method, regardless of backend). This request has no
+    field for a probability, amplitude, count or a "verified" flag — a client
+    cannot submit its own equivalence verdict.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    circuit: Circuit
+    backend: Literal["qiskit-aer", "cirq", "pennylane"] = "qiskit-aer"
+
+
+class OptimizeEquivalenceCheckResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    name: str
+    status: str
+    detail: str
+
+
+class OptimizeEquivalenceResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    status: str
+    method: str
+    global_phase: float | None
+    checks: list[OptimizeEquivalenceCheckResponse]
+    reason: str | None
+
+
+class OptimizeResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    original_circuit_hash: str
+    candidate_circuit_hash: str
+    original_op_count: int
+    candidate_op_count: int
+    rules_applied: list[str]
+    reduction_summary: str
+    status: str
+    equivalence: OptimizeEquivalenceResponse | None
+    verifier_name: str
+    verifier_version: str
+    reason: str | None
+    # Present only when status == "VERIFIED_SHORTER" — see
+    # qentor.verification.optimizer.OptimizationReport's own docstring on why
+    # an unverified candidate's definition is withheld, not just labelled.
+    candidate_circuit: Circuit | None
+    result_id: str | None
