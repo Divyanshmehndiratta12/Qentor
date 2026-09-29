@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import type { FullConceptCheckSection } from './lessonState'
 import { useLearnStore } from './store'
 import { ConceptCheckQuiz } from './ConceptCheckQuiz'
@@ -27,6 +27,10 @@ describe('ConceptCheckQuiz', () => {
   })
 
   afterEach(() => {
+    // Unmount before resetting stores: this afterEach runs before RTL's own
+    // auto-cleanup, and resetting a store under a still-mounted component
+    // is a state update outside act().
+    cleanup()
     useLearnStore.setState(INITIAL_STATE, true)
   })
 

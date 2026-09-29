@@ -22,12 +22,27 @@ export interface ConceptCheckAttempt {
   attemptCount: number
 }
 
-/** One lesson's session-local progress. Every field is additive/monotonic —
- * a section, once visited, and a concept check, once attempted, stay that
- * way for the rest of the session (a retry updates `conceptCheckAttempts`'
- * latest answer, it never "un-attempts" it). */
+/**
+ * One lesson's session-local progress, split into two clearly distinct
+ * kinds of state (never conflated, never redundant with each other):
+ *
+ * - Navigation state — `activeSectionIndex`: which step the player is
+ *   currently showing. Changes on every Back/Continue click; carries no
+ *   information about what's actually been learned.
+ * - Progress state — `completedSectionIds`/`conceptCheckAttempts`: what the
+ *   learner has actually, explicitly done. Both are additive/monotonic — a
+ *   section, once completed, and a concept check, once attempted, stay that
+ *   way for the rest of the session (a retry updates `conceptCheckAttempts`'
+ *   latest answer, it never "un-attempts" it, and revisiting a completed
+ *   section via Back never un-completes it).
+ *
+ * A section lands in `completedSectionIds` only when the learner explicitly
+ * clicks Continue/Finish on it in `LessonPlayer` — never merely from being
+ * rendered.
+ */
 export interface LessonProgress {
-  visitedSectionIds: Set<string>
+  activeSectionIndex: number
+  completedSectionIds: Set<string>
   conceptCheckAttempts: Record<string, ConceptCheckAttempt>
 }
 
@@ -51,21 +66,39 @@ function attemptableSections(lesson: Lesson): FullConceptCheckSection[] {
 }
 
 /**
- * Completion rule: a lesson is complete once every one of its sections has
- * been visited AND every concept_check section that carries a real question
- * has been attempted at least once (correctness is not required — see
+ * Completion rule (unchanged since the previous milestone — only *how*
+ * `completedSectionIds` gets populated changed, from "section rendered" to
+ * "learner explicitly completed it" via `LessonPlayer`): a lesson is
+ * complete once every one of its sections has been explicitly completed AND
+ * every concept_check section that carries a real question has been
+ * attempted at least once (correctness is not required — see
  * `getLessonMastery` for the signal that does care about correctness).
  * Deterministic, timer-free: it depends only on what the learner has
- * actually visited/attempted this session.
+ * actually completed/attempted this session.
  */
 export function isLessonComplete(lesson: Lesson, progress: LessonProgress | undefined): boolean {
   if (!progress) return false
 
-  const allSectionsVisited = lesson.sections.every((section) => progress.visitedSectionIds.has(section.id))
+  const allSectionsCompleted = lesson.sections.every((section) => progress.completedSectionIds.has(section.id))
   const allChecksAttempted = attemptableSections(lesson).every(
     (section) => section.id in progress.conceptCheckAttempts,
   )
-  return allSectionsVisited && allChecksAttempted
+  return allSectionsCompleted && allChecksAttempted
+}
+
+/**
+ * Whether `LessonPlayer`'s Continue/Finish button should be enabled for this
+ * section right now — pure navigation-gating logic, not itself a completion
+ * record. A fully-specified concept check requires at least one submitted
+ * attempt (selecting an option alone is not enough); every other section
+ * type (explanation, reflection, interactive_lab, and a prompt-only concept
+ * check) can be continued immediately.
+ */
+export function canContinueFromSection(section: LessonSection, progress: LessonProgress | undefined): boolean {
+  if (isFullConceptCheck(section)) {
+    return Boolean(progress?.conceptCheckAttempts[section.id])
+  }
+  return true
 }
 
 export interface ConceptCheckScore {

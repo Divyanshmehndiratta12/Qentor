@@ -6,8 +6,10 @@ import {
   getLessonMastery,
   getMasteryBreakdown,
   getMisconceptions,
+  getLessonStatus,
   getNextChallenge,
   getOverallLearningProgress,
+  getSectionProgress,
 } from './learnerInsights'
 
 function lesson(overrides: Partial<Lesson> = {}): Lesson {
@@ -44,8 +46,71 @@ function conceptCheck(id: string, concept: string, correctOptionId = 'a'): Lesso
 }
 
 function progress(overrides: Partial<LessonProgress> = {}): LessonProgress {
-  return { visitedSectionIds: new Set(), conceptCheckAttempts: {}, ...overrides }
+  return { activeSectionIndex: 0, completedSectionIds: new Set(), conceptCheckAttempts: {}, ...overrides }
 }
+
+describe('getLessonStatus', () => {
+  it('is not_started for a lesson that was never started', () => {
+    expect(getLessonStatus(lesson(), undefined, false)).toBe('not_started')
+  })
+
+  it('is developing once started but not complete', () => {
+    expect(getLessonStatus(lesson(), progress(), true)).toBe('developing')
+  })
+
+  it('is completed once the lesson is complete', () => {
+    expect(getLessonStatus(lesson(), progress({ completedSectionIds: new Set(['s1']) }), true)).toBe('completed')
+  })
+
+  it('stays completed (not developing) when complete with low concept-check accuracy — mastery is the separate signal', () => {
+    const l = lesson({ sections: [conceptCheck('s1', 'x')] })
+    const p = progress({
+      completedSectionIds: new Set(['s1']),
+      conceptCheckAttempts: { s1: { selectedOptionId: 'b', isCorrect: false, attemptCount: 1 } },
+    })
+    expect(getLessonStatus(l, p, true)).toBe('completed')
+    expect(getLessonMastery(l, p, true)).toBe('developing')
+  })
+
+  it('agrees with getLessonMastery on what counts as started (no second algorithm)', () => {
+    const l = lesson({ sections: [conceptCheck('s1', 'x')] })
+    for (const started of [false, true]) {
+      const status = getLessonStatus(l, progress(), started)
+      expect(status === 'not_started').toBe(getLessonMastery(l, progress(), started) === 'not_started')
+    }
+  })
+})
+
+describe('getSectionProgress', () => {
+  const two = lesson({
+    sections: [
+      { type: 'explanation', id: 's1', title: 'a', body: 'b' },
+      { type: 'reflection', id: 's2', title: 'c', prompt: 'p' },
+    ],
+  })
+
+  it('is 0 of N with no progress', () => {
+    expect(getSectionProgress(two, undefined)).toEqual({ completed: 0, total: 2 })
+  })
+
+  it('counts explicitly completed sections of that lesson', () => {
+    expect(getSectionProgress(two, progress({ completedSectionIds: new Set(['s1']) }))).toEqual({
+      completed: 1,
+      total: 2,
+    })
+  })
+
+  it('ignores ids that are not sections of the lesson', () => {
+    expect(getSectionProgress(two, progress({ completedSectionIds: new Set(['s1', 'ghost']) }))).toEqual({
+      completed: 1,
+      total: 2,
+    })
+  })
+
+  it('does not treat the navigation position as completion', () => {
+    expect(getSectionProgress(two, progress({ activeSectionIndex: 2 }))).toEqual({ completed: 0, total: 2 })
+  })
+})
 
 describe('getOverallLearningProgress', () => {
   it('is all-zero with an empty catalog', () => {
@@ -77,13 +142,13 @@ describe('getOverallLearningProgress', () => {
       lesson({ id: 'b', sections: [conceptCheck('s1', 'x')] }),
     ]
     const lessonProgress = {
-      a: progress({ visitedSectionIds: new Set(['s1']) }),
+      a: progress({ completedSectionIds: new Set(['s1']) }),
       b: progress({ conceptCheckAttempts: { s1: { selectedOptionId: 'a', isCorrect: true, attemptCount: 1 } } }),
     }
     const result = getOverallLearningProgress(lessons, lessonProgress, new Set(['a', 'b']))
 
     expect(result.lessonsStarted).toBe(2)
-    expect(result.lessonsCompleted).toBe(1) // only 'a' is complete (its only section is visited)
+    expect(result.lessonsCompleted).toBe(1) // only 'a' is complete (its only section is completed)
     expect(result.conceptChecksAttempted).toBe(1)
     expect(result.conceptChecksCorrect).toBe(1)
     expect(result.overallAccuracy).toBe(1)
@@ -92,8 +157,8 @@ describe('getOverallLearningProgress', () => {
   it('counts every completed lesson once the whole catalog is done', () => {
     const lessons = [lesson({ id: 'a' }), lesson({ id: 'b' })]
     const lessonProgress = {
-      a: progress({ visitedSectionIds: new Set(['s1']) }),
-      b: progress({ visitedSectionIds: new Set(['s1']) }),
+      a: progress({ completedSectionIds: new Set(['s1']) }),
+      b: progress({ completedSectionIds: new Set(['s1']) }),
     }
     const result = getOverallLearningProgress(lessons, lessonProgress, new Set(['a', 'b']))
     expect(result.lessonsCompleted).toBe(2)
@@ -107,7 +172,7 @@ describe('getMasteryBreakdown reuses getLessonMastery (no second algorithm)', ()
     const b = lesson({ id: 'b' })
     const lessonProgress = {
       a: progress({
-        visitedSectionIds: new Set(['s1']),
+        completedSectionIds: new Set(['s1']),
         conceptCheckAttempts: { s1: { selectedOptionId: 'a', isCorrect: true, attemptCount: 1 } },
       }),
     }
@@ -166,7 +231,7 @@ describe('getMisconceptions', () => {
       ],
     })
     const p = progress({
-      visitedSectionIds: new Set(['s0', 's1']),
+      completedSectionIds: new Set(['s0', 's1']),
       conceptCheckAttempts: { s1: { selectedOptionId: 'b', isCorrect: false, attemptCount: 1 } },
     })
 
@@ -189,7 +254,7 @@ describe('getMisconceptions', () => {
         conceptCheck('s1', 'measurement'),
       ],
     })
-    // s0 (explanation) never visited -> lesson not complete.
+    // s0 (explanation) never completed -> lesson not complete.
     const p = progress({
       conceptCheckAttempts: { s1: { selectedOptionId: 'b', isCorrect: false, attemptCount: 1 } },
     })
@@ -284,7 +349,7 @@ describe('getNextChallenge', () => {
   it('priority B skips a locked lesson and recommends the next available one', () => {
     const a = lesson({ id: 'a', title: 'A' })
     const b = lesson({ id: 'b', title: 'B', prerequisiteLessonIds: ['a'] })
-    const p = progress({ visitedSectionIds: new Set(['s1']) }) // a is complete
+    const p = progress({ completedSectionIds: new Set(['s1']) }) // a is complete
 
     const result = getNextChallenge([a, b], { a: p }, new Set(['a']))
 
@@ -294,7 +359,7 @@ describe('getNextChallenge', () => {
 
   it('priority C: reports the catalog complete once every lesson is done', () => {
     const a = lesson({ id: 'a' })
-    const p = progress({ visitedSectionIds: new Set(['s1']) })
+    const p = progress({ completedSectionIds: new Set(['s1']) })
 
     const result = getNextChallenge([a], { a: p }, new Set(['a']))
 

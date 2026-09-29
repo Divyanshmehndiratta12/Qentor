@@ -7,7 +7,7 @@
  * report".
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { BackendUnavailableError } from '@/api'
 import type { ExecutePayload, VerifyBellStateResult } from '@/api'
 import { emptyCircuit } from '@/circuit/types'
@@ -71,6 +71,10 @@ describe('VerificationPanel', () => {
   })
 
   afterEach(() => {
+    // Unmount before resetting stores: this afterEach runs before RTL's own
+    // auto-cleanup, and resetting a store under a still-mounted component
+    // is a state update outside act().
+    cleanup()
     useBuildStore.setState(INITIAL_STATE, true)
   })
 

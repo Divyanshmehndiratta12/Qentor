@@ -7,7 +7,7 @@
  * picker/case editor's own DOM interactions.
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { act, render, screen } from '@testing-library/react'
+import { act, cleanup, render, screen } from '@testing-library/react'
 import type { MultiInputTestResult } from '@/api'
 import { emptyCircuit } from '@/circuit/types'
 
@@ -40,6 +40,10 @@ describe('MultiInputTestPanel', () => {
   })
 
   afterEach(() => {
+    // Unmount before resetting stores: this afterEach runs before RTL's own
+    // auto-cleanup, and resetting a store under a still-mounted component
+    // is a state update outside act().
+    cleanup()
     useBuildStore.setState(INITIAL_STATE, true)
   })
 

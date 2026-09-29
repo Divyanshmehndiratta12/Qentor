@@ -65,7 +65,7 @@ export interface ConceptCheckOption {
  * every concept_check was before this milestone. Grading happens client-side
  * against `correctOptionId`: there is no server-side grading endpoint in this
  * milestone, which does mean the correct answer is visible in the network
- * response — see `@/features/learn/LessonSectionView.tsx`'s own note.
+ * response — see `@/features/learn/ConceptCheckQuiz.tsx`'s own note.
  */
 export interface LessonConceptCheckSection {
   type: 'concept_check'

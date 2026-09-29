@@ -16,15 +16,16 @@
  *    `VITE_USE_MOCK_API=true` FIXTURE adapter), not a live switch — there is
  *    no runtime adapter-swap capability in api/index.ts, and adding one is
  *    out of scope for a visual pass.
- *  - Lab/Learn are real navigation (see `App.tsx`); Progress remains an inert
- *    "soon" placeholder — no progress backend or screen exists yet.
+ *  - Lab/Learn/Progress are all real navigation (see `App.tsx`). Progress is
+ *    a learner dashboard over local session state; there is still no
+ *    learner-progress backend.
  *  - The Lab-only toolbar (mode chips, adapter badge, Run) is hidden on the
- *    Learn screen: those actions operate on the Build circuit, which isn't
- *    what's on screen there.
+ *    Learn and Progress screens: those actions operate on the Build circuit,
+ *    which isn't what's on screen there.
  */
 import { useBuildStore } from '@/features/build/store'
 
-export type Screen = 'lab' | 'learn'
+export type Screen = 'lab' | 'learn' | 'progress'
 
 const isMock = import.meta.env.VITE_USE_MOCK_API === 'true'
 
@@ -57,8 +58,10 @@ function NavItem({
         type="button"
         onClick={onClick}
         aria-current={active ? 'page' : undefined}
-        className={`rounded-md px-2.5 py-1.5 text-[13px] font-medium ${
-          active ? 'bg-void-500 text-slate-100' : 'text-slate-400 hover:bg-void-600 hover:text-slate-200'
+        className={`rounded-md px-2.5 py-1.5 text-[13px] font-medium focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-cyan-glow ${
+          active
+            ? 'bg-void-500 text-slate-100 underline decoration-cyan-glow decoration-2 underline-offset-[7px]'
+            : 'text-slate-400 hover:bg-void-600 hover:text-slate-200'
         }`}
       >
         {label}
@@ -91,7 +94,7 @@ export function TopBar({ screen, onNavigate }: { screen: Screen; onNavigate: (sc
         <nav className="flex gap-0.5 text-[13px]">
           <NavItem label="Lab" active={screen === 'lab'} onClick={() => onNavigate('lab')} />
           <NavItem label="Learn" active={screen === 'learn'} onClick={() => onNavigate('learn')} />
-          <NavItem label="Progress" soon />
+          <NavItem label="Progress" active={screen === 'progress'} onClick={() => onNavigate('progress')} />
         </nav>
         {screen === 'lab' && (
           <>

@@ -94,6 +94,32 @@ export function getMasteryBreakdown(
   return breakdown
 }
 
+export type LessonStatus = 'completed' | 'developing' | 'not_started'
+
+/** One lesson's headline status for lists: `completed` when
+ * `isLessonComplete`; otherwise `developing` if `getLessonMastery` says the
+ * lesson has been started; otherwise `not_started`. A *completed* lesson can
+ * still have `developing` mastery (low concept-check accuracy) — that is a
+ * separate signal the caller shows alongside, from `getLessonMastery`. */
+export function getLessonStatus(
+  lesson: Lesson,
+  progress: LessonProgress | undefined,
+  started: boolean,
+): LessonStatus {
+  if (isLessonComplete(lesson, progress)) return 'completed'
+  return getLessonMastery(lesson, progress, started) === 'not_started' ? 'not_started' : 'developing'
+}
+
+/** How many of this lesson's own sections the learner has explicitly
+ * completed. Counts only ids that are real sections of `lesson`. */
+export function getSectionProgress(
+  lesson: Lesson,
+  progress: LessonProgress | undefined,
+): { completed: number; total: number } {
+  const completed = lesson.sections.filter((section) => progress?.completedSectionIds.has(section.id)).length
+  return { completed, total: lesson.sections.length }
+}
+
 export type MisconceptionSeverity = 'low' | 'medium' | 'high'
 
 export interface MisconceptionSignal {

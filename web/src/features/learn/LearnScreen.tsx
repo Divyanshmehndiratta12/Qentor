@@ -9,7 +9,7 @@
  * `isLessonComplete` (`./lessonState.ts`) — never invented server data, and
  * never stored as its own boolean (so it can't drift from the progress it's
  * computed from). "Locked" then follows from that plus each lesson's own
- * `prerequisiteLessonIds`. Selecting a lesson, visiting a section or
+ * `prerequisiteLessonIds`. Selecting a lesson, completing a section or
  * submitting a concept check never touches `useBuildStore` (the circuit/Lab
  * state); the only bridge to Lab is `onOpenLab`, called explicitly from an
  * interactive_lab section.

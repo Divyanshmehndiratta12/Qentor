@@ -1,12 +1,12 @@
 /**
- * The selected lesson's detail view: objectives, ordered sections, lab
- * availability, and the learner's session-local progress for this lesson
- * (sections visited, concept-check score, completion, mastery — all derived
- * by `lessonState.ts` from `progress`, never stored pre-computed). Every
- * field rendered here is either a plain value from GET /api/lessons or a
- * pure function of local session progress — nothing here computes a quantum
- * value; `linkedCircuit` is shown only as shape (qubit/op counts), never
- * executed in place.
+ * The selected lesson's detail view: objectives, lab availability, an
+ * overall progress/mastery summary, and the step-by-step `LessonPlayer`
+ * (sections completed, concept-check score, completion, mastery — all
+ * derived by `lessonState.ts` from `progress`, never stored pre-computed).
+ * Every field rendered here is either a plain value from GET /api/lessons or
+ * a pure function of local session progress — nothing here computes a
+ * quantum value; `linkedCircuit` is shown only as shape (qubit/op counts),
+ * never executed in place.
  */
 import type { Circuit } from '@/circuit/types'
 import type { Lesson, LessonDifficulty } from '@/api'
@@ -17,7 +17,7 @@ import {
   type LessonProgress,
   type Mastery,
 } from './lessonState'
-import { LessonSectionView } from './LessonSectionView'
+import { LessonPlayer } from './LessonPlayer'
 
 const DIFFICULTY_LABEL: Record<LessonDifficulty, string> = {
   beginner: 'Beginner',
@@ -54,7 +54,7 @@ export function LessonDetailPanel({
     (id) => lessons.find((l) => l.id === id)?.title ?? id,
   )
 
-  const visitedCount = progress?.visitedSectionIds.size ?? 0
+  const completedCount = progress?.completedSectionIds.size ?? 0
   const complete = isLessonComplete(lesson, progress)
   const score = getConceptCheckScore(lesson, progress)
   const mastery = getLessonMastery(lesson, progress, started)
@@ -80,7 +80,7 @@ export function LessonDetailPanel({
         <div>
           <p className="text-void-200">Sections</p>
           <p className="mt-0.5 font-mono-qasm text-slate-200">
-            {visitedCount}/{lesson.sections.length}
+            {completedCount}/{lesson.sections.length}
           </p>
         </div>
         <div>
@@ -136,18 +136,7 @@ export function LessonDetailPanel({
         )}
       </div>
 
-      <div className="flex flex-col gap-3">
-        <h3 className="text-xs font-semibold tracking-wider text-slate-500 uppercase">Sections</h3>
-        {lesson.sections.map((section) => (
-          <LessonSectionView
-            key={section.id}
-            lessonId={lesson.id}
-            section={section}
-            linkedCircuit={lesson.linkedCircuit}
-            onOpenLab={onOpenLab}
-          />
-        ))}
-      </div>
+      <LessonPlayer lesson={lesson} onOpenLab={onOpenLab} />
     </div>
   )
 }
