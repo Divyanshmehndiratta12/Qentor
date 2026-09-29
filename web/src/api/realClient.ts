@@ -5,7 +5,12 @@
  * `fetch` JSON object a component could render without a provenance badge.
  */
 import { CircuitSchema, type Circuit } from '@/circuit/types'
-import { provenanceFromExecuteResponse, toQuantumValue, type QuantumValue } from '@/provenance/QuantumValue'
+import {
+  provenanceFromExecuteResponse,
+  provenanceFromTraceStep,
+  toQuantumValue,
+  type QuantumValue,
+} from '@/provenance/QuantumValue'
 import {
   ExecuteResponseSchema,
   LessonCatalogResponseSchema,
@@ -13,16 +18,20 @@ import {
   OptimizeResponseSchema,
   ShotsPayloadSchema,
   StatevectorPayloadSchema,
+  TraceErrorDetailSchema,
+  TraceResponseSchema,
   TutorResponseSchema,
   VerifyBellStateResponseSchema,
   type LessonSectionResponse,
 } from '@/provenance/schema'
 import {
   BackendUnavailableError,
+  TraceRejectedError,
   type ApiClient,
   type Backend,
   type ExecutePayload,
   type ExecutionMode,
+  type ExecutionTraceResult,
   type Lesson,
   type LessonSection,
   type MultiInputTestCase,
@@ -104,6 +113,57 @@ export class RealApiClient implements ApiClient {
     }
 
     return toQuantumValue(payload, provenance)
+  }
+
+  async traceCircuit(circuit: Circuit, backend?: Backend): Promise<ExecutionTraceResult> {
+    // Same discipline as every other write path: the request body has exactly
+    // circuit + mode (+ backend if chosen). `mode` is always "statevector" —
+    // the only mode a trace exists for — and there is no way to reach this
+    // method with an amplitude, probability, count or verdict attached.
+    const validCircuit = CircuitSchema.parse(circuit)
+
+    let res: Response
+    try {
+      res = await fetch(`${this.baseUrl}/api/execute/trace`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ circuit: validCircuit, mode: 'statevector', ...(backend ? { backend } : {}) }),
+      })
+    } catch (err) {
+      throw new BackendUnavailableError(
+        `could not reach the Qentor backend: ${err instanceof Error ? err.message : String(err)}`,
+      )
+    }
+
+    if (!res.ok) throw await traceErrorFromResponse(res)
+
+    const response = TraceResponseSchema.parse(await res.json())
+
+    // Field-for-field camelCase mapping. The statevector tuples are passed
+    // through as the very values the backend sent — no rounding, no
+    // normalising, no arithmetic — each wrapped with its own step's provenance.
+    return {
+      circuitHash: response.circuit_hash,
+      tracedCircuitHash: response.traced_circuit_hash,
+      backend: response.backend,
+      backendVersion: response.backend_version,
+      numQubits: response.num_qubits,
+      mode: response.mode,
+      traceMethod: response.trace_method,
+      basisOrdering: response.basis_ordering,
+      steps: response.steps.map((step) => ({
+        stepIndex: step.step_index,
+        operationIndex: step.operation_index,
+        operation: step.operation,
+        executionId: step.execution_id,
+        state: toQuantumValue(step.statevector, provenanceFromTraceStep(step.provenance)),
+      })),
+      terminalMeasurements: response.terminal_measurements.map((m) => ({
+        operationIndex: m.operation_index,
+        operation: m.operation,
+      })),
+      finalResultId: response.final_result_id,
+    }
   }
 
   async verifyBellState(resultId: string, circuit: Circuit): Promise<VerifyBellStateResult> {
@@ -341,6 +401,29 @@ export class RealApiClient implements ApiClient {
       overallStatus: response.overall_status,
     }
   }
+}
+
+/**
+ * POST /api/execute/trace's own error body is `{detail: {code, message}}` — a
+ * structured refusal — which becomes a `TraceRejectedError`. Anything else
+ * (a FastAPI validation error's list `detail`, an HTML gateway page, a body
+ * that isn't JSON) is NOT a trace refusal and is reported, unparsed, as the
+ * same `BackendUnavailableError` every other endpoint uses. The frontend
+ * never invents a code for a body that didn't carry one.
+ */
+async function traceErrorFromResponse(res: Response): Promise<Error> {
+  let body: unknown
+  try {
+    body = await res.json()
+  } catch {
+    return new BackendUnavailableError(`HTTP ${res.status}`, res.status)
+  }
+
+  const detail = TraceErrorDetailSchema.safeParse((body as { detail?: unknown } | null)?.detail)
+  if (detail.success) return new TraceRejectedError(detail.data.code, detail.data.message, res.status)
+
+  const raw = (body as { detail?: unknown } | null)?.detail
+  return new BackendUnavailableError(typeof raw === 'string' ? raw : JSON.stringify(body), res.status)
 }
 
 async function safeErrorDetail(res: Response): Promise<string> {

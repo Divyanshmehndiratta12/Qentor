@@ -12,6 +12,7 @@ import { useBuildStore } from './store'
 import { VerificationPanel } from './VerificationPanel'
 import { OptimizePanel } from './OptimizePanel'
 import { MultiInputTestPanel } from './MultiInputTestPanel'
+import { TracePanel } from './TracePanel'
 import { VerifiedValueInline } from '@/provenance/VerifiedValue'
 import { ProvenanceBadge } from '@/provenance/ProvenanceBadge'
 import { toQuantumValue } from '@/provenance/QuantumValue'
@@ -101,6 +102,7 @@ export function ResultsPanel() {
           <StatevectorResult amplitudes={result.value.statevector} provenance={result.provenance} />
         )}
 
+        <TracePanel />
         <VerificationPanel />
         <OptimizePanel />
         <MultiInputTestPanel />

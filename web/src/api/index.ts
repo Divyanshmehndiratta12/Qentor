@@ -16,6 +16,7 @@ export type {
   ConceptCheckOption,
   ExecutePayload,
   ExecutionMode,
+  ExecutionTraceResult,
   LabCapability,
   Lesson,
   LessonConceptCheckSection,
@@ -31,13 +32,15 @@ export type {
   OptimizationEquivalenceCheckResult,
   OptimizationEquivalenceResult,
   OptimizationResult,
+  TraceStep,
+  TraceTerminalMeasurement,
   TutorAnswerResult,
   TutorFactResult,
   TutorLanguage,
   VerificationCheckResult,
   VerifyBellStateResult,
 } from './client'
-export { BackendUnavailableError, EndpointNotImplementedError } from './client'
+export { BackendUnavailableError, EndpointNotImplementedError, TraceRejectedError } from './client'
 
 let cached: ApiClient | null = null
 

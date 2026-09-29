@@ -6,7 +6,7 @@
  * `QuantumValue.ts`.
  */
 import { z } from 'zod'
-import { CircuitSchema } from '@/circuit/types'
+import { CircuitSchema, GateOpSchema } from '@/circuit/types'
 
 // backend/qentor/lessons/models.py::Difficulty
 export const LessonDifficultySchema = z.enum(['beginner', 'intermediate', 'advanced'])
@@ -138,6 +138,103 @@ export const ShotsPayloadSchema = z.object({
   probabilities: z.record(z.string(), z.number()),
 })
 export type ShotsPayload = z.infer<typeof ShotsPayloadSchema>
+
+// backend/qentor/api/schemas.py::TraceProvenanceResponse — exactly the
+// provenance fields `ExecuteResponse` carries (minus `payload`), one set per
+// trace step. Every step is an ordinary persisted execution record, so this
+// mirrors `ExecuteResponseSchema` field for field, reusing the same enums.
+export const TraceProvenanceSchema = z.object({
+  result_id: z.string(),
+  circuit_hash: z.string(),
+  backend: z.string(),
+  backend_version: z.string(),
+  execution_mode: z.string(),
+  provenance_class: ProvenanceClassSchema,
+  verification_status: VerificationStatusSchema,
+  created_at: z.string(),
+})
+export type TraceProvenanceResponse = z.infer<typeof TraceProvenanceSchema>
+
+// backend/qentor/api/schemas.py::TraceStepResponse — `operation` is the
+// canonical GateOp (the shared `GateOpSchema`, not a second gate format);
+// both it and `operation_index` are null for the initial state (step 0).
+// `statevector` is the adapter's own [[re, im], ...] list, passed through
+// untouched.
+export const TraceStepSchema = z.object({
+  step_index: z.number().int().nonnegative(),
+  operation_index: z.number().int().nonnegative().nullable(),
+  operation: GateOpSchema.nullable(),
+  execution_id: z.string(),
+  provenance: TraceProvenanceSchema,
+  statevector: z.array(z.tuple([z.number(), z.number()])),
+})
+export type TraceStepResponse = z.infer<typeof TraceStepSchema>
+
+// backend/qentor/api/schemas.py::TraceTerminalMeasurementResponse — a stripped
+// trailing `measure`: metadata only, deliberately no state and no provenance.
+export const TraceTerminalMeasurementSchema = z.object({
+  operation_index: z.number().int().nonnegative(),
+  operation: GateOpSchema,
+})
+export type TraceTerminalMeasurementResponse = z.infer<typeof TraceTerminalMeasurementSchema>
+
+// backend/qentor/api/schemas.py::TraceResponse. The refinement below checks
+// only STRUCTURE the renderer relies on — that steps are in order starting at
+// an initial (operation-less) step, and that each statevector has one entry
+// per basis state (2**num_qubits: a dimension count, not a quantum value).
+// It never inspects, normalises or recomputes an amplitude, and it is not
+// eligibility validation: whether a circuit can be traced stays entirely the
+// backend's decision.
+export const TraceResponseSchema = z
+  .object({
+    circuit_hash: z.string(),
+    traced_circuit_hash: z.string(),
+    backend: z.string(),
+    backend_version: z.string(),
+    num_qubits: z.number().int().positive(),
+    mode: z.string(),
+    trace_method: z.string(),
+    basis_ordering: z.string(),
+    steps: z.array(TraceStepSchema).min(1),
+    terminal_measurements: z.array(TraceTerminalMeasurementSchema),
+    final_result_id: z.string(),
+  })
+  .superRefine((trace, ctx) => {
+    const dimension = 2 ** trace.num_qubits
+    trace.steps.forEach((step, position) => {
+      if (step.step_index !== position) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['steps', position, 'step_index'],
+          message: `step_index ${step.step_index} is out of order (expected ${position})`,
+        })
+      }
+      if ((position === 0) !== (step.operation === null)) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['steps', position, 'operation'],
+          message: 'only the initial step (step 0) may have no operation',
+        })
+      }
+      if (step.statevector.length !== dimension) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['steps', position, 'statevector'],
+          message: `statevector has ${step.statevector.length} entries, expected ${dimension} for ${trace.num_qubits} qubits`,
+        })
+      }
+    })
+  })
+export type TraceResponse = z.infer<typeof TraceResponseSchema>
+
+// backend/qentor/api/app.py::execute_trace's structured refusals:
+// `detail = {"code": ..., "message": ...}` (a dict, unlike every other
+// endpoint's string `detail`), with no quantum data alongside.
+export const TraceErrorDetailSchema = z.object({
+  code: z.string(),
+  message: z.string(),
+})
+export type TraceErrorDetail = z.infer<typeof TraceErrorDetailSchema>
 
 // backend/qentor/verification/models.py::CheckStatus
 export const VerificationCheckStatusSchema = z.enum(['PASS', 'FAIL'])

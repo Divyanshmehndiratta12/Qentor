@@ -8,10 +8,12 @@
  */
 import { create } from 'zustand'
 import { getApiClient, BackendUnavailableError, EndpointNotImplementedError } from '@/api'
+import { TraceRejectedError } from '@/api'
 import type {
   Backend,
   ExecutePayload,
   ExecutionMode,
+  ExecutionTraceResult,
   MultiInputTestCase,
   MultiInputTestResult,
   OptimizationResult,
@@ -37,6 +39,35 @@ export type TutorTurn =
   | { role: 'learner'; text: string }
   | { role: 'tutor'; answer: TutorAnswerResult }
   | { role: 'error'; message: string }
+
+/**
+ * Why a trace request produced no trace. `rejected` is the backend's own
+ * structured refusal (stable `code` + `message`, no quantum data);
+ * `unexpected` is anything else (unreachable backend, an endpoint with no
+ * implementation, a response that didn't match the expected shape). Neither
+ * ever carries substitute data.
+ */
+export type TraceFailure =
+  | { kind: 'rejected'; code: string; message: string }
+  | { kind: 'unexpected'; message: string }
+
+function toTraceFailure(err: unknown): TraceFailure {
+  if (err instanceof TraceRejectedError) return { kind: 'rejected', code: err.code, message: err.message }
+  if (err instanceof Error && err.name === 'ZodError') {
+    return { kind: 'unexpected', message: "the backend's trace response did not match the expected shape" }
+  }
+  return { kind: 'unexpected', message: err instanceof Error ? err.message : String(err) }
+}
+
+/** What a circuit-changing action resets on the trace side: a trace is the
+ * backend's states for one specific circuit, so it goes stale the moment that
+ * circuit does. Deliberately NOT applied by `runExecution`/`setMode`: the
+ * Build screen re-executes on a debounce, and that must not erase a trace of
+ * the (unchanged) circuit the learner just asked for. */
+const TRACE_CLEARED = { isTracing: false, trace: null, traceError: null } as const
+
+// Guards against an older, slower trace request resolving after a newer one.
+let traceRequestSeq = 0
 
 interface BuildState {
   circuit: Circuit
@@ -73,6 +104,14 @@ interface BuildState {
   multiInputTest: MultiInputTestResult | null
   multiInputTestError: string | null
 
+  /** The backend's per-operation state trace of the CURRENT circuit
+   * (POST /api/execute/trace). Fully separate from `result`, verification,
+   * optimization, multi-input and tutor state: requesting or clearing a trace
+   * never touches any of them, and they never touch it. */
+  isTracing: boolean
+  trace: ExecutionTraceResult | null
+  traceError: TraceFailure | null
+
   setNumQubits: (n: number) => void
   selectGate: (gate: GateName | null) => void
   setPendingAngle: (angle: number) => void
@@ -83,6 +122,9 @@ interface BuildState {
   setShots: (shots: number) => void
   runExecution: () => Promise<void>
   runVerification: () => Promise<void>
+  /** Asks the backend for the per-operation trace of the current circuit.
+   * Reads the circuit, never writes it. */
+  runTrace: () => Promise<void>
   askTutor: (question: string) => Promise<void>
   setTutorLanguage: (language: TutorLanguage) => void
   /**
@@ -140,8 +182,11 @@ export const useBuildStore = create<BuildState>((set, get) => ({
   multiInputTest: null,
   multiInputTestError: null,
 
+  ...TRACE_CLEARED,
+
   setNumQubits: (n) => {
     set({
+      ...TRACE_CLEARED,
       ...syncFromCircuit(emptyCircuit(Math.max(1, Math.min(8, n)))),
       result: null,
       canvasError: null,
@@ -201,6 +246,7 @@ export const useBuildStore = create<BuildState>((set, get) => ({
     const { circuit } = get()
     const ops = circuit.ops.filter((_, i) => i !== index)
     set({
+      ...TRACE_CLEARED,
       ...syncFromCircuit({ ...circuit, ops }),
       result: null,
       verification: null,
@@ -218,6 +264,7 @@ export const useBuildStore = create<BuildState>((set, get) => ({
     try {
       const circuit = parseQasm3(text)
       set({
+        ...TRACE_CLEARED,
         circuit,
         qasmText: text,
         canvasError: null,
@@ -320,6 +367,32 @@ export const useBuildStore = create<BuildState>((set, get) => ({
     }
   },
 
+  runTrace: async () => {
+    // Reads the circuit and only ever writes the three trace fields — never
+    // the circuit, `result`, verification, optimization, multi-input or tutor
+    // state. It does not gate on an execution `result` (the backend traces
+    // the circuit itself) and does no eligibility checking of its own: an
+    // untraceable circuit comes back as the backend's structured refusal.
+    const { circuit } = get()
+    const seq = ++traceRequestSeq
+    set({ isTracing: true, trace: null, traceError: null })
+
+    // Discard the response if the circuit changed in flight (the mutation
+    // already cleared the trace fields) or a newer trace request superseded
+    // this one — never resurrect a trace of a circuit that no longer exists.
+    const isStale = () => seq !== traceRequestSeq || get().circuit !== circuit
+
+    try {
+      const client = getApiClient()
+      const trace = await client.traceCircuit(circuit)
+      if (isStale()) return
+      set({ trace, isTracing: false })
+    } catch (err) {
+      if (isStale()) return
+      set({ traceError: toTraceFailure(err), trace: null, isTracing: false })
+    }
+  },
+
   runOptimization: async () => {
     const { circuit } = get()
     // Optimize operates on the circuit itself, not an execution result — it
@@ -350,6 +423,7 @@ export const useBuildStore = create<BuildState>((set, get) => ({
     const { optimization } = get()
     if (!optimization || optimization.status !== 'VERIFIED_SHORTER' || !optimization.candidateCircuit) return
     set({
+      ...TRACE_CLEARED,
       ...syncFromCircuit(optimization.candidateCircuit),
       canvasError: null,
       result: null,
@@ -429,6 +503,7 @@ export const useBuildStore = create<BuildState>((set, get) => ({
 
   loadCircuit: (circuit) => {
     set({
+      ...TRACE_CLEARED,
       ...syncFromCircuit(circuit),
       canvasError: null,
       selectedGate: null,
@@ -460,6 +535,7 @@ function addOp(
   const { circuit } = get()
   const ops = [...circuit.ops, op]
   set({
+    ...TRACE_CLEARED,
     ...syncFromCircuit({ ...circuit, ops }),
     canvasError: null,
     result: null,

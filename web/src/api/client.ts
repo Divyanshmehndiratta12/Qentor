@@ -15,7 +15,7 @@
  * only this interface and `getApiClient()` from `index.ts`. That is what
  * makes the mock swappable without touching a single screen.
  */
-import type { Circuit } from '@/circuit/types'
+import type { Circuit, GateOp } from '@/circuit/types'
 import type { QuantumValue } from '@/provenance/QuantumValue'
 
 export type ExecutionMode = 'statevector' | 'shots'
@@ -265,6 +265,75 @@ export interface MultiInputTestResult {
   overallStatus: 'ALL_PASSED' | 'SOME_FAILED' | 'INCOMPLETE'
 }
 
+/**
+ * POST /api/execute/trace — the backend's own state after each operation.
+ * Shaped after `backend/qentor/api/schemas.py::TraceResponse`, normalised to
+ * camelCase, with nothing added, dropped or computed.
+ *
+ * Each step's `state` is a `QuantumValue` wrapping the backend's own
+ * `[[re, im], ...]` list together with that step's provenance (the same
+ * `Provenance` shape an `/api/execute` result carries), so a state can never
+ * reach a component without its provenance. `operation` is the canonical
+ * `GateOp` from the submitted circuit; both it and `operationIndex` are `null`
+ * for the initial state. `terminalMeasurements` are stripped trailing
+ * `measure` ops: metadata only — there is deliberately no state for them.
+ *
+ * `provenance.verificationStatus` means only what it means for `/api/execute`
+ * (the backend ran and returned a normalised state). It is NOT a claim that
+ * the circuit is correct.
+ */
+export interface TraceStep {
+  stepIndex: number
+  operationIndex: number | null
+  operation: GateOp | null
+  executionId: string
+  state: QuantumValue<Array<[number, number]>>
+}
+
+export interface TraceTerminalMeasurement {
+  operationIndex: number
+  operation: GateOp
+}
+
+export interface ExecutionTraceResult {
+  /** The circuit as submitted. */
+  circuitHash: string
+  /** The circuit that was actually traced (terminal measurements stripped);
+   * equals the last step's own circuit hash. */
+  tracedCircuitHash: string
+  backend: string
+  backendVersion: string
+  numQubits: number
+  mode: string
+  traceMethod: string
+  /** The backend's own statement of how a statevector index maps to a
+   * bitstring — shown beside the amplitudes, never reinterpreted. */
+  basisOrdering: string
+  steps: TraceStep[]
+  terminalMeasurements: TraceTerminalMeasurement[]
+  finalResultId: string
+}
+
+/**
+ * A structured refusal from POST /api/execute/trace (`detail = {code,
+ * message}`): the backend understood the request and declined to trace it
+ * (shots mode, a measurement followed by a gate, too large, backend
+ * unavailable/returned an unusable state). Carries no quantum data.
+ * Deliberately distinct from `BackendUnavailableError`, which stays the
+ * "could not reach it / unstructured failure" error every other endpoint uses.
+ */
+export class TraceRejectedError extends Error {
+  readonly code: string
+  readonly status: number
+
+  constructor(code: string, message: string, status: number) {
+    super(message)
+    this.name = 'TraceRejectedError'
+    this.code = code
+    this.status = status
+  }
+}
+
 export class EndpointNotImplementedError extends Error {
   constructor(endpoint: string) {
     super(`${endpoint} has no backend implementation yet`)
@@ -297,6 +366,18 @@ export interface ApiClient {
    * known to the client, never a probability, count, amplitude or verdict.
    */
   verifyBellState(resultId: string, circuit: Circuit): Promise<VerifyBellStateResult>
+
+  /**
+   * POST /api/execute/trace — the backend's own state after each non-measure
+   * operation of `circuit` (statevector mode only; the request always says so).
+   * Sends only the canonical `circuit` (and an optional backend choice) —
+   * never an amplitude, probability or verdict. Every number in the result
+   * comes from the backend and is returned untouched, wrapped with its
+   * provenance. Rejects with `TraceRejectedError` for a structured backend
+   * refusal, `BackendUnavailableError` for anything unstructured; never
+   * resolves with substitute data.
+   */
+  traceCircuit(circuit: Circuit, backend?: Backend): Promise<ExecutionTraceResult>
 
   /**
    * GET /api/lessons — the real, read-only lesson catalog. There is no

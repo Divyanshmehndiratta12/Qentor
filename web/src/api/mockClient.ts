@@ -20,11 +20,13 @@
  */
 import type { Circuit } from '@/circuit/types'
 import { FIXTURE, toQuantumValue, type Provenance, type QuantumValue } from '@/provenance/QuantumValue'
+import { EndpointNotImplementedError } from './client'
 import type {
   ApiClient,
   Backend,
   ExecutePayload,
   ExecutionMode,
+  ExecutionTraceResult,
   Lesson,
   MultiInputTestCase,
   MultiInputTestResult,
@@ -95,6 +97,18 @@ export class MockApiClient implements ApiClient {
           }
 
     return toQuantumValue(payload, provenance)
+  }
+
+  /**
+   * Deliberately NOT faked. Unlike `executeCircuit`'s FIXTURE placeholder
+   * numbers, a trace is a sequence of per-operation quantum states, and a
+   * plausible-looking one would have to be computed client-side — which the
+   * trace's trust rule forbids outright (no client-side amplitudes, no seeded
+   * or random stand-ins). The mock adapter therefore reports, honestly, that
+   * this endpoint has no mock; the UI renders that as an error, never as data.
+   */
+  async traceCircuit(_circuit: Circuit, _backend?: Backend): Promise<ExecutionTraceResult> {
+    throw new EndpointNotImplementedError('POST /api/execute/trace (the FIXTURE mock adapter cannot produce a trace)')
   }
 
   /** FIXTURE only: the real verifier lives server-side. This recognises the

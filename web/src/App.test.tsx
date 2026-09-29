@@ -14,6 +14,7 @@ import type { Lesson } from '@/api'
 import { emptyCircuit } from '@/circuit/types'
 
 const listLessons = vi.fn()
+const traceCircuit = vi.fn()
 
 vi.mock('@/api', async () => {
   const actual = await vi.importActual<typeof import('@/api')>('@/api')
@@ -26,6 +27,7 @@ vi.mock('@/api', async () => {
       optimizeCircuit: vi.fn(() => new Promise(() => {})),
       runMultiInputTest: vi.fn(() => new Promise(() => {})),
       listLessons,
+      traceCircuit,
     }),
   }
 })
@@ -67,6 +69,8 @@ describe('App: Learn -> Lab -> Learn', () => {
     localStorage.clear()
     listLessons.mockReset()
     listLessons.mockResolvedValue([LESSON])
+    traceCircuit.mockReset()
+    traceCircuit.mockReturnValue(new Promise(() => {})) // never resolves: only the request is observed
     useLearnStore.setState(INITIAL_LEARN_STATE, true)
     useBuildStore.setState(INITIAL_BUILD_STATE, true)
   })
@@ -116,6 +120,36 @@ describe('App: Learn -> Lab -> Learn', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
     await waitFor(() => expect(screen.getByText('Reflection prompt.')).toBeInTheDocument())
     expect(useLearnStore.getState().lessonProgress.bell?.completedSectionIds.has('s2')).toBe(true)
+  })
+
+  it('the Lab has a Trace section, and Run trace sends the circuit the Lab currently holds', async () => {
+    render(<App />)
+    expect(screen.getByRole('heading', { name: 'Trace' })).toBeInTheDocument()
+    expect(screen.getByText(/No trace yet/)).toBeInTheDocument()
+    expect(traceCircuit).not.toHaveBeenCalled()
+
+    const held = useBuildStore.getState().circuit
+    fireEvent.click(screen.getByRole('button', { name: 'Run trace' }))
+
+    expect(await screen.findByText('Tracing on backend…')).toBeInTheDocument()
+    expect(traceCircuit).toHaveBeenCalledTimes(1)
+    expect(traceCircuit.mock.calls[0]![0]).toBe(held)
+  })
+
+  it('a lesson circuit opened in the Lab is what Run trace sends', async () => {
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: 'Learn' }))
+    fireEvent.click(await screen.findByRole('button', { name: /^Bell Lesson/ }))
+    await screen.findByText('Explanation body.')
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
+    await screen.findByText('Build it.')
+    fireEvent.click(screen.getByRole('button', { name: 'Open in Lab' }))
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Run trace' }))
+
+    expect(traceCircuit).toHaveBeenCalledTimes(1)
+    expect(traceCircuit.mock.calls[0]![0]).toEqual(LAB_CIRCUIT)
+    expect(useBuildStore.getState().circuit).toEqual(LAB_CIRCUIT) // unchanged by tracing
   })
 
   it('Progress is a real navigation button that shows the dashboard and marks itself as the current page', async () => {
