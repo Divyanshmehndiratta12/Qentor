@@ -14,6 +14,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 from qentor.circuit.model import Circuit, GateOp
+from qentor.execution.bloch import BlochVector
 from qentor.lessons import Lesson
 
 
@@ -89,6 +90,14 @@ class TraceStepResponse(BaseModel):
     state). ``operation`` is the canonical ``GateOp`` from the submitted
     circuit and ``operation_index`` its position in that circuit's ``ops``.
     ``statevector`` is the adapter's own ``[[re, im], ...]`` list, unmodified.
+
+    ``bloch_vector`` is ``null`` unless the circuit has exactly one qubit, in
+    which case it is (x, y, z) derived by the backend from THIS step's own
+    ``statevector`` (``qentor.execution.bloch``: x = 2 Re(conj(a)b), y = 2
+    Im(conj(a)b), z = |a|^2 - |b|^2), with ``derived_from`` naming the exact
+    step, record, execution and prefix circuit it came from. It is not a
+    correctness verdict, and a multi-qubit (e.g. entangled) state is never
+    given one "global" vector. Clients that don't know this field can ignore it.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -99,6 +108,7 @@ class TraceStepResponse(BaseModel):
     execution_id: str
     provenance: TraceProvenanceResponse
     statevector: list[list[float]]
+    bloch_vector: BlochVector | None = None
 
 
 class TraceTerminalMeasurementResponse(BaseModel):

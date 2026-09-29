@@ -251,6 +251,7 @@ def execute_trace(request: TraceRequest) -> TraceResponse:
                     created_at=record.created_at,
                 ),
                 statevector=step.statevector,
+                bloch_vector=step.bloch_vector,
             )
         )
 

@@ -25,6 +25,17 @@ Only ``statevector`` mode can be traced. Shots return sampled counts, not a
 state; there is nothing per-step to report and none is invented — a shots
 request is refused with ``TraceNotSupported``.
 
+Bloch vectors: for a SINGLE-qubit circuit each step also carries an optional
+``bloch_vector`` (``qentor.execution.bloch``) — the one quantity this module
+derives rather than forwards. It is computed from that step's own validated,
+backend-returned statevector and nothing else (no gate names, no textbook
+states), and it is tagged with the step's identity (step index, result id,
+execution id, prefix circuit hash, backend and version) so it can never be
+detached from the state it came from. A multi-qubit step has ``bloch_vector =
+None``: a Bloch vector describes one qubit, an entangled register has no pure
+state per qubit, and no reduced-state abstraction exists yet, so nothing is
+invented for the whole register. A Bloch vector is not a verdict on the circuit.
+
 Measurement: ``measure`` is not a unitary step. Running a circuit that still
 contains one through Aer's ``save_statevector`` lets the projective
 measurement collapse the state at random (see the harness docstring), so no
@@ -49,11 +60,11 @@ from qentor.circuit.hashing import circuit_hash
 from qentor.circuit.model import Circuit, GateName, GateOp
 
 from .adapter import ExecutionAdapter, ExecutionMode, ExecutionResult
-
-# The same tolerance the rest of Qentor uses for exact statevectors
+# NORM_TOLERANCE is the tolerance the rest of Qentor uses for exact statevectors
 # (docs/VERIFICATION_ARCHITECTURE.md §4.1: a state is only accepted when its
-# norm is within 1e-9 of 1).
-NORM_TOLERANCE = 1e-9
+# norm is within 1e-9 of 1). Defined once in `bloch` (which needs the same
+# number) and re-exported here under its existing name.
+from .bloch import NORM_TOLERANCE, BlochSource, BlochVector, derive_bloch_vector
 
 TRACE_METHOD = "prefix-statevector"
 
@@ -90,6 +101,10 @@ class TraceStep(BaseModel):
     ``ops``; both are ``None`` for the initial state (``step_index`` 0).
     ``statevector`` is the adapter's own ``[[re, im], ...]`` list, index *k*
     being bitstring ``q[n-1]...q[0]``, untouched.
+
+    ``bloch_vector`` is present only for a single-qubit circuit: derived from
+    this step's own statevector, tagged with this step's identity. ``None``
+    for every multi-qubit step (see the module docstring).
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -101,6 +116,7 @@ class TraceStep(BaseModel):
     result_id: str | None
     execution_id: str
     statevector: list[list[float]]
+    bloch_vector: BlochVector | None = None
 
 
 class TerminalMeasurement(BaseModel):
@@ -199,6 +215,25 @@ def trace_circuit(
             )
 
         result_id = record_execution(result, prefix_hash) if record_execution else None
+
+        # Derived from THIS step's validated state, and tagged with the very
+        # identifiers this step is built from (same loop iteration, same
+        # variables) so the two cannot drift apart. Only a single-qubit
+        # register has a Bloch vector; a multi-qubit step gets None.
+        bloch_vector = None
+        if circuit.num_qubits == 1:
+            bloch_vector = derive_bloch_vector(
+                result.statevector,
+                source=BlochSource(
+                    step_index=step_index,
+                    result_id=result_id,
+                    execution_id=result.execution_id,
+                    circuit_hash=prefix_hash,
+                    backend=result.backend_name,
+                    backend_version=result.backend_version,
+                ),
+            )
+
         steps.append(
             TraceStep(
                 step_index=step_index,
@@ -208,6 +243,7 @@ def trace_circuit(
                 result_id=result_id,
                 execution_id=result.execution_id,
                 statevector=result.statevector,
+                bloch_vector=bloch_vector,
             )
         )
 

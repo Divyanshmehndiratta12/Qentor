@@ -100,6 +100,20 @@ returned.
 - Limits reuse the harness's: `MAX_SWEEP_QUBITS` qubits (a full statevector per step) and
   `MAX_TEST_CASES` backend runs per request (`operations + 1`).
 - Errors are structured: `detail = {"code", "message"}`.
+- **Bloch vectors (`bloch_vector` on a trace step, `qentor/execution/bloch.py`).** For a
+  single-qubit circuit each step also carries `(x, y, z)` — derived by the backend from that
+  step's own validated, backend-produced statevector, `|ψ⟩ = α|0⟩ + β|1⟩`:
+  `x = 2 Re(ᾱβ)`, `y = 2 Im(ᾱβ)`, `z = |α|² − |β|²`. The frontend never calculates them.
+  - It is a *derived view of one backend state*, not a circuit-correctness verdict: it carries no
+    verification status. Its `derived_from` block names the exact source — step index, `result_id`,
+    `execution_id`, the step's prefix `circuit_hash`, backend and version — so it cannot be detached
+    from the state it came from. Only the statevector is used as input (no gate names, no textbook
+    answers), values are not rounded, and global phase has no effect (relative phase does).
+  - A multi-qubit step has `bloch_vector = null`. A Bloch vector describes a single qubit; an
+    entangled register (e.g. a Bell state) has no pure state per qubit — each qubit alone is
+    maximally mixed — so one 3-vector for the whole register would hide the correlations that make
+    it entangled. There is no per-qubit reduced-state abstraction yet, so nothing is invented, not
+    even for unentangled multi-qubit states.
 
 ### 4.2 Multi-input test harness
 A challenge declares a spec. All checks use exact Aer statevector probabilities (no sampling),
