@@ -13,6 +13,8 @@ import { MockApiClient } from './mockClient'
 export type {
   ApiClient,
   Backend,
+  BlochCoordinates,
+  BlochSource,
   ConceptCheckOption,
   ExecutePayload,
   ExecutionMode,
@@ -32,6 +34,7 @@ export type {
   OptimizationEquivalenceCheckResult,
   OptimizationEquivalenceResult,
   OptimizationResult,
+  TraceBlochVector,
   TraceStep,
   TraceTerminalMeasurement,
   TutorAnswerResult,

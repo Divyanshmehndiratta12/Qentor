@@ -23,6 +23,7 @@ import {
   TutorResponseSchema,
   VerifyBellStateResponseSchema,
   type LessonSectionResponse,
+  type TraceResponse,
 } from '@/provenance/schema'
 import {
   BackendUnavailableError,
@@ -139,31 +140,7 @@ export class RealApiClient implements ApiClient {
 
     const response = TraceResponseSchema.parse(await res.json())
 
-    // Field-for-field camelCase mapping. The statevector tuples are passed
-    // through as the very values the backend sent — no rounding, no
-    // normalising, no arithmetic — each wrapped with its own step's provenance.
-    return {
-      circuitHash: response.circuit_hash,
-      tracedCircuitHash: response.traced_circuit_hash,
-      backend: response.backend,
-      backendVersion: response.backend_version,
-      numQubits: response.num_qubits,
-      mode: response.mode,
-      traceMethod: response.trace_method,
-      basisOrdering: response.basis_ordering,
-      steps: response.steps.map((step) => ({
-        stepIndex: step.step_index,
-        operationIndex: step.operation_index,
-        operation: step.operation,
-        executionId: step.execution_id,
-        state: toQuantumValue(step.statevector, provenanceFromTraceStep(step.provenance)),
-      })),
-      terminalMeasurements: response.terminal_measurements.map((m) => ({
-        operationIndex: m.operation_index,
-        operation: m.operation,
-      })),
-      finalResultId: response.final_result_id,
-    }
+    return traceResultFromResponse(response)
   }
 
   async verifyBellState(resultId: string, circuit: Circuit): Promise<VerifyBellStateResult> {
@@ -400,6 +377,60 @@ export class RealApiClient implements ApiClient {
       })),
       overallStatus: response.overall_status,
     }
+  }
+}
+
+/**
+ * A validated wire `TraceResponse` -> the camelCase `ExecutionTraceResult`.
+ * Exported so the test fixtures use this exact mapping rather than a copy.
+ *
+ * Field-for-field: the statevector tuples and the Bloch coordinates are passed
+ * through as the very numbers the backend sent — no rounding, clamping,
+ * normalising or arithmetic — each wrapped with its own step's provenance (a
+ * Bloch vector is derived from that step's state, so it shares its
+ * provenance). A step with no `bloch_vector` (or a backend that predates the
+ * field) maps to `null`; nothing is filled in.
+ */
+export function traceResultFromResponse(response: TraceResponse): ExecutionTraceResult {
+  return {
+    circuitHash: response.circuit_hash,
+    tracedCircuitHash: response.traced_circuit_hash,
+    backend: response.backend,
+    backendVersion: response.backend_version,
+    numQubits: response.num_qubits,
+    mode: response.mode,
+    traceMethod: response.trace_method,
+    basisOrdering: response.basis_ordering,
+    steps: response.steps.map((step) => {
+      const provenance = provenanceFromTraceStep(step.provenance)
+      const bloch = step.bloch_vector
+      return {
+        stepIndex: step.step_index,
+        operationIndex: step.operation_index,
+        operation: step.operation,
+        executionId: step.execution_id,
+        state: toQuantumValue(step.statevector, provenance),
+        blochVector: bloch
+          ? {
+              coordinates: toQuantumValue({ x: bloch.x, y: bloch.y, z: bloch.z }, provenance),
+              method: bloch.method,
+              derivedFrom: {
+                stepIndex: bloch.derived_from.step_index,
+                resultId: bloch.derived_from.result_id,
+                executionId: bloch.derived_from.execution_id,
+                circuitHash: bloch.derived_from.circuit_hash,
+                backend: bloch.derived_from.backend,
+                backendVersion: bloch.derived_from.backend_version,
+              },
+            }
+          : null,
+      }
+    }),
+    terminalMeasurements: response.terminal_measurements.map((m) => ({
+      operationIndex: m.operation_index,
+      operation: m.operation,
+    })),
+    finalResultId: response.final_result_id,
   }
 }
 

@@ -288,6 +288,41 @@ export interface TraceStep {
   operation: GateOp | null
   executionId: string
   state: QuantumValue<Array<[number, number]>>
+  /** The backend's Bloch vector for this step's state, or `null` — always
+   * `null` for a multi-qubit step (the backend never invents one). */
+  blochVector: TraceBlochVector | null
+}
+
+/** Backend-derived Bloch coordinates. Rendered as received: this app never
+ * computes, rounds, clamps or normalises them. */
+export interface BlochCoordinates {
+  x: number
+  y: number
+  z: number
+}
+
+/** Which backend state a Bloch vector was derived from — mirrors that
+ * step's own identity (the API boundary rejects a response where it doesn't). */
+export interface BlochSource {
+  stepIndex: number
+  resultId: string | null
+  executionId: string
+  circuitHash: string
+  backend: string
+  backendVersion: string
+}
+
+/**
+ * The backend's Bloch vector for one trace step. `coordinates` is a
+ * `QuantumValue` carrying the SAME provenance as that step's statevector (the
+ * vector is derived from it), so the numbers cannot reach a component without
+ * it. This is a derived view of one backend-produced state — not a verdict on
+ * whether the circuit is correct.
+ */
+export interface TraceBlochVector {
+  coordinates: QuantumValue<BlochCoordinates>
+  method: string
+  derivedFrom: BlochSource
 }
 
 export interface TraceTerminalMeasurement {

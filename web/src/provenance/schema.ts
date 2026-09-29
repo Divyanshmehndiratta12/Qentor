@@ -155,11 +155,39 @@ export const TraceProvenanceSchema = z.object({
 })
 export type TraceProvenanceResponse = z.infer<typeof TraceProvenanceSchema>
 
+// backend/qentor/execution/bloch.py::BlochSource — exactly which backend
+// state a Bloch vector was derived from (mirrors the step's own identity).
+export const BlochSourceSchema = z.object({
+  step_index: z.number().int().nonnegative(),
+  result_id: z.string().nullable(),
+  execution_id: z.string(),
+  circuit_hash: z.string(),
+  backend: z.string(),
+  backend_version: z.string(),
+})
+export type BlochSourceResponse = z.infer<typeof BlochSourceSchema>
+
+// backend/qentor/execution/bloch.py::BlochVector — (x, y, z) DERIVED BY THE
+// BACKEND from the step's own statevector, plus where it came from. The
+// frontend only ever renders these numbers; it never computes them. There is
+// deliberately no range clamp or normalisation here: a value outside [-1, 1]
+// is reported by the component as received, not "corrected" (see BlochSphere).
+export const BlochVectorSchema = z.object({
+  x: z.number(),
+  y: z.number(),
+  z: z.number(),
+  method: z.string(),
+  derived_from: BlochSourceSchema,
+})
+export type BlochVectorResponse = z.infer<typeof BlochVectorSchema>
+
 // backend/qentor/api/schemas.py::TraceStepResponse — `operation` is the
 // canonical GateOp (the shared `GateOpSchema`, not a second gate format);
 // both it and `operation_index` are null for the initial state (step 0).
 // `statevector` is the adapter's own [[re, im], ...] list, passed through
-// untouched.
+// untouched. `bloch_vector` is null for a multi-qubit step (the backend never
+// invents one for an entangled register); `.nullish()` also tolerates a
+// backend that predates the field, which is treated the same as null.
 export const TraceStepSchema = z.object({
   step_index: z.number().int().nonnegative(),
   operation_index: z.number().int().nonnegative().nullable(),
@@ -167,6 +195,7 @@ export const TraceStepSchema = z.object({
   execution_id: z.string(),
   provenance: TraceProvenanceSchema,
   statevector: z.array(z.tuple([z.number(), z.number()])),
+  bloch_vector: BlochVectorSchema.nullish(),
 })
 export type TraceStepResponse = z.infer<typeof TraceStepSchema>
 
@@ -222,6 +251,32 @@ export const TraceResponseSchema = z
           path: ['steps', position, 'statevector'],
           message: `statevector has ${step.statevector.length} entries, expected ${dimension} for ${trace.num_qubits} qubits`,
         })
+      }
+
+      // A Bloch vector's `derived_from` must name THIS step. If it points
+      // anywhere else the response is malformed: rendering it would attach a
+      // vector to the wrong state's provenance, so it is rejected outright
+      // rather than shown with a mislinked source. (Identity check only —
+      // nothing here looks at, or recomputes, a coordinate.)
+      const bloch = step.bloch_vector
+      if (bloch) {
+        const source = bloch.derived_from
+        const mismatches = [
+          source.step_index !== step.step_index && 'step_index',
+          source.result_id !== step.provenance.result_id && 'result_id',
+          source.execution_id !== step.execution_id && 'execution_id',
+          source.circuit_hash !== step.provenance.circuit_hash && 'circuit_hash',
+          (source.backend !== step.provenance.backend ||
+            source.backend_version !== step.provenance.backend_version) &&
+            'backend',
+        ].filter(Boolean)
+        if (mismatches.length > 0) {
+          ctx.addIssue({
+            code: 'custom',
+            path: ['steps', position, 'bloch_vector', 'derived_from'],
+            message: `bloch_vector.derived_from does not match its own step (${mismatches.join(', ')})`,
+          })
+        }
       }
     })
   })

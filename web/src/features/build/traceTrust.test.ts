@@ -52,11 +52,21 @@ describe('trace viewer source: no client-side quantum computation', () => {
     expect(source).not.toMatch(/\bcrypto\b/i)
   })
 
-  it.each(FILES)('%s does not derive probabilities, normalise, or compute Bloch/phase values', (_name, source) => {
-    expect(source).not.toMatch(/probabilit/i)
-    expect(source).not.toMatch(/normali[sz]/i)
-    expect(source).not.toMatch(/bloch/i)
-    expect(source).not.toMatch(/\b(magnitude|modulus|phase)\b/i)
+  it.each(FILES)('%s does not derive probabilities, normalise, or compute Bloch/phase values', (name, source) => {
+    // TraceViewer.tsx may MOUNT the Bloch sphere (three tokens: the component,
+    // its `bloch=` prop, and the backend-provided `blochVector` field it hands
+    // over); any other "bloch" in these files would be Bloch logic and still
+    // fails. The sphere's own files are guarded by `blochTrust.test.ts`.
+    const scanned = name === 'TraceViewer.tsx' ? source.replace(/BlochSphere|blochVector|\bbloch=/g, '') : source
+    expect(scanned).not.toMatch(/probabilit/i)
+    expect(scanned).not.toMatch(/normali[sz]/i)
+    expect(scanned).not.toMatch(/bloch/i)
+    expect(scanned).not.toMatch(/\b(magnitude|modulus|phase)\b/i)
+  })
+
+  it('TraceViewer hands the Bloch sphere only the selected step’s backend vector and the qubit count', () => {
+    expect(FILES[1]![1]).toContain('<BlochSphere bloch={step.blochVector} numQubits={trace.numQubits} />')
+    expect(FILES[1]![1].match(/<BlochSphere\b/g)).toHaveLength(1)
   })
 
   it.each(FILES)('%s imports no third-party package except react (so no numeric/complex/simulator library)', (_name, source) => {

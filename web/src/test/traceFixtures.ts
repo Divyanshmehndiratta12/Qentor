@@ -9,9 +9,9 @@
  * exact values and nothing else. They make no claim to be a real simulation.
  */
 import type { ExecutionTraceResult } from '@/api'
+import { traceResultFromResponse } from '@/api/realClient'
 import type { GateOp } from '@/circuit/types'
-import { provenanceFromTraceStep, toQuantumValue } from '@/provenance/QuantumValue'
-import { TraceResponseSchema, type TraceResponse } from '@/provenance/schema'
+import { TraceResponseSchema } from '@/provenance/schema'
 
 export type Amplitude = [number, number]
 
@@ -41,6 +41,11 @@ export interface WireTraceOptions {
   basisOrdering?: string
   /** Distinguishes two traces' result ids so a keyed remount can be tested. */
   tag?: string
+  /** One entry per step: the (x, y, z) the "backend" returned for that step's
+   * Bloch vector, or null for none. Omit for a trace with no Bloch data (as
+   * every multi-qubit step has). These are fixture values standing in for a
+   * backend response — the UI must render exactly what is supplied here. */
+  blochVectors?: Array<[number, number, number] | null>
 }
 
 /** A wire-format (snake_case) trace response, as the backend would send it. */
@@ -54,29 +59,54 @@ export function wireTrace(options: WireTraceOptions): Record<string, unknown> {
     backendVersion = '0.17.2',
     basisOrdering = BASIS_ORDERING_WIRE,
     tag = 'a',
+    blochVectors,
   } = options
 
   if (states.length !== ops.length + 1) {
     throw new Error(`fixture needs ${ops.length + 1} states, got ${states.length}`)
   }
+  if (blochVectors && blochVectors.length !== states.length) {
+    throw new Error(`fixture needs ${states.length} bloch entries, got ${blochVectors.length}`)
+  }
 
-  const steps = states.map((statevector, i) => ({
-    step_index: i,
-    operation_index: i === 0 ? null : i - 1,
-    operation: i === 0 ? null : ops[i - 1],
-    execution_id: `aer-local-${tag}${i}`,
-    provenance: {
-      result_id: `res_${tag}${i}`,
-      circuit_hash: `hash_prefix_${tag}${i}`,
-      backend,
-      backend_version: backendVersion,
-      execution_mode: 'statevector',
-      provenance_class: 'SIMULATION',
-      verification_status: 'VERIFIED',
-      created_at: `2026-09-29T07:18:1${i}+00:00`,
-    },
-    statevector,
-  }))
+  const steps = states.map((statevector, i) => {
+    const bloch = blochVectors?.[i] ?? null
+    return {
+      step_index: i,
+      operation_index: i === 0 ? null : i - 1,
+      operation: i === 0 ? null : ops[i - 1],
+      execution_id: `aer-local-${tag}${i}`,
+      provenance: {
+        result_id: `res_${tag}${i}`,
+        circuit_hash: `hash_prefix_${tag}${i}`,
+        backend,
+        backend_version: backendVersion,
+        execution_mode: 'statevector',
+        provenance_class: 'SIMULATION',
+        verification_status: 'VERIFIED',
+        created_at: `2026-09-29T07:18:1${i}+00:00`,
+      },
+      statevector,
+      // Like the backend: an explicit null when there is no Bloch vector; when
+      // there is one, `derived_from` names exactly this step.
+      bloch_vector: bloch
+        ? {
+            x: bloch[0],
+            y: bloch[1],
+            z: bloch[2],
+            method: 'bloch-from-statevector/1',
+            derived_from: {
+              step_index: i,
+              result_id: `res_${tag}${i}`,
+              execution_id: `aer-local-${tag}${i}`,
+              circuit_hash: `hash_prefix_${tag}${i}`,
+              backend,
+              backend_version: backendVersion,
+            },
+          }
+        : null,
+    }
+  })
 
   return {
     circuit_hash: `hash_submitted_${tag}`,
@@ -100,29 +130,7 @@ export function wireTrace(options: WireTraceOptions): Record<string, unknown> {
  * provenance mapping `RealApiClient.traceCircuit` uses (so viewer tests
  * exercise realistic domain objects, not hand-shaped ones). */
 export function traceResult(options: WireTraceOptions): ExecutionTraceResult {
-  const response: TraceResponse = TraceResponseSchema.parse(wireTrace(options))
-  return {
-    circuitHash: response.circuit_hash,
-    tracedCircuitHash: response.traced_circuit_hash,
-    backend: response.backend,
-    backendVersion: response.backend_version,
-    numQubits: response.num_qubits,
-    mode: response.mode,
-    traceMethod: response.trace_method,
-    basisOrdering: response.basis_ordering,
-    steps: response.steps.map((step) => ({
-      stepIndex: step.step_index,
-      operationIndex: step.operation_index,
-      operation: step.operation,
-      executionId: step.execution_id,
-      state: toQuantumValue(step.statevector, provenanceFromTraceStep(step.provenance)),
-    })),
-    terminalMeasurements: response.terminal_measurements.map((m) => ({
-      operationIndex: m.operation_index,
-      operation: m.operation,
-    })),
-    finalResultId: response.final_result_id,
-  }
+  return traceResultFromResponse(TraceResponseSchema.parse(wireTrace(options)))
 }
 
 // ---- Ready-made scenarios (the circuits named in the task) ----------------
@@ -157,6 +165,30 @@ export const hzh = (tag = 'a') =>
     ],
     tag,
   })
+
+/** H, Z, H with the backend's REAL Bloch vectors for each step (values
+ * copied verbatim from the backend's own H -> Z -> H trace, including its
+ * ~1e-16 residues): +z, +x, -x, -z. */
+export const HZH_BLOCH_STATES: Amplitude[][] = [
+  [[1, 0], [0, 0]],
+  [[0.7071067811865476, 0], [0.7071067811865475, 0]],
+  [[0.7071067811865476, 0], [-0.7071067811865475, 0]],
+  [[2.220446049250313e-16, 6.123233995736765e-17], [1, -6.123233995736766e-17]],
+]
+export const HZH_BLOCH_VECTORS: Array<[number, number, number]> = [
+  [0, 0, 1],
+  [1, 0, 2.220446049250313e-16],
+  [-1, 0, 2.220446049250313e-16],
+  [4.440892098500626e-16, -1.2246467991473532e-16, -1],
+]
+export const hzhWithBloch = (tag = 'a') =>
+  traceResult({ numQubits: 1, ops: [H0, Z0, H0], states: HZH_BLOCH_STATES, blochVectors: HZH_BLOCH_VECTORS, tag })
+
+/** A one-step, one-qubit trace whose single step carries the given Bloch
+ * vector — for rendering a specific supplied (x, y, z). The statevector is
+ * just |0>; the sphere must ignore it and show the supplied vector. */
+export const singleBloch = (vector: [number, number, number], tag = 'a') =>
+  traceResult({ numQubits: 1, ops: [], states: [[[1, 0], [0, 0]]], blochVectors: [vector], tag })
 
 /** Bell circuit with terminal measures: 3 steps + 2 measurements. */
 export const bellMeasured = (tag = 'a') =>

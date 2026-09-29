@@ -25,6 +25,7 @@ import { ProvenanceBadge } from '@/provenance/ProvenanceBadge'
 import { toQuantumValue } from '@/provenance/QuantumValue'
 import { VerifiedValueInline } from '@/provenance/VerifiedValue'
 import type { TraceFailure } from './store'
+import { BlochSphere } from './BlochSphere'
 import {
   basisLabel,
   describeOperation,
@@ -181,6 +182,10 @@ function LoadedTrace({ trace }: { trace: ExecutionTraceResult }) {
       </div>
 
       <StepDetail trace={trace} step={step} />
+
+      {/* The backend's Bloch vector for THIS step (or an explanation when it
+          has none). Handed only that vector — never the statevector or gate. */}
+      <BlochSphere bloch={step.blochVector} numQubits={trace.numQubits} />
 
       <ProvenanceCard trace={trace} step={step} />
 
