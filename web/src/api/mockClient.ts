@@ -33,6 +33,7 @@ import type {
   OptimizationResult,
   TutorAnswerResult,
   TutorLanguage,
+  TutorLessonContext,
   VerifyBellStateResult,
 } from './client'
 
@@ -224,12 +225,30 @@ export class MockApiClient implements ApiClient {
    * backend — clearly labelled FIXTURE, never confusable with a grounded
    * server answer. */
   async askTutor(
-    resultId: string,
-    circuit: Circuit,
+    resultId: string | null,
+    circuit: Circuit | null,
     question: string,
     _language: TutorLanguage = 'en',
+    lesson?: TutorLessonContext,
   ): Promise<TutorAnswerResult> {
     await delay(200)
+
+    // A lesson-only question has no circuit/result to summarise. The real
+    // lesson-aware answer lives server-side (qentor.tutor.lesson_answers); the
+    // fixture only says so, and carries no provenance (there is none).
+    if (resultId === null || circuit === null) {
+      return {
+        answer: `FIXTURE — the real lesson-aware tutor lives server-side. You asked "${question}".`,
+        resultId: null,
+        circuitHash: null,
+        provenanceClass: null,
+        verificationStatus: null,
+        usedFallbackTemplate: true,
+        facts: [],
+        lessonId: lesson?.lessonId ?? null,
+        sectionId: lesson?.sectionId ?? null,
+      }
+    }
 
     const gateList = circuit.ops.map((op) => op.gate).join(', ') || 'no operations'
     const circuitFact = {

@@ -19,6 +19,7 @@ import type {
   OptimizationResult,
   TutorAnswerResult,
   TutorLanguage,
+  TutorLessonContext,
   VerifyBellStateResult,
 } from '@/api'
 import type { QuantumValue } from '@/provenance/QuantumValue'
@@ -89,8 +90,17 @@ interface BuildState {
   verification: VerifyBellStateResult | null
   verificationError: string | null
 
+  /** The LAB conversation (see `features/tutor/tutorContext.ts`): grounded in
+   * the Build circuit's result, so cleared whenever that circuit/result
+   * changes. Lesson conversations live in `lessonTutorTurns`, not here. */
   tutorTurns: TutorTurn[]
   isAskingTutor: boolean
+  /** One conversation PER LESSON, keyed by lesson id, kept for the session
+   * (in memory only). Not grounded in the Build circuit, so circuit/result
+   * changes never touch it; switching lesson never shows another lesson's. */
+  lessonTutorTurns: Record<string, TutorTurn[]>
+  /** Whether a request is in flight for each lesson's conversation. */
+  lessonAskingTutor: Record<string, boolean>
   /** The learner's chosen answer language (docs/ARCHITECTURE.md §10). A pure
    * UI preference, not derived from the circuit/result — unlike every other
    * tutor field above, it is never cleared by a circuit-mutating action. */
@@ -125,7 +135,7 @@ interface BuildState {
   /** Asks the backend for the per-operation trace of the current circuit.
    * Reads the circuit, never writes it. */
   runTrace: () => Promise<void>
-  askTutor: (question: string) => Promise<void>
+  askTutor: (question: string, lesson?: TutorLessonContext) => Promise<void>
   setTutorLanguage: (language: TutorLanguage) => void
   /**
    * Loads an externally-supplied canonical circuit (e.g. a Learn lesson's
@@ -172,6 +182,8 @@ export const useBuildStore = create<BuildState>((set, get) => ({
 
   tutorTurns: [],
   isAskingTutor: false,
+  lessonTutorTurns: {},
+  lessonAskingTutor: {},
   tutorLanguage: 'en',
 
   isOptimizing: false,
@@ -459,10 +471,50 @@ export const useBuildStore = create<BuildState>((set, get) => ({
     }
   },
 
-  askTutor: async (question) => {
+  askTutor: async (question, lesson) => {
     const trimmed = question.trim()
     if (!trimmed) return
     const { circuit, result, tutorLanguage } = get()
+
+    // A lesson question (a Learn quick action or a typed Learn question): sends
+    // the lesson and section IDS only — no circuit, no result, no lesson text —
+    // and the backend answers from its own lesson registry. It needs no Lab
+    // result, so it does not touch the result-based guards below.
+    //
+    // It belongs to THAT LESSON's conversation (`lessonTutorTurns[lessonId]`),
+    // never the Lab's: the question, its answer (or error) and the in-flight
+    // flag all land under `lessonId`, wherever the learner has navigated to by
+    // the time the answer arrives. Nothing here writes `tutorTurns`.
+    if (lesson) {
+      const lessonId = lesson.lessonId
+      if (get().lessonAskingTutor[lessonId]) return // one request at a time per conversation
+      const turnsOf = (state: { lessonTutorTurns: Record<string, TutorTurn[]> }) => state.lessonTutorTurns[lessonId] ?? []
+      const append = (turn: TutorTurn, asking: boolean) =>
+        set((state) => ({
+          lessonTutorTurns: { ...state.lessonTutorTurns, [lessonId]: [...turnsOf(state), turn] },
+          lessonAskingTutor: { ...state.lessonAskingTutor, [lessonId]: asking },
+        }))
+
+      const learnerTurn: TutorTurn = { role: 'learner', text: trimmed }
+      append(learnerTurn, true)
+      // Stale = this question's turn is no longer in its conversation (the
+      // conversation was discarded), so its answer is dropped, not resurrected.
+      const dropIfStale = (): boolean => {
+        if (turnsOf(get()).includes(learnerTurn)) return false
+        set((state) => ({ lessonAskingTutor: { ...state.lessonAskingTutor, [lessonId]: false } }))
+        return true
+      }
+      try {
+        const answer = await getApiClient().askTutor(null, null, trimmed, tutorLanguage, lesson)
+        if (dropIfStale()) return
+        append({ role: 'tutor', answer }, false)
+      } catch (err) {
+        if (dropIfStale()) return
+        append({ role: 'error', message: err instanceof Error ? err.message : String(err) }, false)
+      }
+      return
+    }
+
     // Only ever ask about a real, already-executed result — same discipline
     // as runVerification. resultId comes from the backend's own provenance,
     // never guessed or typed in by the learner.

@@ -162,7 +162,8 @@ export interface TutorFactResult {
   id: string
   kind: string
   description: string
-  resultId: string
+  /** `null` for a lesson fact (`L#`): course material, not an execution result. */
+  resultId: string | null
 }
 
 /**
@@ -171,15 +172,32 @@ export interface TutorFactResult {
  * `verificationStatus`/`provenanceClass` here describe the *execution* this
  * answer is grounded in (VERIFIED/FAILED/ERROR — the same three values
  * `/api/execute` itself reports), not a Bell-verifier verdict.
+ *
+ * `resultId`/`circuitHash`/`provenanceClass`/`verificationStatus` are `null`
+ * for a lesson-only answer: lesson material is not a quantum result and has
+ * no provenance. `lessonId`/`sectionId` echo the lesson context the server
+ * resolved (absent/`null` for a Lab answer).
  */
 export interface TutorAnswerResult {
   answer: string
-  resultId: string
-  circuitHash: string
-  provenanceClass: string
-  verificationStatus: string
+  resultId: string | null
+  circuitHash: string | null
+  provenanceClass: string | null
+  verificationStatus: string | null
   usedFallbackTemplate: boolean
   facts: TutorFactResult[]
+  lessonId?: string | null
+  sectionId?: string | null
+}
+
+/**
+ * Identifies the lesson (and section) a tutor question is about. IDs only —
+ * the backend resolves them against its own lesson registry; lesson text is
+ * never sent from the browser.
+ */
+export interface TutorLessonContext {
+  lessonId: string
+  sectionId: string | null
 }
 
 /**
@@ -430,8 +448,19 @@ export interface ApiClient {
    * execution by `resultId` and is the only source of every fact in the
    * reply; `language` only ever selects which language the answer's wrapper
    * text is written in and defaults to English when omitted.
+   *
+   * `lesson` (optional) adds `lesson_id`/`section_id` to the request — IDs
+   * only; the backend resolves them against its own lesson registry. With a
+   * `lesson`, `resultId`/`circuit` may both be `null` (a lesson-only question).
+   * Without one, the request body is exactly the four fields above.
    */
-  askTutor(resultId: string, circuit: Circuit, question: string, language?: TutorLanguage): Promise<TutorAnswerResult>
+  askTutor(
+    resultId: string | null,
+    circuit: Circuit | null,
+    question: string,
+    language?: TutorLanguage,
+    lesson?: TutorLessonContext,
+  ): Promise<TutorAnswerResult>
 
   /**
    * POST /api/optimize — a small, deterministic rewrite of the circuit,

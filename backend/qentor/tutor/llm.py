@@ -47,9 +47,49 @@ _SYSTEM_PROMPT_TEMPLATE = (
 )
 
 
-def _system_prompt(language: str) -> str:
+# Appended only when the request carries lesson context. It adds a second,
+# separate source (course material) and restates the trust rule for it: the
+# lesson may be used to explain, never to produce a quantum result.
+_LESSON_PROMPT_ADDENDUM = (
+    " You may also be given LESSON CONTEXT facts (ids starting with L) taken "
+    "from the course material. Use them to explain the concept, cite them by "
+    "id, and stay within them; they are not measurement results. Quantum "
+    "numbers, probabilities, amplitudes, counts and verdicts may come ONLY "
+    "from the QUANTUM RESULT FACTS (ids starting with F). Never calculate or "
+    "estimate a new circuit result yourself. If no QUANTUM RESULT FACTS are "
+    "given, there is no result: do not state any measurement outcome, "
+    "probability or amplitude. If the facts do not contain enough "
+    "information, say so instead of guessing. Keep circuit gate names, ids, "
+    "bitstrings, backend names and hashes exactly as given."
+)
+
+
+def _system_prompt(language: str, *, with_lesson_context: bool = False) -> str:
     language_name = _LANGUAGE_NAMES.get(language, _LANGUAGE_NAMES[_DEFAULT_LANGUAGE])
-    return _SYSTEM_PROMPT_TEMPLATE.format(language_name=language_name)
+    prompt = _SYSTEM_PROMPT_TEMPLATE.format(language_name=language_name)
+    return prompt + _LESSON_PROMPT_ADDENDUM if with_lesson_context else prompt
+
+
+def _user_message(
+    question: str,
+    facts: list[TutorFact],
+    language: str,
+    lesson_facts: list[TutorFact] | None,
+) -> str:
+    fact_lines = "\n".join(f"{f.id}: {f.description}" for f in facts)
+    if not lesson_facts:
+        # The original, lesson-free shape — unchanged.
+        return f"Facts:\n{fact_lines or '(no facts)'}\n\nQuestion: {question}"
+
+    language_name = _LANGUAGE_NAMES.get(language, _LANGUAGE_NAMES[_DEFAULT_LANGUAGE])
+    lesson_lines = "\n".join(f"{f.id}: {f.description}" for f in lesson_facts)
+    no_result = "(none — no executed result is attached to this question)"
+    return (
+        f"LESSON CONTEXT:\n{lesson_lines}\n\n"
+        f"QUANTUM RESULT FACTS:\n{fact_lines or no_result}\n\n"
+        f"USER QUESTION: {question}\n\n"
+        f"LANGUAGE: {language_name}"
+    )
 
 
 class LLMDraft:
@@ -67,8 +107,18 @@ class LLMUnavailable(Exception):
 class LLMAdapter(Protocol):
     name: str
 
-    def generate(self, question: str, facts: list[TutorFact], language: str = "en") -> LLMDraft:
-        """Raise ``LLMUnavailable`` on any failure — never return a guessed draft."""
+    def generate(
+        self,
+        question: str,
+        facts: list[TutorFact],
+        language: str = "en",
+        lesson_facts: list[TutorFact] | None = None,
+    ) -> LLMDraft:
+        """Raise ``LLMUnavailable`` on any failure — never return a guessed draft.
+
+        ``facts`` are quantum-result facts (``F#``); ``lesson_facts`` are
+        course-material facts (``L#``) and are only ever passed when the
+        request carried lesson context."""
         ...
 
 
@@ -86,15 +136,20 @@ class AnthropicAdapter:
         self._api_key = api_key
         self._model = model
 
-    def generate(self, question: str, facts: list[TutorFact], language: str = "en") -> LLMDraft:
-        fact_lines = "\n".join(f"{f.id}: {f.description}" for f in facts) or "(no facts)"
+    def generate(
+        self,
+        question: str,
+        facts: list[TutorFact],
+        language: str = "en",
+        lesson_facts: list[TutorFact] | None = None,
+    ) -> LLMDraft:
         body = json.dumps(
             {
                 "model": self._model,
                 "max_tokens": 512,
-                "system": _system_prompt(language),
+                "system": _system_prompt(language, with_lesson_context=bool(lesson_facts)),
                 "messages": [
-                    {"role": "user", "content": f"Facts:\n{fact_lines}\n\nQuestion: {question}"}
+                    {"role": "user", "content": _user_message(question, facts, language, lesson_facts)}
                 ],
             }
         ).encode("utf-8")

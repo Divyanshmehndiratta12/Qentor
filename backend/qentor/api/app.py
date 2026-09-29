@@ -38,11 +38,15 @@ from qentor.lessons import LESSONS
 from qentor.provenance.models import ProvenanceClass, ProvenanceRecord, VerificationStatus
 from qentor.provenance.store import ProvenanceStore
 from qentor.tutor import (
+    LessonContextError,
     answer_failed_execution,
+    answer_lesson_aware_question,
     answer_question_with_llm,
     build_default_llm_adapter,
     build_fact_sheet,
+    resolve_lesson_context,
 )
+from qentor.tutor.lesson_context import LESSON_NOT_FOUND, SECTION_MISMATCH, SECTION_NOT_FOUND
 from qentor.verification.bell_state import verify_bell_state
 from qentor.verification.multi_input_harness import (
     MAX_SWEEP_QUBITS,
@@ -95,6 +99,11 @@ _store = ProvenanceStore()
 # server's own environment (qentor.tutor.config) — read once at process
 # startup, like _adapter/_store above. See backend/.env.example.
 _llm_adapter = build_default_llm_adapter()
+
+# HTTP status for each structured tutor lesson-context error code
+# (qentor.tutor.lesson_context). A missing lesson/section is 404; a section id
+# that exists but belongs to another lesson is a 422 conflict in the request.
+_LESSON_ERROR_STATUS = {LESSON_NOT_FOUND: 404, SECTION_NOT_FOUND: 404, SECTION_MISMATCH: 422}
 
 
 @app.post("/api/execute", response_model=ExecuteResponse)
@@ -329,43 +338,77 @@ def tutor_endpoint(request: TutorRequest) -> TutorResponse:
     every cited fact id exists and every number in it is already grounded in
     the fact sheet; anything that fails falls back to the deterministic
     template, exactly as if no LLM were configured at all.
+
+    Optional ``lesson_id``/``section_id`` add lesson context: identifiers only,
+    resolved here against the server's own lesson registry
+    (``qentor.tutor.lesson_context``). Lesson explanation comes from the
+    registry (``L#`` facts); quantum numbers still come only from the
+    provenance record (``F#`` facts). A lesson-only request (no ``result_id``)
+    is answered from the lesson alone and reports no provenance.
     """
-    record = _store.get(request.result_id)
-    if record is None:
-        raise HTTPException(
-            status_code=404,
-            detail=f"no provenance record found for result_id '{request.result_id}'",
-        )
+    # Optional lesson context: ids only, resolved against the server's own
+    # lesson registry. Resolved first so a bad id fails fast, before any
+    # provenance lookup, with a structured error.
+    lesson_context = None
+    if request.lesson_id is not None:
+        try:
+            lesson_context = resolve_lesson_context(request.lesson_id, request.section_id)
+        except LessonContextError as exc:
+            raise HTTPException(
+                status_code=_LESSON_ERROR_STATUS[exc.code],
+                detail={"code": exc.code, "message": exc.message},
+            ) from exc
 
-    request_hash = circuit_hash(request.circuit)
-    if request_hash != record.circuit_hash:
-        raise HTTPException(
-            status_code=422,
-            detail=(
-                f"circuit does not match provenance record '{request.result_id}': "
-                f"got circuit hash '{request_hash}', expected '{record.circuit_hash}'"
-            ),
-        )
+    record = None
+    facts: list = []
+    if request.result_id is not None and request.circuit is not None:
+        record = _store.get(request.result_id)
+        if record is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"no provenance record found for result_id '{request.result_id}'",
+            )
 
-    facts = build_fact_sheet(request.circuit, record)
-    if record.verification_status != VerificationStatus.VERIFIED:
+        request_hash = circuit_hash(request.circuit)
+        if request_hash != record.circuit_hash:
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    f"circuit does not match provenance record '{request.result_id}': "
+                    f"got circuit hash '{request_hash}', expected '{record.circuit_hash}'"
+                ),
+            )
+
+        facts = build_fact_sheet(request.circuit, record)
+
+    if lesson_context is not None:
+        answer, used_fallback_template = answer_lesson_aware_question(
+            request.question, lesson_context, facts, record, _llm_adapter, request.language
+        )
+    elif record.verification_status != VerificationStatus.VERIFIED:
         answer, used_fallback_template = answer_failed_execution(record, request.language), True
     else:
         answer, used_fallback_template = answer_question_with_llm(
             request.question, facts, record, _llm_adapter, request.language
         )
 
+    # Result facts first (F#), then lesson facts (L#) — the two sources stay
+    # distinguishable by id and by `result_id` (None for lesson material).
+    response_facts = [*facts, *(lesson_context.facts if lesson_context else [])]
+
     return TutorResponse(
         answer=answer,
-        result_id=record.result_id,
-        circuit_hash=record.circuit_hash,
-        provenance_class=record.provenance_class.value,
-        verification_status=record.verification_status.value,
+        result_id=record.result_id if record else None,
+        circuit_hash=record.circuit_hash if record else None,
+        provenance_class=record.provenance_class.value if record else None,
+        verification_status=record.verification_status.value if record else None,
         used_fallback_template=used_fallback_template,
         facts=[
             TutorFactResponse(id=f.id, kind=f.kind, description=f.description, result_id=f.result_id)
-            for f in facts
+            for f in response_facts
         ],
+        lesson_id=lesson_context.lesson_id if lesson_context else None,
+        section_id=lesson_context.section_id if lesson_context else None,
     )
 
 

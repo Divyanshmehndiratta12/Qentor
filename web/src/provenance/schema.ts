@@ -327,21 +327,28 @@ export const TutorFactSchema = z.object({
   id: z.string(),
   kind: z.string(),
   description: z.string(),
-  result_id: z.string(),
+  // null for a lesson fact (course material, not an execution result)
+  result_id: z.string().nullable(),
 })
 export type TutorFact = z.infer<typeof TutorFactSchema>
 
 // backend/qentor/api/schemas.py::TutorResponse — `verification_status` here is
 // the *execution's* own status (VERIFIED/FAILED/ERROR, see
 // `VerificationStatusSchema` above), not a Bell-verifier verdict.
+// result_id/circuit_hash/provenance_class/verification_status are null for a
+// lesson-only answer: lesson material is not a quantum result. lesson_id and
+// section_id echo the lesson context the server resolved; an older server
+// that predates them omits both, hence `.nullish()`.
 export const TutorResponseSchema = z.object({
   answer: z.string(),
-  result_id: z.string(),
-  circuit_hash: z.string(),
-  provenance_class: z.string(),
-  verification_status: z.string(),
+  result_id: z.string().nullable(),
+  circuit_hash: z.string().nullable(),
+  provenance_class: z.string().nullable(),
+  verification_status: z.string().nullable(),
   used_fallback_template: z.boolean(),
   facts: z.array(TutorFactSchema),
+  lesson_id: z.string().nullish(),
+  section_id: z.string().nullish(),
 })
 export type TutorResponse = z.infer<typeof TutorResponseSchema>
 

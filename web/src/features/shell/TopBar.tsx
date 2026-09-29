@@ -23,6 +23,7 @@
  *    Learn and Progress screens: those actions operate on the Build circuit,
  *    which isn't what's on screen there.
  */
+import type { ReactNode } from 'react'
 import { useBuildStore } from '@/features/build/store'
 
 export type Screen = 'lab' | 'learn' | 'progress'
@@ -81,7 +82,21 @@ function NavItem({
   )
 }
 
-export function TopBar({ screen, onNavigate }: { screen: Screen; onNavigate: (screen: Screen) => void }) {
+/**
+ * `guideSlot` is where the Qentor Guide's launcher goes: an otherwise-empty
+ * spacer between the navigation and the Lab toolbar, so the character can roam
+ * without ever covering a control. `TopBar` renders it and knows nothing about
+ * it (it is just a node), and omitting it leaves the bar exactly as before.
+ */
+export function TopBar({
+  screen,
+  onNavigate,
+  guideSlot,
+}: {
+  screen: Screen
+  onNavigate: (screen: Screen) => void
+  guideSlot?: ReactNode
+}) {
   const numQubits = useBuildStore((s) => s.circuit.num_qubits)
   const numOps = useBuildStore((s) => s.circuit.ops.length)
   const isExecuting = useBuildStore((s) => s.isExecuting)
@@ -104,6 +119,10 @@ export function TopBar({ screen, onNavigate }: { screen: Screen; onNavigate: (sc
             </span>
           </>
         )}
+      </div>
+
+      <div data-testid="guide-slot" className="relative mx-3 h-full min-w-11 flex-1">
+        {guideSlot}
       </div>
 
       {screen === 'lab' && (

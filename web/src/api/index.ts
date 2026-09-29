@@ -40,6 +40,7 @@ export type {
   TutorAnswerResult,
   TutorFactResult,
   TutorLanguage,
+  TutorLessonContext,
   VerificationCheckResult,
   VerifyBellStateResult,
 } from './client'

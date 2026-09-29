@@ -97,6 +97,44 @@ template explanation from the same facts, for example: "Your circuit returned ou
 probability {F1} for oracle 37, which is balanced." It is labelled "Explanation generated without AI".
 The demo never depends on the LLM being reachable.
 
+**Lesson context (as built).** `POST /api/tutor` also accepts optional `lesson_id` and `section_id`.
+They are identifiers only: the browser never sends lesson text, and the server resolves both against
+its own lesson registry (`qentor.lessons`). An unknown lesson, an unknown section, or a section that
+belongs to another lesson is a structured error (`TUTOR_LESSON_NOT_FOUND`, `TUTOR_SECTION_NOT_FOUND`,
+`TUTOR_SECTION_MISMATCH`), never silently ignored. `result_id` and `circuit` become optional as a
+pair, so a lesson question needs no executed result.
+
+Two sources, two authorities, kept apart by id:
+
+| Source | Fact ids | Authoritative for | Carries provenance |
+|---|---|---|---|
+| Lesson registry (`qentor.tutor.lesson_context`) | `L1…` | Lesson explanation: overview, objectives, the current section | No. It is course material, not a quantum result. Its `result_id` is `null`. |
+| Provenance log (`qentor.tutor.facts`) | `F1…` | Every quantum number, outcome and verdict | Yes: result id, hash, backend, mode, class, status |
+
+- The LLM receives `LESSON CONTEXT`, `QUANTUM RESULT FACTS`, the question and the language as separate
+  blocks. Its system prompt adds: quantum numbers come only from the result facts, never compute a new
+  result, say so if the facts are not enough. The guard validates a draft against both lists together,
+  so a number that appears in neither is still rejected.
+- Only the current section is included, not the whole lesson. A quiz's correct option and answer
+  rationale are never included, so a hint cannot give the answer away.
+- With no key, a small router answers `explain` / `simpler` / `hint` from the lesson facts, in English,
+  Hindi or Kannada. Only the wrapper text is localised; lesson prose, gate names, ids and numbers are
+  interpolated verbatim. A circuit or result question with no result attached says there is nothing to
+  explain yet.
+- Free-text questions with a lesson open: the keyword router runs first, then one data-driven rule. A
+  question is "about this lesson" if it shares a content word (6-letter stem, generic words excluded)
+  with that lesson's own prose (title, description, objectives, current section and its supporting
+  material). Such a question is answered from the lesson; one that asks for "the result" or "the
+  circuit" with none attached gets the honest no-result message; anything else says it has no
+  deterministic answer. Each question is independent: the backend has no conversation history, and
+  "explain that more simply" is a simpler request about the same lesson and section, not a reference
+  to the previous answer.
+- The browser keeps one conversation per lesson for the session (in memory only), separate from the
+  Lab's, and never shows one context's messages in another.
+- A lesson-only answer has no provenance badge and is never labelled as a verified quantum result. When
+  a result is attached, its provenance is unchanged and the lesson adds context only.
+- A request without lesson context behaves exactly as before, including the LLM call shape.
+
 ## 5. Prompting rules (secondary to the code above)
 
 The system prompt tells the model the same rules, but correctness does not depend on the model

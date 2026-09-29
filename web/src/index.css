@@ -67,6 +67,51 @@ body {
   background-size: 32px 32px;
 }
 
+/* Qentor Guide (features/guide). Three restrained motions: a slow slide along
+   its top-bar strip, a few-pixel idle bob, and a short slide/fade when the
+   side panel opens. All three are switched off for people who ask for reduced
+   motion (the JS side also stops roaming; this is the CSS half). */
+@keyframes qentor-guide-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+@keyframes qentor-guide-panel-in {
+  from {
+    opacity: 0;
+    transform: translateX(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.qentor-guide-roam {
+  transition:
+    left 4s ease-in-out,
+    transform 4s ease-in-out;
+}
+.qentor-guide-bob {
+  display: inline-block;
+  animation: qentor-guide-bob 5s ease-in-out infinite;
+}
+.qentor-guide-panel {
+  animation: qentor-guide-panel-in 180ms ease-out both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .qentor-guide-roam {
+    transition: none;
+  }
+  .qentor-guide-bob,
+  .qentor-guide-panel {
+    animation: none;
+  }
+}
+
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;

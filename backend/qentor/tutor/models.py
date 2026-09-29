@@ -12,7 +12,21 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict
 
-FactKind = Literal["circuit_summary", "execution_status", "probability", "amplitude"]
+FactKind = Literal[
+    # Quantum-result facts (``F#`` ids), built from a persisted ProvenanceRecord.
+    "circuit_summary",
+    "execution_status",
+    "probability",
+    "amplitude",
+    # Lesson facts (``L#`` ids), read from the authoritative lesson registry
+    # (``qentor.lessons``). Course material, not a quantum result: they carry no
+    # ``result_id`` and never a verification status.
+    "lesson_overview",
+    "lesson_objective",
+    "lesson_prerequisite",
+    "lesson_section",
+    "lesson_material",
+]
 
 
 class TutorFact(BaseModel):
@@ -21,4 +35,5 @@ class TutorFact(BaseModel):
     id: str
     kind: FactKind
     description: str
-    result_id: str
+    # ``None`` for a lesson fact: it is not grounded in any execution.
+    result_id: str | None = None

@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from qentor.circuit.model import Circuit, GateOp
 from qentor.execution.bloch import BlochVector
@@ -183,14 +183,38 @@ class TutorRequest(BaseModel):
     them; the ``Literal`` restricts it to the canonical codes this milestone
     supports, so an unsupported code is a validation error, not a silent
     fallback.
+
+    ``lesson_id``/``section_id`` are optional *identifiers* into the server's
+    own lesson registry (``qentor.lessons``) — never lesson text. The server
+    resolves them; an unknown lesson, an unknown section, or a section that
+    belongs to a different lesson is a structured error (``TUTOR_LESSON_NOT_FOUND``,
+    ``TUTOR_SECTION_NOT_FOUND``, ``TUTOR_SECTION_MISMATCH``), never silently
+    ignored. ``section_id`` needs a ``lesson_id``.
+
+    ``result_id`` and ``circuit`` travel together: both (a result-grounded
+    question, exactly as before lesson context existed) or neither (a
+    lesson-only question). A request with neither a result nor a lesson has
+    nothing to answer from and is a validation error, as it always was.
     """
 
     model_config = ConfigDict(extra="forbid")
 
-    result_id: str
-    circuit: Circuit
+    result_id: str | None = None
+    circuit: Circuit | None = None
     question: str = Field(min_length=1)
     language: Literal["en", "hi", "kn"] = "en"
+    lesson_id: str | None = Field(default=None, min_length=1)
+    section_id: str | None = Field(default=None, min_length=1)
+
+    @model_validator(mode="after")
+    def _context_is_coherent(self) -> "TutorRequest":
+        if (self.result_id is None) != (self.circuit is None):
+            raise ValueError("result_id and circuit must be provided together")
+        if self.section_id is not None and self.lesson_id is None:
+            raise ValueError("section_id requires lesson_id")
+        if self.result_id is None and self.lesson_id is None:
+            raise ValueError("a tutor question needs a result (result_id + circuit) or a lesson_id")
+        return self
 
 
 class TutorFactResponse(BaseModel):
@@ -199,19 +223,27 @@ class TutorFactResponse(BaseModel):
     id: str
     kind: str
     description: str
-    result_id: str
+    # ``None`` for a lesson fact (course material, not an execution result).
+    result_id: str | None = None
 
 
 class TutorResponse(BaseModel):
+    """``result_id``/``circuit_hash``/``provenance_class``/``verification_status``
+    describe the *execution* the answer is grounded in and are ``None`` for a
+    lesson-only answer — lesson material is not a quantum result and carries no
+    provenance. ``lesson_id``/``section_id`` echo the resolved lesson context."""
+
     model_config = ConfigDict(extra="forbid")
 
     answer: str
-    result_id: str
-    circuit_hash: str
-    provenance_class: str
-    verification_status: str
+    result_id: str | None = None
+    circuit_hash: str | None = None
+    provenance_class: str | None = None
+    verification_status: str | None = None
     used_fallback_template: bool
     facts: list[TutorFactResponse]
+    lesson_id: str | None = None
+    section_id: str | None = None
 
 
 class MultiInputTestCaseRequest(BaseModel):

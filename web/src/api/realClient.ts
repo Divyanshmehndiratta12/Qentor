@@ -40,6 +40,7 @@ import {
   type OptimizationResult,
   type TutorAnswerResult,
   type TutorLanguage,
+  type TutorLessonContext,
   type VerifyBellStateResult,
 } from './client'
 
@@ -214,23 +215,42 @@ export class RealApiClient implements ApiClient {
   }
 
   async askTutor(
-    resultId: string,
-    circuit: Circuit,
+    resultId: string | null,
+    circuit: Circuit | null,
     question: string,
     language: TutorLanguage = 'en',
+    lesson?: TutorLessonContext,
   ): Promise<TutorAnswerResult> {
-    // Same discipline as verifyBellState: the request body has exactly four
-    // fields — result_id, circuit, question and language. There is no way to
+    // Same discipline as verifyBellState: the request body is result_id,
+    // circuit, question and language — plus lesson_id/section_id when a lesson
+    // is given. Those are IDENTIFIERS the server resolves against its own
+    // lesson registry; lesson text is never sent from here. There is no way to
     // reach this method with a probability, count, amplitude or verdict
     // attached. `language` only ever selects the answer's wrapper language.
-    const validCircuit = CircuitSchema.parse(circuit)
+    // Without `lesson` the body is exactly the original four fields.
+    if ((resultId === null) !== (circuit === null)) {
+      throw new Error('askTutor: resultId and circuit must be provided together')
+    }
+    if (resultId === null && !lesson) {
+      throw new Error('askTutor: a question needs a result (resultId + circuit) or a lesson')
+    }
+
+    const body: Record<string, unknown> = { question, language }
+    if (resultId !== null && circuit !== null) {
+      body.result_id = resultId
+      body.circuit = CircuitSchema.parse(circuit)
+    }
+    if (lesson) {
+      body.lesson_id = lesson.lessonId
+      if (lesson.sectionId !== null) body.section_id = lesson.sectionId
+    }
 
     let res: Response
     try {
       res = await fetch(`${this.baseUrl}/api/tutor`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ result_id: resultId, circuit: validCircuit, question, language }),
+        body: JSON.stringify(body),
       })
     } catch (err) {
       throw new BackendUnavailableError(
@@ -239,7 +259,7 @@ export class RealApiClient implements ApiClient {
     }
 
     if (!res.ok) {
-      const detail = await safeErrorDetail(res)
+      const detail = await safeTutorErrorDetail(res)
       throw new BackendUnavailableError(detail, res.status)
     }
 
@@ -258,6 +278,8 @@ export class RealApiClient implements ApiClient {
         description: f.description,
         resultId: f.result_id,
       })),
+      lessonId: response.lesson_id ?? null,
+      sectionId: response.section_id ?? null,
     }
   }
 
@@ -455,6 +477,27 @@ async function traceErrorFromResponse(res: Response): Promise<Error> {
 
   const raw = (body as { detail?: unknown } | null)?.detail
   return new BackendUnavailableError(typeof raw === 'string' ? raw : JSON.stringify(body), res.status)
+}
+
+/**
+ * POST /api/tutor reports a bad lesson/section as `{detail: {code, message}}`
+ * (TUTOR_LESSON_NOT_FOUND / TUTOR_SECTION_NOT_FOUND / TUTOR_SECTION_MISMATCH).
+ * Show the human `message`; every other error shape is handled exactly as
+ * `safeErrorDetail` does.
+ */
+async function safeTutorErrorDetail(res: Response): Promise<string> {
+  const body = await res.clone().json().catch(() => undefined)
+  const detail = (body as { detail?: unknown } | undefined)?.detail
+  if (
+    detail !== null &&
+    typeof detail === 'object' &&
+    !Array.isArray(detail) &&
+    typeof (detail as { code?: unknown }).code === 'string' &&
+    typeof (detail as { message?: unknown }).message === 'string'
+  ) {
+    return (detail as { message: string }).message
+  }
+  return safeErrorDetail(res)
 }
 
 async function safeErrorDetail(res: Response): Promise<string> {
