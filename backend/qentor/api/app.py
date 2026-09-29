@@ -1,4 +1,4 @@
-"""FastAPI app — POST /api/execute, POST /api/verify/bell-state,
+"""FastAPI app — POST /api/execute, POST /api/execute/trace, POST /api/verify/bell-state,
 POST /api/tutor, POST /api/test/multi-input, POST /api/optimize and
 GET /api/lessons.
 
@@ -33,6 +33,7 @@ from qentor.execution.adapter import AdapterExecutionError, AdapterUnavailable, 
 from qentor.execution.aer import AerAdapter
 from qentor.execution.cirq_adapter import CirqAdapter
 from qentor.execution.pennylane_adapter import PennyLaneAdapter
+from qentor.execution.trace import TraceBackendFault, TraceNotSupported, trace_circuit
 from qentor.lessons import LESSONS
 from qentor.provenance.models import ProvenanceClass, ProvenanceRecord, VerificationStatus
 from qentor.provenance.store import ProvenanceStore
@@ -44,6 +45,8 @@ from qentor.tutor import (
 )
 from qentor.verification.bell_state import verify_bell_state
 from qentor.verification.multi_input_harness import (
+    MAX_SWEEP_QUBITS,
+    MAX_TEST_CASES,
     HarnessValidationError,
     TestCaseSpec,
     run_multi_input_test,
@@ -62,6 +65,11 @@ from .schemas import (
     OptimizeEquivalenceResponse,
     OptimizeRequest,
     OptimizeResponse,
+    TraceProvenanceResponse,
+    TraceRequest,
+    TraceResponse,
+    TraceStepResponse,
+    TraceTerminalMeasurementResponse,
     TutorFactResponse,
     TutorRequest,
     TutorResponse,
@@ -135,6 +143,132 @@ def execute(request: ExecuteRequest) -> ExecuteResponse:
         verification_status=record.verification_status.value,
         created_at=record.created_at,
         payload=record.payload,
+    )
+
+
+@app.post("/api/execute/trace", response_model=TraceResponse)
+def execute_trace(request: TraceRequest) -> TraceResponse:
+    """The backend's own state after each operation (``qentor.execution.trace``).
+
+    Not a second simulator: every step is an ordinary statevector-mode
+    ``adapter.run`` of the circuit truncated after that operation, persisted
+    as an ordinary provenance record (so each step's ``result_id`` resolves
+    like any ``/api/execute`` result, with its own prefix ``circuit_hash``).
+    "Read-only" with respect to the client's state — it accepts no
+    amplitude/probability/verdict — but like ``/api/execute`` it does append
+    provenance rows.
+
+    Size limits come from what the backend already enforces for exhaustive
+    statevector work (the multi-input harness's ``MAX_SWEEP_QUBITS`` qubits
+    and ``MAX_TEST_CASES`` runs per request), not a new rule: one run per
+    operation plus the initial state must fit in that run budget.
+
+    Anything that can't be traced comes back as a structured error
+    (``detail = {"code": ..., "message": ...}``) and never as substitute
+    data: 422 for a request that can't be traced (shots mode, a measurement
+    followed by gates, too large), 502 if the backend returned an unusable
+    state, 503 if it is unavailable, 400 if the run itself failed.
+    """
+    adapter = _adapters[request.backend]
+    chash = circuit_hash(request.circuit)
+    records: dict[str, ProvenanceRecord] = {}
+
+    def record_execution(result: ExecutionResult, prefix_hash: str) -> str:
+        # The trace layer has already required a real, normalised statevector
+        # (docs/VERIFICATION_ARCHITECTURE.md §4.1's VERIFIED criterion) before
+        # calling this. Same meaning of VERIFIED as /api/execute: the backend
+        # ran — not a claim about the circuit's correctness.
+        record = ProvenanceRecord.new(
+            circuit_hash=prefix_hash,
+            backend=result.backend_name,
+            backend_version=result.backend_version,
+            execution_mode=result.execution_mode,
+            provenance_class=ProvenanceClass.SIMULATION,
+            verification_status=VerificationStatus.VERIFIED,
+            payload=result.to_payload(),
+        )
+        _store.insert(record)
+        records[record.result_id] = record
+        return record.result_id
+
+    def error(status_code: int, code: str, message: str) -> HTTPException:
+        return HTTPException(status_code=status_code, detail={"code": code, "message": message})
+
+    def log_error(error_hash: str, code: str, message: str) -> None:
+        _store.insert(
+            ProvenanceRecord.new(
+                circuit_hash=error_hash,
+                backend=adapter.name,
+                backend_version="unknown",
+                execution_mode="statevector",
+                provenance_class=ProvenanceClass.SIMULATION,
+                verification_status=VerificationStatus.ERROR,
+                payload={"error": message, "code": code},
+            )
+        )
+
+    try:
+        trace = trace_circuit(
+            request.circuit,
+            adapter,
+            mode=request.mode,
+            max_qubits=MAX_SWEEP_QUBITS,
+            max_operations=MAX_TEST_CASES - 1,
+            record_execution=record_execution,
+        )
+    except TraceNotSupported as exc:
+        raise error(422, exc.code, exc.message) from exc
+    except TraceBackendFault as exc:
+        log_error(exc.circuit_hash, exc.code, exc.message)
+        raise error(502, exc.code, exc.message) from exc
+    except AdapterUnavailable as exc:
+        raise error(
+            503,
+            "TRACE_BACKEND_UNAVAILABLE",
+            f"Backend '{adapter.name}' is unavailable in this environment: {exc}",
+        ) from exc
+    except AdapterExecutionError as exc:
+        log_error(chash, "TRACE_BACKEND_EXECUTION_FAILED", str(exc))
+        raise error(400, "TRACE_BACKEND_EXECUTION_FAILED", str(exc)) from exc
+
+    steps = []
+    for step in trace.steps:
+        record = records[step.result_id]
+        steps.append(
+            TraceStepResponse(
+                step_index=step.step_index,
+                operation_index=step.operation_index,
+                operation=step.operation,
+                execution_id=step.execution_id,
+                provenance=TraceProvenanceResponse(
+                    result_id=record.result_id,
+                    circuit_hash=record.circuit_hash,
+                    backend=record.backend,
+                    backend_version=record.backend_version,
+                    execution_mode=record.execution_mode,
+                    provenance_class=record.provenance_class.value,
+                    verification_status=record.verification_status.value,
+                    created_at=record.created_at,
+                ),
+                statevector=step.statevector,
+            )
+        )
+
+    return TraceResponse(
+        circuit_hash=trace.circuit_hash,
+        traced_circuit_hash=trace.traced_circuit_hash,
+        backend=trace.backend,
+        backend_version=trace.backend_version,
+        num_qubits=trace.num_qubits,
+        mode="statevector",
+        trace_method=trace.trace_method,
+        basis_ordering="statevector index k is the bitstring q[n-1]...q[0] read as a binary number",
+        steps=steps,
+        terminal_measurements=[
+            TraceTerminalMeasurementResponse(operation_index=m.operation_index, operation=m.operation)
+            for m in trace.terminal_measurements
+        ],
+        final_result_id=trace.final_result_id,
     )
 
 

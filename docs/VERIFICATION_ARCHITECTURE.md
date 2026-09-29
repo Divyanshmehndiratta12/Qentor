@@ -79,6 +79,28 @@ A noise-model run (P1) is SIMULATION with mode detail "noise model". It is never
 Statevector, probabilities, counts and per-step states from an adapter. Status is VERIFIED when
 the adapter ran without error and the state norm is within 1e-9 of 1.
 
+**Per-step trace (`POST /api/execute/trace`, `qentor/execution/trace.py`).** The state after
+operation *k* is the backend's own statevector for the circuit truncated after operation *k*, so a
+trace is `N + 1` ordinary statevector-mode `adapter.run` calls (the empty circuit, then each
+operation) — the same path `/api/execute` uses, not a second simulator. The trace code never
+computes, rescales or interpolates an amplitude; a test proves it forwards exactly what a backend
+returned.
+
+- Each step is persisted as an ordinary provenance record (`SIMULATION`, `statevector` mode) whose
+  `circuit_hash` is that step's own prefix circuit, so it is retrievable and usable like any
+  execution. The last step is the record `/api/execute` would have written for the same circuit.
+  `VERIFIED` here means only what it means in §4.1 (the backend ran and the state's norm is within
+  1e-9 of 1); the trace makes no claim that the circuit is correct or equivalent to anything.
+- Only `statevector` mode can be traced. `shots` is refused (`TRACE_MODE_UNSUPPORTED`); no per-step
+  data is invented for sampled counts. Aer, Cirq and PennyLane all support it; a backend that cannot
+  run (503) or returns no/invalid state (502) is reported as such.
+- Terminal `measure` ops are stripped and listed (`terminal_measurements`), because a measurement left
+  in the circuit makes Aer collapse the state at random. A measurement followed by gates is refused
+  (`TRACE_MID_CIRCUIT_MEASUREMENT`).
+- Limits reuse the harness's: `MAX_SWEEP_QUBITS` qubits (a full statevector per step) and
+  `MAX_TEST_CASES` backend runs per request (`operations + 1`).
+- Errors are structured: `detail = {"code", "message"}`.
+
 ### 4.2 Multi-input test harness
 A challenge declares a spec. All checks use exact Aer statevector probabilities (no sampling),
 tolerance 1e-9.

@@ -13,7 +13,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from qentor.circuit.model import Circuit
+from qentor.circuit.model import Circuit, GateOp
 from qentor.lessons import Lesson
 
 
@@ -41,6 +41,87 @@ class ExecuteResponse(BaseModel):
     verification_status: str
     created_at: str
     payload: dict[str, Any]
+
+
+class TraceRequest(BaseModel):
+    """Same shape as ``ExecuteRequest`` (the canonical circuit, a mode, a
+    backend) — so a client can ask for a trace of exactly the request it would
+    send to ``/api/execute`` — except that ``mode`` defaults to
+    ``"statevector"``, the only mode a trace exists for. ``"shots"`` is still
+    accepted by the schema so it can be refused with an explicit structured
+    error (``TRACE_MODE_UNSUPPORTED``) instead of a generic validation
+    failure. There is no field for a client-supplied amplitude, probability
+    or verdict, and ``extra="forbid"`` makes an unknown one an error.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    circuit: Circuit
+    mode: Literal["statevector", "shots"] = "statevector"
+    shots: int | None = Field(default=None, gt=0)
+    backend: Literal["qiskit-aer", "cirq", "pennylane"] = "qiskit-aer"
+
+
+class TraceProvenanceResponse(BaseModel):
+    """Exactly the provenance fields ``ExecuteResponse`` carries, for ONE
+    step: which record (``result_id``) holds this state, which circuit
+    (``circuit_hash`` — the hash of the circuit truncated after this step's
+    operation) produced it, on which backend and version, how, and with what
+    status. ``verification_status`` here means only what it means for
+    ``/api/execute``: the backend ran and returned a normalised state. It is
+    NOT a claim that the circuit is correct or equivalent to anything.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    result_id: str
+    circuit_hash: str
+    backend: str
+    backend_version: str
+    execution_mode: str
+    provenance_class: str
+    verification_status: str
+    created_at: str
+
+
+class TraceStepResponse(BaseModel):
+    """The backend's state after ``operation`` (``None`` for the initial
+    state). ``operation`` is the canonical ``GateOp`` from the submitted
+    circuit and ``operation_index`` its position in that circuit's ``ops``.
+    ``statevector`` is the adapter's own ``[[re, im], ...]`` list, unmodified.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    step_index: int
+    operation_index: int | None
+    operation: GateOp | None
+    execution_id: str
+    provenance: TraceProvenanceResponse
+    statevector: list[list[float]]
+
+
+class TraceTerminalMeasurementResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    operation_index: int
+    operation: GateOp
+
+
+class TraceResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    circuit_hash: str  # the circuit as submitted
+    traced_circuit_hash: str  # terminal measurements stripped; == last step's circuit_hash
+    backend: str
+    backend_version: str
+    num_qubits: int
+    mode: str
+    trace_method: str
+    basis_ordering: str
+    steps: list[TraceStepResponse]
+    terminal_measurements: list[TraceTerminalMeasurementResponse]
+    final_result_id: str
 
 
 class VerifyBellStateRequest(BaseModel):
