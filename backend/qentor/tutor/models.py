@@ -26,6 +26,16 @@ FactKind = Literal[
     "lesson_prerequisite",
     "lesson_section",
     "lesson_material",
+    # Trace-step facts (``S#`` ids): what the backend's execution trace produced
+    # for the step the learner has selected (``qentor.tutor.trace_context``).
+    # Every one is tied to that step's provenance record via ``result_id``.
+    "trace_step",
+    "trace_operation",
+    "trace_gate_note",
+    "trace_status",
+    "trace_amplitude",
+    "trace_bloch",
+    "trace_note",
 ]
 
 

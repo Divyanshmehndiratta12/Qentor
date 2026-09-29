@@ -25,6 +25,7 @@ import type {
 import type { QuantumValue } from '@/provenance/QuantumValue'
 import { emptyCircuit, gateArityError, type Circuit, type GateName, type GateOp } from '@/circuit/types'
 import { toQasm3 } from '@/circuit/qasmEmitter'
+import { selectedTraceStepContext } from './traceStepContext'
 import { parseQasm3, QasmParseError } from '@/circuit/qasmParser'
 
 export const ROTATION_DEFAULT_ANGLE = Math.PI / 2
@@ -65,7 +66,7 @@ function toTraceFailure(err: unknown): TraceFailure {
  * circuit does. Deliberately NOT applied by `runExecution`/`setMode`: the
  * Build screen re-executes on a debounce, and that must not erase a trace of
  * the (unchanged) circuit the learner just asked for. */
-const TRACE_CLEARED = { isTracing: false, trace: null, traceError: null } as const
+const TRACE_CLEARED = { isTracing: false, trace: null, traceError: null, selectedTraceStep: 0 } as const
 
 // Guards against an older, slower trace request resolving after a newer one.
 let traceRequestSeq = 0
@@ -124,6 +125,13 @@ interface BuildState {
   isTracing: boolean
   trace: ExecutionTraceResult | null
   traceError: TraceFailure | null
+  /** Which step of `trace` the learner is looking at (the trace's own
+   * zero-based `stepIndex`). Pure selection: choosing a step writes THIS field
+   * only — never the circuit, result, verification, trace, Bloch state,
+   * tutor conversation or language. Reset to 0 whenever a trace is loaded or
+   * cleared, so it can never point past the trace it belongs to. The tutor reads
+   * it (as an identity, see `traceStepContext.ts`) so it can explain that step. */
+  selectedTraceStep: number
 
   setNumQubits: (n: number) => void
   selectGate: (gate: GateName | null) => void
@@ -138,6 +146,8 @@ interface BuildState {
   /** Asks the backend for the per-operation trace of the current circuit.
    * Reads the circuit, never writes it. */
   runTrace: () => Promise<void>
+  /** Selects a step of the loaded trace (clamped to its range); a no-op with no trace. */
+  selectTraceStep: (index: number) => void
   askTutor: (question: string, lesson?: TutorLessonContext) => Promise<void>
   setTutorLanguage: (language: TutorLanguage) => void
   /**
@@ -416,7 +426,7 @@ export const useBuildStore = create<BuildState>((set, get) => ({
     // untraceable circuit comes back as the backend's structured refusal.
     const { circuit } = get()
     const seq = ++traceRequestSeq
-    set({ isTracing: true, trace: null, traceError: null })
+    set({ isTracing: true, trace: null, traceError: null, selectedTraceStep: 0 })
 
     // Discard the response if the circuit changed in flight (the mutation
     // already cleared the trace fields) or a newer trace request superseded
@@ -427,11 +437,19 @@ export const useBuildStore = create<BuildState>((set, get) => ({
       const client = getApiClient()
       const trace = await client.traceCircuit(circuit)
       if (isStale()) return
-      set({ trace, isTracing: false })
+      set({ trace, isTracing: false, selectedTraceStep: 0 })
     } catch (err) {
       if (isStale()) return
       set({ traceError: toTraceFailure(err), trace: null, isTracing: false })
     }
+  },
+
+  selectTraceStep: (index) => {
+    const { trace, selectedTraceStep } = get()
+    if (!trace) return
+    const next = Math.max(0, Math.min(trace.steps.length - 1, Math.floor(index)))
+    if (next === selectedTraceStep) return // nothing to write: no churn for subscribers
+    set({ selectedTraceStep: next })
   },
 
   runOptimization: async () => {
@@ -547,8 +565,11 @@ export const useBuildStore = create<BuildState>((set, get) => ({
     // Only ever ask about a real, already-executed result — same discipline
     // as runVerification. resultId comes from the backend's own provenance,
     // never guessed or typed in by the learner.
-    if (!result) return
-    const resultId = result.provenance.resultId
+    // A selected trace step is itself a real, backend-recorded thing to ask
+    // about, so a step question needs no Lab result (the backend resolves the step).
+    const stepContext = selectedTraceStepContext(get())
+    if (!result && !stepContext) return
+    const resultId = result ? result.provenance.resultId : null
 
     set((state) => ({
       tutorTurns: [...state.tutorTurns, { role: 'learner', text: trimmed }],
@@ -559,11 +580,16 @@ export const useBuildStore = create<BuildState>((set, get) => ({
     // reset above (setMode/addOp/runExecution/...) already clears tutorTurns
     // and isAskingTutor — discard this response rather than resurrecting a
     // stale conversation grounded in a circuit that no longer applies.
-    const isStale = () => get().result?.provenance.resultId !== resultId
+    const isStale = () => (get().result?.provenance.resultId ?? null) !== resultId
 
     try {
       const client = getApiClient()
-      const answer = await client.askTutor(resultId, circuit, trimmed, tutorLanguage)
+      // With a trace loaded the question also carries the selected step's IDENTITY
+      // (never a value); the backend verifies it. With none, the request is
+      // exactly the original four arguments.
+      const answer = stepContext
+        ? await client.askTutor(resultId, circuit, trimmed, tutorLanguage, undefined, stepContext)
+        : await client.askTutor(resultId, circuit, trimmed, tutorLanguage)
       if (isStale()) return
       set((state) => ({ tutorTurns: [...state.tutorTurns, { role: 'tutor', answer }], isAskingTutor: false }))
     } catch (err) {

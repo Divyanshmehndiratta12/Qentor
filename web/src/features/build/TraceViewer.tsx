@@ -41,9 +41,17 @@ export interface TraceViewerProps {
   trace: ExecutionTraceResult | null
   isLoading: boolean
   error: TraceFailure | null
+  /**
+   * Optional CONTROLLED selection (the trace's zero-based step index). When both
+   * are given the parent owns which step is selected — the Build screen keeps it
+   * in the store so the tutor can explain that step. When omitted the viewer keeps
+   * its own selection, exactly as before.
+   */
+  selectedStep?: number
+  onSelectStep?: (stepIndex: number) => void
 }
 
-export function TraceViewer({ trace, isLoading, error }: TraceViewerProps) {
+export function TraceViewer({ trace, isLoading, error, selectedStep, onSelectStep }: TraceViewerProps) {
   return (
     <div className="flex flex-col gap-3" aria-label="Execution trace">
       {isLoading && (
@@ -64,7 +72,12 @@ export function TraceViewer({ trace, isLoading, error }: TraceViewerProps) {
       {!isLoading && !error && trace && (
         // Keyed by the first step's own result id — unique per backend run —
         // so a fresh trace always starts back at step 0.
-        <LoadedTrace key={trace.steps[0]?.state.provenance.resultId} trace={trace} />
+        <LoadedTrace
+          key={trace.steps[0]?.state.provenance.resultId}
+          trace={trace}
+          selectedStep={selectedStep}
+          onSelectStep={onSelectStep}
+        />
       )}
     </div>
   )
@@ -88,9 +101,20 @@ function TraceErrorNotice({ error }: { error: TraceFailure }) {
   )
 }
 
-function LoadedTrace({ trace }: { trace: ExecutionTraceResult }) {
+function LoadedTrace({
+  trace,
+  selectedStep,
+  onSelectStep,
+}: {
+  trace: ExecutionTraceResult
+  selectedStep?: number
+  onSelectStep?: (stepIndex: number) => void
+}) {
   const lastIndex = trace.steps.length - 1
-  const [selected, setSelected] = useState(0)
+  const [localSelected, setLocalSelected] = useState(0)
+  const controlled = selectedStep !== undefined && onSelectStep !== undefined
+  const selected = controlled ? selectedStep : localSelected
+  const setSelected = controlled ? onSelectStep : setLocalSelected
   const chipRefs = useRef<Array<HTMLButtonElement | null>>([])
 
   const step = trace.steps[Math.min(selected, lastIndex)] as TraceStep

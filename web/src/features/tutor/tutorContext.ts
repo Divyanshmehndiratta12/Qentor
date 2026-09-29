@@ -30,6 +30,11 @@ export type TutorContext =
   | { kind: 'lesson'; lessonId: string; sectionId: string | null }
   | { kind: 'none' }
 
+/** The one contextual starter offered when a trace is loaded. The backend's step
+ * router recognises it (`qentor.tutor.step_answers`); it is a fixed string with no
+ * quantum content. */
+export const TRACE_STEP_QUESTION = 'What changed in this step?'
+
 export const LAB_TUTOR_CONTEXT: TutorContext = { kind: 'lab' }
 export const NO_TUTOR_CONTEXT: TutorContext = { kind: 'none' }
 

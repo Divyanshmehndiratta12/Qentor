@@ -29,7 +29,8 @@
 import type { TutorLessonContext } from '@/api'
 import { useBuildStore } from '@/features/build/store'
 import { useLearnStore } from '@/features/learn/store'
-import { LAB_TUTOR_CONTEXT, NO_TUTOR_CONTEXT, type TutorContext } from '@/features/tutor/tutorContext'
+import { LAB_TUTOR_CONTEXT, NO_TUTOR_CONTEXT, TRACE_STEP_QUESTION, type TutorContext } from '@/features/tutor/tutorContext'
+import { describeOperation } from '@/features/build/traceFormat'
 
 export type GuideScreen = 'lab' | 'learn'
 
@@ -58,6 +59,9 @@ export interface GuideContextInput {
   result: { resultId: string; executionMode: string; backend: string } | null
   /** Number of steps in the loaded trace, or null when no trace is loaded. */
   traceSteps: number | null
+  /** The trace step the learner has selected (one-based, as shown to them), or
+   * null/undefined when there is none. A label and two numbers — no state value. */
+  selectedStep?: { stepNumber: number; totalSteps: number; label: string } | null
   lesson: {
     id: string
     title: string
@@ -90,6 +94,8 @@ export interface GuideContext {
   tutorContext: TutorContext
   /** Whether the quick actions have anything real to ask about right now. */
   canAsk: boolean
+  /** Whether the trace-step starter can be asked (a step of a loaded trace is selected). */
+  canAskStep: boolean
   /** Why they cannot be used, when `canAsk` is false. */
   disabledReason: string | null
 }
@@ -99,7 +105,7 @@ function plural(n: number, word: string): string {
 }
 
 export function buildGuideContext(input: GuideContextInput): GuideContext {
-  const { screen, circuit, result, traceSteps, lesson } = input
+  const { screen, circuit, result, traceSteps, lesson, selectedStep } = input
   const groundedResultId = result?.resultId ?? null
 
   if (screen === 'lab') {
@@ -110,15 +116,20 @@ export function buildGuideContext(input: GuideContextInput): GuideContext {
         : 'No result yet — run the circuit, then ask about it.',
     ]
     if (traceSteps !== null) lines.push(`A trace of this circuit is loaded (${plural(traceSteps, 'step')}).`)
+    if (selectedStep) {
+      lines.push(`Selected trace step: Step ${selectedStep.stepNumber} of ${selectedStep.totalSteps} — ${selectedStep.label}`)
+    }
     return {
       screen,
       label: 'Lab',
       lines,
-      quickActions: LAB_QUICK_ACTIONS,
+      // The contextual starter appears only while there is a trace to ask about.
+      quickActions: traceSteps !== null ? [...LAB_QUICK_ACTIONS, TRACE_STEP_QUESTION] : LAB_QUICK_ACTIONS,
       groundedResultId,
       lessonRequest: null,
       tutorContext: LAB_TUTOR_CONTEXT,
       canAsk: result !== null,
+      canAskStep: selectedStep != null,
       disabledReason: result ? null : LAB_NEEDS_RESULT_NOTICE,
     }
   }
@@ -146,6 +157,7 @@ export function buildGuideContext(input: GuideContextInput): GuideContext {
       ? { kind: 'lesson', lessonId: lessonRequest.lessonId, sectionId: lessonRequest.sectionId }
       : NO_TUTOR_CONTEXT,
     canAsk: lessonRequest !== null,
+    canAskStep: false,
     disabledReason: lessonRequest ? null : LEARN_NEEDS_LESSON_NOTICE,
   }
 }
@@ -155,6 +167,7 @@ export function useGuideContext(screen: GuideScreen): GuideContext {
   const circuit = useBuildStore((s) => s.circuit)
   const result = useBuildStore((s) => s.result)
   const trace = useBuildStore((s) => s.trace)
+  const selectedTraceStep = useBuildStore((s) => s.selectedTraceStep)
   const lessons = useLearnStore((s) => s.lessons)
   const selectedLessonId = useLearnStore((s) => s.selectedLessonId)
   const lessonProgress = useLearnStore((s) => s.lessonProgress)
@@ -174,6 +187,16 @@ export function useGuideContext(screen: GuideScreen): GuideContext {
         }
       : null,
     traceSteps: trace ? trace.steps.length : null,
+    selectedStep: (() => {
+      const step = trace?.steps[selectedTraceStep]
+      return trace && step
+        ? {
+            stepNumber: step.stepIndex + 1,
+            totalSteps: trace.steps.length,
+            label: step.operation ? describeOperation(step.operation) : 'initial state',
+          }
+        : null
+    })(),
     lesson: selected
       ? {
           id: selected.id,

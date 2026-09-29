@@ -326,7 +326,7 @@ describe('the Lab: browsing a trace changes nothing else', () => {
     expect(readout()).toEqual(['0.000', '0.000', `${MINUS}1.000`])
   })
 
-  it('stepping through the trace changes NOTHING in the Build store (not even a reference)', async () => {
+  it('stepping through the trace changes NOTHING in the Build store except which step is selected', async () => {
     seedLab()
     await runTrace()
     const afterRun = useBuildStore.getState()
@@ -337,7 +337,16 @@ describe('the Lab: browsing a trace changes nothing else', () => {
     previous()
     fireEvent.keyDown(chips()[2]!, { key: 'Home' })
 
-    expect(useBuildStore.getState()).toBe(afterRun)
+    // The selected step is the one new fact (it is what the tutor is asked about);
+    // every other field keeps its exact reference.
+    const now = useBuildStore.getState()
+    const { selectedTraceStep: before, ...restBefore } = afterRun
+    const { selectedTraceStep: after, ...restNow } = now
+    expect(before).toBe(0)
+    expect(after).toBe(0) // Home returned to the first step
+    for (const key of Object.keys(restBefore) as (keyof typeof restBefore)[]) {
+      expect(restNow[key], String(key)).toBe(restBefore[key])
+    }
   })
 
   it('the circuit, execution result, verification, optimizer, multi-input and tutor state are untouched by the whole trace flow', async () => {

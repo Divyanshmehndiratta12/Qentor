@@ -120,8 +120,8 @@ describe('RealApiClient.askTutor — request body', () => {
     expect(JSON.stringify(body())).not.toMatch(/lesson_text|section_body|title|instructions/)
   })
 
-  it('refuses (before any network call) a request with neither a result nor a lesson', async () => {
-    await expect(new RealApiClient().askTutor(null, null, 'hello')).rejects.toThrow(/result .* or a lesson/)
+  it('refuses (before any network call) a request with neither a result, a lesson nor a trace step', async () => {
+    await expect(new RealApiClient().askTutor(null, null, 'hello')).rejects.toThrow(/result .* a lesson or a trace step/)
     expect(fetchMock).not.toHaveBeenCalled()
   })
 

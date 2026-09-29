@@ -188,6 +188,42 @@ export interface TutorAnswerResult {
   facts: TutorFactResult[]
   lessonId?: string | null
   sectionId?: string | null
+  /** The trace step this answer was about, with the provenance of the record
+   * the server verified it against; absent/`null` when no step was selected. */
+  traceStep?: TutorTraceStepEcho | null
+}
+
+/**
+ * Identifies the execution-trace step a tutor question is about. IDENTITY ONLY:
+ * indices, the operation, and the ids/hashes of the provenance record the
+ * backend wrote for the step — never an amplitude, probability or Bloch
+ * coordinate (there is no field for one). The backend looks the step's record
+ * up itself and VERIFIES this identity against the circuit before using it.
+ * `stepIndex`/`operationIndex` are the trace's own zero-based indices.
+ */
+export interface TutorTraceStepContext {
+  stepIndex: number
+  operationIndex: number | null
+  operation: GateOp | null
+  resultId: string
+  executionId: string
+  circuitHash: string
+  backend: string
+  backendVersion: string
+  previousResultId: string | null
+}
+
+/** What the server says the answer was grounded in for a step. `stepNumber`/
+ * `totalSteps` are the learner-facing one-based numbering. */
+export interface TutorTraceStepEcho {
+  stepIndex: number
+  stepNumber: number
+  totalSteps: number
+  operationIndex: number | null
+  resultId: string
+  circuitHash: string
+  provenanceClass: string
+  verificationStatus: string
 }
 
 /**
@@ -453,6 +489,11 @@ export interface ApiClient {
    * only; the backend resolves them against its own lesson registry. With a
    * `lesson`, `resultId`/`circuit` may both be `null` (a lesson-only question).
    * Without one, the request body is exactly the four fields above.
+   *
+   * `traceStep` (optional) names the selected execution-trace step (identity
+   * only, see `TutorTraceStepContext`) and requires `circuit`; `resultId` may
+   * then be `null`. The backend verifies the step against the circuit and its
+   * own provenance records.
    */
   askTutor(
     resultId: string | null,
@@ -460,6 +501,7 @@ export interface ApiClient {
     question: string,
     language?: TutorLanguage,
     lesson?: TutorLessonContext,
+    traceStep?: TutorTraceStepContext,
   ): Promise<TutorAnswerResult>
 
   /**

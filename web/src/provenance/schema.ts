@@ -349,6 +349,18 @@ export const TutorResponseSchema = z.object({
   facts: z.array(TutorFactSchema),
   lesson_id: z.string().nullish(),
   section_id: z.string().nullish(),
+  trace_step: z
+    .object({
+      step_index: z.number().int(),
+      step_number: z.number().int(),
+      total_steps: z.number().int(),
+      operation_index: z.number().int().nullable(),
+      result_id: z.string(),
+      circuit_hash: z.string(),
+      provenance_class: z.string(),
+      verification_status: z.string(),
+    })
+    .nullish(),
 })
 export type TutorResponse = z.infer<typeof TutorResponseSchema>
 

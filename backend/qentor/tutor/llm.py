@@ -64,10 +64,33 @@ _LESSON_PROMPT_ADDENDUM = (
 )
 
 
-def _system_prompt(language: str, *, with_lesson_context: bool = False) -> str:
+# Appended only when the request carries a selected trace step. It adds a third
+# source — what the backend's trace produced for that step — and restates the
+# trust rule: values come only from supplied backend facts, and nothing is
+# calculated, estimated or invented.
+_TRACE_PROMPT_ADDENDUM = (
+    " You may also be given TRACE STEP CONTEXT facts (ids starting with S): "
+    "what the backend's execution trace produced for the step the learner has "
+    "selected — the operation, the step's provenance, the statevector "
+    "amplitudes before and after it and, for one qubit, the Bloch vector "
+    "before and after it. Quantum values come ONLY from these facts and the "
+    "QUANTUM RESULT FACTS. Do not calculate a new result, and do not invent "
+    "or estimate any amplitude, probability or Bloch coordinate. Describe what "
+    "changed by quoting the before and after values exactly as given and "
+    "explaining them; do not state a difference or any other number that is "
+    "not written in a fact. If the facts are not enough to answer, say so "
+    "instead of guessing."
+)
+
+
+def _system_prompt(language: str, *, with_lesson_context: bool = False, with_trace_context: bool = False) -> str:
     language_name = _LANGUAGE_NAMES.get(language, _LANGUAGE_NAMES[_DEFAULT_LANGUAGE])
     prompt = _SYSTEM_PROMPT_TEMPLATE.format(language_name=language_name)
-    return prompt + _LESSON_PROMPT_ADDENDUM if with_lesson_context else prompt
+    if with_lesson_context:
+        prompt += _LESSON_PROMPT_ADDENDUM
+    if with_trace_context:
+        prompt += _TRACE_PROMPT_ADDENDUM
+    return prompt
 
 
 def _user_message(
@@ -75,21 +98,24 @@ def _user_message(
     facts: list[TutorFact],
     language: str,
     lesson_facts: list[TutorFact] | None,
+    trace_facts: list[TutorFact] | None = None,
 ) -> str:
     fact_lines = "\n".join(f"{f.id}: {f.description}" for f in facts)
-    if not lesson_facts:
+    if not lesson_facts and not trace_facts:
         # The original, lesson-free shape — unchanged.
         return f"Facts:\n{fact_lines or '(no facts)'}\n\nQuestion: {question}"
 
     language_name = _LANGUAGE_NAMES.get(language, _LANGUAGE_NAMES[_DEFAULT_LANGUAGE])
-    lesson_lines = "\n".join(f"{f.id}: {f.description}" for f in lesson_facts)
     no_result = "(none — no executed result is attached to this question)"
-    return (
-        f"LESSON CONTEXT:\n{lesson_lines}\n\n"
-        f"QUANTUM RESULT FACTS:\n{fact_lines or no_result}\n\n"
-        f"USER QUESTION: {question}\n\n"
-        f"LANGUAGE: {language_name}"
-    )
+    blocks: list[str] = []
+    if lesson_facts:
+        blocks.append("LESSON CONTEXT:\n" + "\n".join(f"{f.id}: {f.description}" for f in lesson_facts))
+    if trace_facts:
+        blocks.append("TRACE STEP CONTEXT:\n" + "\n".join(f"{f.id}: {f.description}" for f in trace_facts))
+    blocks.append(f"QUANTUM RESULT FACTS:\n{fact_lines or no_result}")
+    blocks.append(f"USER QUESTION: {question}")
+    blocks.append(f"LANGUAGE: {language_name}")
+    return "\n\n".join(blocks)
 
 
 class LLMDraft:
@@ -113,12 +139,14 @@ class LLMAdapter(Protocol):
         facts: list[TutorFact],
         language: str = "en",
         lesson_facts: list[TutorFact] | None = None,
+        trace_facts: list[TutorFact] | None = None,
     ) -> LLMDraft:
         """Raise ``LLMUnavailable`` on any failure — never return a guessed draft.
 
         ``facts`` are quantum-result facts (``F#``); ``lesson_facts`` are
         course-material facts (``L#``) and are only ever passed when the
-        request carried lesson context."""
+        request carried lesson context; ``trace_facts`` are the selected trace
+        step's facts (``S#``) and are only ever passed when it carried one."""
         ...
 
 
@@ -142,14 +170,20 @@ class AnthropicAdapter:
         facts: list[TutorFact],
         language: str = "en",
         lesson_facts: list[TutorFact] | None = None,
+        trace_facts: list[TutorFact] | None = None,
     ) -> LLMDraft:
         body = json.dumps(
             {
                 "model": self._model,
                 "max_tokens": 512,
-                "system": _system_prompt(language, with_lesson_context=bool(lesson_facts)),
+                "system": _system_prompt(
+                    language, with_lesson_context=bool(lesson_facts), with_trace_context=bool(trace_facts)
+                ),
                 "messages": [
-                    {"role": "user", "content": _user_message(question, facts, language, lesson_facts)}
+                    {
+                        "role": "user",
+                        "content": _user_message(question, facts, language, lesson_facts, trace_facts),
+                    }
                 ],
             }
         ).encode("utf-8")

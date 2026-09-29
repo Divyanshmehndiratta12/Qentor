@@ -73,7 +73,7 @@ class TestRealRegistryLoadsCleanly(unittest.TestCase):
             if has_lab:
                 self.assertIsNotNone(lesson.linked_circuit, f"{lesson.id} has a lab but no linked_circuit")
 
-    def test_exactly_the_seven_planned_lessons_have_a_real_concept_check_question(self) -> None:
+    def test_exactly_the_ten_planned_lessons_have_a_real_concept_check_question(self) -> None:
         expected = {
             "qubits-measurement",
             "bloch-sphere",
@@ -82,6 +82,9 @@ class TestRealRegistryLoadsCleanly(unittest.TestCase):
             "interference",
             "entanglement",
             "bell-state",
+            "phase-kickback",
+            "deutsch-jozsa",
+            "bernstein-vazirani",
         }
         with_question = {
             lesson.id

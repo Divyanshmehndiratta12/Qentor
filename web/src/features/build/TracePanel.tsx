@@ -18,6 +18,10 @@ export function TracePanel() {
   const trace = useBuildStore((s) => s.trace)
   const traceError = useBuildStore((s) => s.traceError)
   const runTrace = useBuildStore((s) => s.runTrace)
+  // Selection lives in the store (not in the viewer) so the tutor knows which
+  // step the learner is on; choosing a step writes only that one field.
+  const selectedTraceStep = useBuildStore((s) => s.selectedTraceStep)
+  const selectTraceStep = useBuildStore((s) => s.selectTraceStep)
 
   return (
     <section aria-labelledby="trace-heading" className="mt-4 flex flex-col gap-3 border-t border-void-500 pt-4">
@@ -35,7 +39,13 @@ export function TracePanel() {
         </button>
       </div>
 
-      <TraceViewer trace={trace} isLoading={isTracing} error={traceError} />
+      <TraceViewer
+        trace={trace}
+        isLoading={isTracing}
+        error={traceError}
+        selectedStep={selectedTraceStep}
+        onSelectStep={selectTraceStep}
+      />
     </section>
   )
 }

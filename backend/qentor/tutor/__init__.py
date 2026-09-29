@@ -24,7 +24,7 @@ when the LLM is disabled, unreachable, or misconfigured.
 
 from __future__ import annotations
 
-from .answer import answer_lesson_aware_question, answer_question_with_llm
+from .answer import answer_lesson_aware_question, answer_question_with_llm, answer_step_aware_question
 from .config import build_default_llm_adapter, llm_enabled
 from .deterministic import UNSUPPORTED_QUESTION_ANSWER, answer_failed_execution, answer_question
 from .facts import build_fact_sheet
@@ -32,6 +32,12 @@ from .guard import GuardRejection, validate_llm_draft
 from .lesson_context import LessonContext, LessonContextError, resolve_lesson_context
 from .llm import AnthropicAdapter, LLMAdapter, LLMDraft, LLMUnavailable
 from .models import FactKind, TutorFact
+from .trace_context import (
+    TraceContextError,
+    TraceStepContext,
+    TraceStepRef,
+    build_trace_step_context,
+)
 
 __all__ = [
     "UNSUPPORTED_QUESTION_ANSWER",
@@ -39,7 +45,9 @@ __all__ = [
     "answer_lesson_aware_question",
     "answer_question",
     "answer_question_with_llm",
+    "answer_step_aware_question",
     "build_default_llm_adapter",
+    "build_trace_step_context",
     "build_fact_sheet",
     "llm_enabled",
     "resolve_lesson_context",
@@ -52,5 +60,8 @@ __all__ = [
     "LLMUnavailable",
     "LessonContext",
     "LessonContextError",
+    "TraceContextError",
+    "TraceStepContext",
+    "TraceStepRef",
     "TutorFact",
 ]

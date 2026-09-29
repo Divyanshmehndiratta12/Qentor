@@ -102,8 +102,19 @@ describe('Guide source: an entry point, not a second tutor', () => {
 
   it('reads context from the existing stores and writes to neither', () => {
     const context = FILES[1]![1]
-    expect(importsOf(context)).toEqual(['@/api', '@/features/build/store', '@/features/learn/store', '@/features/tutor/tutorContext'])
-    expect(valueImportsOf(context)).toEqual(['@/features/build/store', '@/features/learn/store', '@/features/tutor/tutorContext'])
+    expect(importsOf(context)).toEqual([
+      '@/api',
+      '@/features/build/store',
+      '@/features/learn/store',
+      '@/features/tutor/tutorContext',
+      '@/features/build/traceFormat',
+    ])
+    expect(valueImportsOf(context)).toEqual([
+      '@/features/build/store',
+      '@/features/learn/store',
+      '@/features/tutor/tutorContext',
+      '@/features/build/traceFormat',
+    ])
     expect(context).not.toMatch(/\.setState\(|\bset\(/)
     expect(FILES[3]![1]).not.toMatch(/\.setState\(|setTutorLanguage|selectLesson|loadCircuit|runExecution|runTrace/)
   })

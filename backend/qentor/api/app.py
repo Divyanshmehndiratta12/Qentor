@@ -39,13 +39,17 @@ from qentor.provenance.models import ProvenanceClass, ProvenanceRecord, Verifica
 from qentor.provenance.store import ProvenanceStore
 from qentor.tutor import (
     LessonContextError,
+    TraceContextError,
     answer_failed_execution,
     answer_lesson_aware_question,
     answer_question_with_llm,
+    answer_step_aware_question,
     build_default_llm_adapter,
     build_fact_sheet,
+    build_trace_step_context,
     resolve_lesson_context,
 )
+from qentor.tutor.trace_context import TRACE_RESULT_NOT_FOUND
 from qentor.tutor.lesson_context import LESSON_NOT_FOUND, SECTION_MISMATCH, SECTION_NOT_FOUND
 from qentor.verification.bell_state import verify_bell_state
 from qentor.verification.multi_input_harness import (
@@ -77,6 +81,7 @@ from .schemas import (
     TutorFactResponse,
     TutorRequest,
     TutorResponse,
+    TutorTraceStepResponse,
     VerificationCheckResponse,
     VerifyBellStateRequest,
     VerifyBellStateResponse,
@@ -381,7 +386,43 @@ def tutor_endpoint(request: TutorRequest) -> TutorResponse:
 
         facts = build_fact_sheet(request.circuit, record)
 
-    if lesson_context is not None:
+    # Optional trace-step context: the step's identity, VERIFIED against the
+    # circuit and the records the server itself holds (never believed).
+    trace_context = None
+    if request.trace_step is not None:
+        ref = request.trace_step
+        step_record = _store.get(ref.result_id)
+        if step_record is None:
+            raise HTTPException(
+                status_code=404,
+                detail={
+                    "code": TRACE_RESULT_NOT_FOUND,
+                    "message": f"no provenance record found for the trace step's result_id '{ref.result_id}'",
+                },
+            )
+        previous_record = None
+        if ref.previous_result_id is not None:
+            previous_record = _store.get(ref.previous_result_id)
+            if previous_record is None:
+                raise HTTPException(
+                    status_code=404,
+                    detail={
+                        "code": TRACE_RESULT_NOT_FOUND,
+                        "message": f"no provenance record found for the previous step's result_id '{ref.previous_result_id}'",
+                    },
+                )
+        try:
+            trace_context = build_trace_step_context(ref, request.circuit, step_record, previous_record)
+        except TraceContextError as exc:
+            raise HTTPException(
+                status_code=422, detail={"code": exc.code, "message": exc.message}
+            ) from exc
+
+    if trace_context is not None:
+        answer, used_fallback_template = answer_step_aware_question(
+            request.question, trace_context, lesson_context, facts, record, _llm_adapter, request.language
+        )
+    elif lesson_context is not None:
         answer, used_fallback_template = answer_lesson_aware_question(
             request.question, lesson_context, facts, record, _llm_adapter, request.language
         )
@@ -392,16 +433,28 @@ def tutor_endpoint(request: TutorRequest) -> TutorResponse:
             request.question, facts, record, _llm_adapter, request.language
         )
 
-    # Result facts first (F#), then lesson facts (L#) — the two sources stay
-    # distinguishable by id and by `result_id` (None for lesson material).
-    response_facts = [*facts, *(lesson_context.facts if lesson_context else [])]
+    # Result facts first (F#), then trace-step facts (S#), then lesson facts (L#) —
+    # the sources stay distinguishable by id and by `result_id` (None for lessons).
+    response_facts = [
+        *facts,
+        *(trace_context.facts if trace_context else []),
+        *(lesson_context.facts if lesson_context else []),
+    ]
 
+    # Top-level provenance: the Lab result if there is one; otherwise, for a
+    # step-only question, the step's own record. `trace_step` always carries the
+    # step's provenance separately.
+    provenance = record or trace_context
     return TutorResponse(
         answer=answer,
-        result_id=record.result_id if record else None,
-        circuit_hash=record.circuit_hash if record else None,
-        provenance_class=record.provenance_class.value if record else None,
-        verification_status=record.verification_status.value if record else None,
+        result_id=provenance.result_id if provenance else None,
+        circuit_hash=provenance.circuit_hash if provenance else None,
+        provenance_class=(
+            record.provenance_class.value if record else (trace_context.provenance_class if trace_context else None)
+        ),
+        verification_status=(
+            record.verification_status.value if record else (trace_context.verification_status if trace_context else None)
+        ),
         used_fallback_template=used_fallback_template,
         facts=[
             TutorFactResponse(id=f.id, kind=f.kind, description=f.description, result_id=f.result_id)
@@ -409,6 +462,20 @@ def tutor_endpoint(request: TutorRequest) -> TutorResponse:
         ],
         lesson_id=lesson_context.lesson_id if lesson_context else None,
         section_id=lesson_context.section_id if lesson_context else None,
+        trace_step=(
+            TutorTraceStepResponse(
+                step_index=trace_context.step_index,
+                step_number=trace_context.step_index + 1,
+                total_steps=trace_context.total_steps,
+                operation_index=trace_context.operation_index,
+                result_id=trace_context.result_id,
+                circuit_hash=trace_context.circuit_hash,
+                provenance_class=trace_context.provenance_class,
+                verification_status=trace_context.verification_status,
+            )
+            if trace_context
+            else None
+        ),
     )
 
 

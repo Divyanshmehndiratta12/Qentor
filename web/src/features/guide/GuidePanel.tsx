@@ -31,7 +31,7 @@
 import { useEffect, useRef } from 'react'
 import { useBuildStore } from '@/features/build/store'
 import { TutorPanel } from '@/features/tutor/TutorPanel'
-import { isAskingFor } from '@/features/tutor/tutorContext'
+import { TRACE_STEP_QUESTION, isAskingFor } from '@/features/tutor/tutorContext'
 import { GuideCharacter } from './GuideCharacter'
 import { useGuideContext, type GuideScreen } from './guideContext'
 
@@ -50,8 +50,6 @@ export function GuidePanel({ screen, onClose }: GuidePanelProps) {
   useEffect(() => {
     panelRef.current?.focus()
   }, [])
-
-  const canAsk = context.canAsk && !asking
 
   return (
     <aside
@@ -106,7 +104,7 @@ export function GuidePanel({ screen, onClose }: GuidePanelProps) {
             <li key={question}>
               <button
                 type="button"
-                disabled={!canAsk}
+                disabled={(question === TRACE_STEP_QUESTION ? !context.canAskStep : !context.canAsk) || asking}
                 onClick={() =>
                   // Lab: the question alone (the store attaches the latest
                   // result + circuit). Learn: the same question plus the open

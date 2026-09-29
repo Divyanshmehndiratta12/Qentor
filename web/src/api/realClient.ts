@@ -41,6 +41,7 @@ import {
   type TutorAnswerResult,
   type TutorLanguage,
   type TutorLessonContext,
+  type TutorTraceStepContext,
   type VerifyBellStateResult,
 } from './client'
 
@@ -220,6 +221,7 @@ export class RealApiClient implements ApiClient {
     question: string,
     language: TutorLanguage = 'en',
     lesson?: TutorLessonContext,
+    traceStep?: TutorTraceStepContext,
   ): Promise<TutorAnswerResult> {
     // Same discipline as verifyBellState: the request body is result_id,
     // circuit, question and language — plus lesson_id/section_id when a lesson
@@ -228,17 +230,33 @@ export class RealApiClient implements ApiClient {
     // reach this method with a probability, count, amplitude or verdict
     // attached. `language` only ever selects the answer's wrapper language.
     // Without `lesson` the body is exactly the original four fields.
-    if ((resultId === null) !== (circuit === null)) {
+    if (traceStep) {
+      // A trace step is verified server-side against the circuit it was traced from.
+      if (circuit === null) throw new Error('askTutor: a trace step needs the circuit it was traced from')
+    } else if ((resultId === null) !== (circuit === null)) {
       throw new Error('askTutor: resultId and circuit must be provided together')
     }
-    if (resultId === null && !lesson) {
-      throw new Error('askTutor: a question needs a result (resultId + circuit) or a lesson')
+    if (resultId === null && !lesson && !traceStep) {
+      throw new Error('askTutor: a question needs a result (resultId + circuit), a lesson or a trace step')
     }
 
     const body: Record<string, unknown> = { question, language }
-    if (resultId !== null && circuit !== null) {
-      body.result_id = resultId
-      body.circuit = CircuitSchema.parse(circuit)
+    if (circuit !== null) body.circuit = CircuitSchema.parse(circuit)
+    if (resultId !== null) body.result_id = resultId
+    if (traceStep) {
+      // IDENTITY only — indices, the operation and the record's ids/hashes. There
+      // is no amplitude/probability/Bloch field to send, and none is sent.
+      body.trace_step = {
+        step_index: traceStep.stepIndex,
+        operation_index: traceStep.operationIndex,
+        operation: traceStep.operation,
+        result_id: traceStep.resultId,
+        execution_id: traceStep.executionId,
+        circuit_hash: traceStep.circuitHash,
+        backend: traceStep.backend,
+        backend_version: traceStep.backendVersion,
+        previous_result_id: traceStep.previousResultId,
+      }
     }
     if (lesson) {
       body.lesson_id = lesson.lessonId
@@ -280,6 +298,18 @@ export class RealApiClient implements ApiClient {
       })),
       lessonId: response.lesson_id ?? null,
       sectionId: response.section_id ?? null,
+      traceStep: response.trace_step
+        ? {
+            stepIndex: response.trace_step.step_index,
+            stepNumber: response.trace_step.step_number,
+            totalSteps: response.trace_step.total_steps,
+            operationIndex: response.trace_step.operation_index,
+            resultId: response.trace_step.result_id,
+            circuitHash: response.trace_step.circuit_hash,
+            provenanceClass: response.trace_step.provenance_class,
+            verificationStatus: response.trace_step.verification_status,
+          }
+        : null,
     }
   }
 

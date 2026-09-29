@@ -33,7 +33,14 @@ import type { TutorLanguage } from '@/api'
 import type { TutorTurn } from '@/features/build/store'
 import { useBuildStore } from '@/features/build/store'
 import { ProvenanceBadge } from '@/provenance/ProvenanceBadge'
-import { LAB_TUTOR_CONTEXT, isAskingFor, tutorContextKey, tutorTurnsFor, type TutorContext } from './tutorContext'
+import {
+  LAB_TUTOR_CONTEXT,
+  TRACE_STEP_QUESTION,
+  isAskingFor,
+  tutorContextKey,
+  tutorTurnsFor,
+  type TutorContext,
+} from './tutorContext'
 
 const STARTER_QUESTIONS = ['What does this circuit do?', 'What was the result?']
 
@@ -59,6 +66,7 @@ export function TutorPanel({
 }: { showStarters?: boolean; context?: TutorContext } = {}) {
   const [question, setQuestion] = useState('')
   const result = useBuildStore((s) => s.result)
+  const hasTraceStep = useBuildStore((s) => s.trace !== null && s.trace.steps[s.selectedTraceStep] !== undefined)
   const executionError = useBuildStore((s) => s.executionError)
   const turns = useBuildStore((s) => tutorTurnsFor(s, context))
   const asking = useBuildStore((s) => isAskingFor(s, context))
@@ -69,10 +77,12 @@ export function TutorPanel({
   // The Lab needs a real result to ground on; a lesson needs only itself.
   const hasContext = context.kind === 'lab' ? Boolean(result) : context.kind === 'lesson'
   const canAsk = hasContext && !asking
+  // In the Lab a selected trace step is enough to ask about, with or without a result.
+  const canAskStep = (context.kind === 'lab' ? hasTraceStep : false) && !asking
 
   function submit(text: string) {
     const trimmed = text.trim()
-    if (!trimmed || !canAsk) return
+    if (!trimmed || !(canAsk || (trimmed === TRACE_STEP_QUESTION && canAskStep))) return
     setQuestion('')
     if (context.kind === 'lesson') {
       void askTutor(trimmed, { lessonId: context.lessonId, sectionId: context.sectionId })
@@ -125,9 +135,10 @@ export function TutorPanel({
                       ? "The last run didn't succeed, so there's nothing to ask about yet. Fix the circuit and run it again."
                       : 'Run the circuit to get a result, then ask about it. The tutor only ever explains results the backend actually produced.'}
             </p>
-            {context.kind === 'lab' && result && showStarters && (
+            {context.kind === 'lab' && (result || hasTraceStep) && showStarters && (
               <div className="mt-3 flex flex-wrap gap-1.5">
-                {STARTER_QUESTIONS.map((q) => (
+                {/* The usual starters need a Lab result; the one contextual starter needs a selected trace step. */}
+                {[...(result ? STARTER_QUESTIONS : []), ...(hasTraceStep ? [TRACE_STEP_QUESTION] : [])].map((q) => (
                   <button
                     key={q}
                     type="button"
@@ -263,6 +274,9 @@ function AnswerSource({ answer }: { answer: Extract<TutorTurn, { role: 'tutor' }
   const lesson = answer.lessonId
     ? `lesson ${answer.lessonId}${answer.sectionId ? ` · section ${answer.sectionId}` : ''}`
     : null
+  const step = answer.traceStep
+    ? `trace step ${answer.traceStep.stepNumber} of ${answer.traceStep.totalSteps} · ${answer.traceStep.resultId} · ${answer.traceStep.provenanceClass} · ${answer.traceStep.verificationStatus}`
+    : null
 
   if (answer.resultId === null) {
     // A lesson-only answer: course material from the lesson registry.
@@ -277,6 +291,7 @@ function AnswerSource({ answer }: { answer: Extract<TutorTurn, { role: 'tutor' }
       <p className="mt-1.5 font-mono-qasm text-[11px] text-void-200">
         grounded in {answer.resultId} · {answer.provenanceClass} · {answer.verificationStatus}
       </p>
+      {step && <p className="mt-0.5 font-mono-qasm text-[11px] text-void-200">about {step}</p>}
       {lesson && (
         <p className="mt-0.5 font-mono-qasm text-[11px] text-void-200">
           plus {lesson} · lesson material, not a quantum result

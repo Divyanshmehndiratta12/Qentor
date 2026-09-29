@@ -117,7 +117,7 @@ Two sources, two authorities, kept apart by id:
   so a number that appears in neither is still rejected.
 - Only the current section is included, not the whole lesson. For a quiz, lab or reflection that is
   the section itself plus the (up to two) explanation sections closest before it, in lesson order
-  (the first explanation if none precede it); a foundation lesson has nine sections, and a prompt
+  (the first explanation if none precede it); a foundation lesson has nine sections and an advanced one ten, and a prompt
   never carries all of them. A quiz's correct option and answer rationale are never included, so a
   hint cannot give the answer away. "Simpler" and "hint" quote the nearest of those explanations.
 - Lesson prose lives only in `qentor.lessons` and is authored in English. No lesson text contains a
@@ -128,6 +128,12 @@ Two sources, two authorities, kept apart by id:
   Hindi or Kannada. Only the wrapper text is localised; lesson prose, gate names, ids and numbers are
   interpolated verbatim. A circuit or result question with no result attached says there is nothing to
   explain yet.
+- The three advanced lessons (`qentor.lessons.content_advanced`) use the same section types and the same
+  rules. Each is about ONE fixed example and says so; nothing generates an oracle. The Phase Kickback
+  lab circuit prepares its target in |−⟩ (X then H on q1), so it is a clean kickback; the lesson has the learner delete the H on q1 and rerun as the contrast case (target |1⟩, not an eigenstate). The Bernstein–Vazirani example's secret
+  has a 1 on q0 and a 0 on q1, which Qentor prints as 01. `tests/test_advanced_lessons.py` runs every
+  linked circuit, every variant a lesson asks the learner to build, and every concept check's answer key
+  on Aer.
 - Free-text questions with a lesson open: the keyword router runs first, then one data-driven rule. A
   question is "about this lesson" if it shares a content word (6-letter stem, generic words excluded)
   with that lesson's own prose (title, description, objectives, current section and its supporting
@@ -141,6 +147,42 @@ Two sources, two authorities, kept apart by id:
 - A lesson-only answer has no provenance badge and is never labelled as a verified quantum result. When
   a result is attached, its provenance is unchanged and the lesson adds context only.
 - A request without lesson context behaves exactly as before, including the LLM call shape.
+
+**Trace-step context (as built).** `POST /api/tutor` also accepts an optional `trace_step`: the
+selected step of an execution trace, as an IDENTITY only (`step_index`, `operation_index`, the
+`operation`, `result_id`, `execution_id`, `circuit_hash`, `backend`, `backend_version`,
+`previous_result_id`). There is no field for an amplitude, probability or Bloch coordinate, and the
+schema forbids extra fields, so the browser cannot send one. It needs the `circuit` the trace was
+made from and may accompany a `result_id` (a Lab result), a lesson, or neither.
+
+- Each trace step is an ordinary provenance record whose circuit hash is the hash of the circuit
+  prefix up to that step (terminal measurements stripped). The API layer fetches the step's record
+  and the previous step's, and `qentor.tutor.trace_context` VERIFIES the claimed identity: the
+  prefix hash recomputed from the circuit, the result id, execution id, backend, backend version,
+  operation and mode. An unknown result id is `TUTOR_TRACE_RESULT_NOT_FOUND` (404); a step that does
+  not add up is `TUTOR_TRACE_STEP_MISMATCH` (422). Neither is silently ignored or "explained anyway".
+- Facts carry the id `S1…` (kind `trace_step`, `trace_operation`, `trace_gate_note`, `trace_status`,
+  `trace_amplitude`, `trace_bloch`, `trace_note`) and the record's provenance. They are read from the
+  stored statevector and from the Bloch vector the backend derives from it
+  (`qentor.execution.bloch`); the tutor layer adds no quantum arithmetic beyond filtering
+  near-zero amplitudes. A Bloch vector exists only for one-qubit steps; for larger states the facts
+  say so instead. A step whose record has no usable state says "unavailable" and gives no numbers.
+  The gate notes are a fixed glossary keyed by the gate the learner placed, not derived results.
+- Deterministic path (`qentor.tutor.step_answers`): three small intents — what changed from the
+  previous step, what the selected gate did, and why the Bloch vector moved — answered in English,
+  Hindi or Kannada by quoting the S-facts. Any other question keeps its existing behaviour, and
+  a step question the facts cannot answer says so.
+- LLM path: a `TRACE STEP CONTEXT` block joins `LESSON CONTEXT`, `QUANTUM RESULT FACTS`, the question
+  and the language. The system prompt adds: quantum values only from the supplied facts, never
+  calculate or invent amplitudes, probabilities or Bloch coordinates, say so if they are not enough.
+  The guard validates a draft against F, L and S facts together.
+- The response echoes the step (`trace_step`: one-based step number, total steps, the record's result
+  id, circuit hash, provenance class and verification status) so the UI can say which step an answer
+  is about. A step-only answer reports the step's record as its provenance; with a Lab result the
+  top-level provenance stays the result's.
+- Browser: the Trace viewer's selected step lives in the Build store as a step index — changing it
+  changes nothing else. The Lab guide offers one contextual starter, "What changed in this step?",
+  only while a trace is loaded; Learn questions never carry a step.
 
 ## 5. Prompting rules (secondary to the code above)
 

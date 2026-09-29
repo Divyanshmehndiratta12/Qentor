@@ -19,6 +19,8 @@ from .lesson_answers import answer_lesson_question, is_lesson_route, route_quest
 from .lesson_context import LessonContext
 from .llm import LLMAdapter, LLMUnavailable
 from .models import TutorFact
+from .step_answers import answer_step_question, step_intent, step_not_recognised_answer
+from .trace_context import TraceStepContext
 
 
 def answer_question_with_llm(
@@ -45,6 +47,60 @@ def answer_question_with_llm(
             pass  # fall through to the deterministic template below
 
     return answer_question(question, facts, record, language), True
+
+
+def answer_step_aware_question(
+    question: str,
+    step: TraceStepContext,
+    lesson: LessonContext | None,
+    facts: list[TutorFact],
+    record: ProvenanceRecord | None,
+    llm: LLMAdapter | None,
+    language: str = "en",
+) -> tuple[str, bool]:
+    """Returns ``(answer, used_fallback_template)`` for a request that carries a
+    selected trace step (with or without lesson context and a Lab result).
+
+    Three sources, three authorities, one guard:
+    ``S#`` (the step's facts, from its verified provenance record), ``F#`` (a
+    result's facts), ``L#`` (lesson material). The LLM sees them as separate
+    blocks and a draft is validated against all of them together, so a number
+    that appears in none of them is rejected. A step whose record is unusable is
+    never sent to the LLM.
+
+    Without an LLM (or when it fails or is rejected) a recognised step question
+    is answered by quoting the step's facts (``step_answers``). A question that
+    is not about the step falls back to exactly what it would have got without
+    one: the lesson router, the result answer, or — with only a step to go on —
+    a pointer to what can be asked.
+    """
+    result_usable = record is not None and record.verification_status == VerificationStatus.VERIFIED
+    result_facts = facts if result_usable else []
+
+    if llm is not None and step.usable:
+        kwargs: dict = {"trace_facts": list(step.facts)}
+        if lesson is not None:
+            kwargs["lesson_facts"] = list(lesson.facts)
+        try:
+            draft = llm.generate(question, result_facts, language, **kwargs)
+            answer = validate_llm_draft(draft, [*(lesson.facts if lesson else ()), *step.facts, *result_facts])
+            return answer, False
+        except (LLMUnavailable, GuardRejection):
+            pass  # fall through to the deterministic answer below
+
+    intent = step_intent(question)
+    if intent is not None:
+        return answer_step_question(intent, step, language), True
+
+    if lesson is not None:
+        if record is not None and not result_usable and not is_lesson_route(route_question(question)):
+            return answer_failed_execution(record, language), True
+        return answer_lesson_question(question, lesson, result_facts, record if result_usable else None, language), True
+    if record is not None:
+        if not result_usable:
+            return answer_failed_execution(record, language), True
+        return answer_question(question, facts, record, language), True
+    return step_not_recognised_answer(language), True
 
 
 def answer_lesson_aware_question(

@@ -41,6 +41,8 @@ export type {
   TutorFactResult,
   TutorLanguage,
   TutorLessonContext,
+  TutorTraceStepContext,
+  TutorTraceStepEcho,
   VerificationCheckResult,
   VerifyBellStateResult,
 } from './client'

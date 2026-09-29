@@ -230,15 +230,32 @@ class TestResolveLessonContext(unittest.TestCase):
         self.assertEqual(ctx.exception.code, SECTION_NOT_FOUND)
 
     def test_section_belonging_to_another_lesson_is_a_mismatch(self) -> None:
-        # phase-kickback has s1..s4; s9 exists only in the foundation lessons.
+        # A foundation lesson has s1..s9; s10 exists only in the three advanced lessons.
         with self.assertRaises(LessonContextError) as ctx:
-            resolve_lesson_context("phase-kickback", "s9")
+            resolve_lesson_context("phase", "s10")
         self.assertEqual(ctx.exception.code, SECTION_MISMATCH)
-        self.assertIn("phase-kickback", ctx.exception.message)
-        # The message names a few owning lessons, not the whole catalog.
-        self.assertIn("qubits-measurement", ctx.exception.message)
-        self.assertIn("…", ctx.exception.message)
-        self.assertNotIn("bernstein-vazirani", ctx.exception.message)
+        self.assertIn("'phase'", ctx.exception.message)
+        for owner in ("phase-kickback", "deutsch-jozsa", "bernstein-vazirani"):
+            self.assertIn(owner, ctx.exception.message)
+        self.assertNotIn("…", ctx.exception.message)
+
+    def test_the_mismatch_message_names_a_few_owners_not_the_whole_catalog(self) -> None:
+        # The real catalog no longer has a section id owned by more than three other
+        # lessons, so the truncation is exercised on a synthetic one.
+        from unittest import mock
+
+        phase = get_lesson("phase")
+        owners = [phase.model_copy(update={"id": f"owner-{i}"}) for i in range(5)]
+        trimmed = [
+            o.model_copy(update={"sections": [*o.sections, o.sections[0].model_copy(update={"id": "sX"})]})
+            for o in owners
+        ]
+        with mock.patch("qentor.tutor.lesson_context.LESSONS", [phase, *trimmed]):
+            with self.assertRaises(LessonContextError) as ctx:
+                resolve_lesson_context("phase", "sX")
+        self.assertEqual(ctx.exception.code, SECTION_MISMATCH)
+        self.assertIn("owner-0, owner-1, owner-2, …", ctx.exception.message)
+        self.assertNotIn("owner-3", ctx.exception.message)
 
     def test_a_concept_checks_answer_is_never_in_any_fact(self) -> None:
         """A hint must not give the quiz answer away: neither the correct option
@@ -589,7 +606,7 @@ class TestEndpointInvalidLessonContext(TutorEndpointTestCase):
         self.assertEqual(exc.detail["code"], "TUTOR_SECTION_NOT_FOUND")
 
     def test_section_from_the_wrong_lesson(self) -> None:
-        exc = self._error(lesson_id="phase-kickback", section_id="s9")
+        exc = self._error(lesson_id="phase", section_id="s10")
         self.assertEqual(exc.status_code, 422)
         self.assertEqual(exc.detail["code"], "TUTOR_SECTION_MISMATCH")
 

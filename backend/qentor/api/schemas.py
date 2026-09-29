@@ -16,6 +16,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from qentor.circuit.model import Circuit, GateOp
 from qentor.execution.bloch import BlochVector
 from qentor.lessons import Lesson
+from qentor.tutor.trace_context import TraceStepRef
 
 
 class ExecuteRequest(BaseModel):
@@ -195,6 +196,18 @@ class TutorRequest(BaseModel):
     question, exactly as before lesson context existed) or neither (a
     lesson-only question). A request with neither a result nor a lesson has
     nothing to answer from and is a validation error, as it always was.
+
+    ``trace_step`` is the identity of the execution-trace step the learner has
+    selected (``qentor.tutor.trace_context.TraceStepRef``): indices, the
+    operation, and the ids/hashes of the provenance record the backend wrote for
+    that step — no amplitude, probability or Bloch coordinate, and no field to
+    carry one. The server looks the step's record up itself and VERIFIES the
+    identity against ``circuit`` (which a trace step therefore requires): the
+    record's circuit hash must be the hash of that circuit cut off after the
+    step. A step that does not add up is a structured error
+    (``TUTOR_TRACE_RESULT_NOT_FOUND``, ``TUTOR_TRACE_STEP_MISMATCH``). With a
+    ``trace_step``, ``result_id`` is optional (the step's own record is what is
+    explained); if present it is checked exactly as before.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -205,15 +218,19 @@ class TutorRequest(BaseModel):
     language: Literal["en", "hi", "kn"] = "en"
     lesson_id: str | None = Field(default=None, min_length=1)
     section_id: str | None = Field(default=None, min_length=1)
+    trace_step: TraceStepRef | None = None
 
     @model_validator(mode="after")
     def _context_is_coherent(self) -> "TutorRequest":
-        if (self.result_id is None) != (self.circuit is None):
+        if self.trace_step is not None:
+            if self.circuit is None:
+                raise ValueError("a trace_step needs the circuit it was traced from")
+        elif (self.result_id is None) != (self.circuit is None):
             raise ValueError("result_id and circuit must be provided together")
         if self.section_id is not None and self.lesson_id is None:
             raise ValueError("section_id requires lesson_id")
-        if self.result_id is None and self.lesson_id is None:
-            raise ValueError("a tutor question needs a result (result_id + circuit) or a lesson_id")
+        if self.result_id is None and self.lesson_id is None and self.trace_step is None:
+            raise ValueError("a tutor question needs a result (result_id + circuit), a lesson_id or a trace_step")
         return self
 
 
@@ -227,11 +244,30 @@ class TutorFactResponse(BaseModel):
     result_id: str | None = None
 
 
+class TutorTraceStepResponse(BaseModel):
+    """The trace step an answer was about, with the provenance of the record the
+    server verified it against. ``step_number``/``total_steps`` are the
+    learner-facing one-based numbering (``step_index`` stays zero-based)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    step_index: int
+    step_number: int
+    total_steps: int
+    operation_index: int | None
+    result_id: str
+    circuit_hash: str
+    provenance_class: str
+    verification_status: str
+
+
 class TutorResponse(BaseModel):
     """``result_id``/``circuit_hash``/``provenance_class``/``verification_status``
     describe the *execution* the answer is grounded in and are ``None`` for a
     lesson-only answer — lesson material is not a quantum result and carries no
-    provenance. ``lesson_id``/``section_id`` echo the resolved lesson context."""
+    provenance. ``lesson_id``/``section_id`` echo the resolved lesson context.
+    For a step-only answer (no separate result) they are the STEP's record;
+    ``trace_step`` always names the step and its own provenance."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -244,6 +280,7 @@ class TutorResponse(BaseModel):
     facts: list[TutorFactResponse]
     lesson_id: str | None = None
     section_id: str | None = None
+    trace_step: TutorTraceStepResponse | None = None
 
 
 class MultiInputTestCaseRequest(BaseModel):

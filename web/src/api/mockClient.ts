@@ -34,6 +34,7 @@ import type {
   TutorAnswerResult,
   TutorLanguage,
   TutorLessonContext,
+  TutorTraceStepContext,
   VerifyBellStateResult,
 } from './client'
 
@@ -230,6 +231,7 @@ export class MockApiClient implements ApiClient {
     question: string,
     _language: TutorLanguage = 'en',
     lesson?: TutorLessonContext,
+    _traceStep?: TutorTraceStepContext,
   ): Promise<TutorAnswerResult> {
     await delay(200)
 
