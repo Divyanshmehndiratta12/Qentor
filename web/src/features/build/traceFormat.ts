@@ -22,6 +22,23 @@ export function isKnownBasisOrdering(basisOrdering: string): boolean {
   return basisOrdering.includes(KNOWN_BASIS_ORDERING_MARKER)
 }
 
+/**
+ * Learner-facing numbering. The trace's own indices (`stepIndex`,
+ * `operationIndex`) are ZERO-based — they are positions in arrays the backend
+ * returned, and everything internal keeps using them — but a person reads
+ * "Step 1 of 4", not "Step 0 of 3". These two functions are the only place the
+ * conversion happens, so a label can never disagree with another one. They return STRINGS (a label,
+ * like every other formatter here), never a number to compute with.
+ */
+export function displayStepNumber(stepIndex: number): string {
+  return String(stepIndex + 1)
+}
+
+/** As `displayStepNumber`, for a position in the learner's own circuit. */
+export function displayOperationNumber(operationIndex: number): string {
+  return String(operationIndex + 1)
+}
+
 /** `|01⟩` for index 1 of a 2-qubit register — the index in binary, padded to
  * the register width. Formatting an index, not deriving a quantum number. */
 export function basisLabel(index: number, numQubits: number): string {

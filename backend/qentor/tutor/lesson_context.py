@@ -145,14 +145,32 @@ def _build_facts(lesson: Lesson, section) -> list[TutorFact]:
     add("lesson_section", _describe_section(section))
 
     # A quiz, lab or reflection has little teaching text of its own; the
-    # lesson's explanatory sections are what it is testing. Explanation text
-    # only — never a quiz's correct option or its answer rationale.
-    if not isinstance(section, ExplanationSection):
-        for other in lesson.sections:
-            if isinstance(other, ExplanationSection):
-                add("lesson_material", f'material — "{other.title}": {other.body}')
+    # explanation it draws on is what it is testing. Explanation text only —
+    # never a quiz's correct option or its answer rationale.
+    for other in _material_sections(lesson, section):
+        add("lesson_material", f'material — "{other.title}": {other.body}')
 
     return facts
+
+
+# A lesson has several explanation sections; a tutor prompt gets only the ones
+# closest to the learner, not the whole lesson.
+_MAX_MATERIAL_SECTIONS = 2
+
+
+def _material_sections(lesson: Lesson, section) -> list[ExplanationSection]:
+    """The explanation sections a non-explanation section draws on: the (up to
+    two) closest ones BEFORE it, in lesson order; if none precede it, the first
+    explanation section. An explanation section is its own material, so it has
+    none."""
+    if section is None or isinstance(section, ExplanationSection):
+        return []
+    index = next(i for i, s in enumerate(lesson.sections) if s.id == section.id)
+    preceding = [s for s in lesson.sections[:index] if isinstance(s, ExplanationSection)]
+    if preceding:
+        return preceding[-_MAX_MATERIAL_SECTIONS:]
+    first = next((s for s in lesson.sections if isinstance(s, ExplanationSection)), None)
+    return [first] if first is not None else []
 
 
 def _section_prose(section) -> list[str]:
@@ -173,10 +191,8 @@ def _topic_text(lesson: Lesson, section) -> str:
     parts += [p.title for pid in lesson.prerequisite_lesson_ids if (p := get_lesson(pid)) is not None]
     if section is not None:
         parts += _section_prose(section)
-        if not isinstance(section, ExplanationSection):
-            for other in lesson.sections:
-                if isinstance(other, ExplanationSection):
-                    parts += _section_prose(other)
+        for other in _material_sections(lesson, section):
+            parts += _section_prose(other)
     return " ".join(parts)
 
 

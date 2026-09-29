@@ -49,7 +49,7 @@ const MINUS = '−'
 const chips = () => within(screen.getByRole('group', { name: 'Trace steps' })).getAllByRole('button')
 const next = () => fireEvent.click(screen.getByRole('button', { name: 'Next step' }))
 const previous = () => fireEvent.click(screen.getByRole('button', { name: 'Previous step' }))
-const goTo = (step: number) => fireEvent.click(screen.getByRole('button', { name: new RegExp(`^Step ${step}:`) }))
+const goTo = (step: number) => fireEvent.click(screen.getByRole('button', { name: new RegExp(`^Step ${step + 1}:`) }))
 
 const sphere = () => within(screen.getByTestId('bloch-section'))
 const readout = () => [...screen.getByTestId('bloch-readout').querySelectorAll('dd')].map((dd) => dd.textContent ?? '')
@@ -72,16 +72,16 @@ describe('H → Z → H: the sphere follows the trace step by step, using the ba
   it('Step 0 ≈ +z, Step 1 ≈ +x, Step 2 ≈ −x, Step 3 ≈ −z', () => {
     renderViewer(hzhWithBloch())
 
-    expect(screen.getByText('Step 0 of 3')).toBeInTheDocument()
+    expect(screen.getByText('Step 1 of 4')).toBeInTheDocument()
     expect(readout()).toEqual(['0.000', '0.000', '1.000']) // +z
     next()
-    expect(screen.getByText('Step 1 of 3')).toBeInTheDocument()
+    expect(screen.getByText('Step 2 of 4')).toBeInTheDocument()
     expect(readout()).toEqual(['1.000', '0.000', '0.000']) // +x  (z = 2.2e-16 shows as 0.000)
     next()
-    expect(screen.getByText('Step 2 of 3')).toBeInTheDocument()
+    expect(screen.getByText('Step 3 of 4')).toBeInTheDocument()
     expect(readout()).toEqual([`${MINUS}1.000`, '0.000', '0.000']) // −x
     next()
-    expect(screen.getByText('Step 3 of 3')).toBeInTheDocument()
+    expect(screen.getByText('Step 4 of 4')).toBeInTheDocument()
     expect(readout()).toEqual(['0.000', '0.000', `${MINUS}1.000`]) // −z  (4.4e-16, −1.2e-16 show as 0.000)
   })
 
@@ -149,7 +149,7 @@ describe('H → Z → H: the sphere follows the trace step by step, using the ba
     renderViewer(hzhWithBloch())
     for (const step of [0, 1, 2, 3]) {
       goTo(step)
-      expect(sourceStep()).toBe(`trace step ${step}`)
+      expect(sourceStep()).toBe(`trace step ${step + 1}`)
       expect(sphere().getByText('source result', { selector: 'dt' }).nextElementSibling?.textContent).toBe(`res_a${step}`)
       expect(sphere().getByText('source circuit', { selector: 'dt' }).nextElementSibling?.textContent).toBe(`hash_prefix_a${step}`)
     }
@@ -162,9 +162,9 @@ describe('H → Z → H: the sphere follows the trace step by step, using the ba
 
     view.rerender(<TraceViewer trace={hzhWithBloch('b')} isLoading={false} error={null} />)
 
-    expect(screen.getByText('Step 0 of 3')).toBeInTheDocument()
+    expect(screen.getByText('Step 1 of 4')).toBeInTheDocument()
     expect(readout()).toEqual(['0.000', '0.000', '1.000'])
-    expect(sourceStep()).toBe('trace step 0')
+    expect(sourceStep()).toBe('trace step 1')
   })
 })
 

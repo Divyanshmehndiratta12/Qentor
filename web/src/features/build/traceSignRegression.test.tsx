@@ -64,7 +64,7 @@ async function renderTraceAndOpenStep(step: number) {
   render(<TracePanel />)
   fireEvent.click(screen.getByRole('button', { name: 'Run trace' }))
   await screen.findByRole('group', { name: 'Trace steps' })
-  fireEvent.click(screen.getByRole('button', { name: new RegExp(`^Step ${step}:`) }))
+  fireEvent.click(screen.getByRole('button', { name: new RegExp(`^Step ${step + 1}:`) }))
 }
 
 function displayedRows(): Array<[string, string]> {
@@ -82,7 +82,7 @@ describe('H -> Z -> H trace: signs survive from the backend to the screen', () =
     await renderTraceAndOpenStep(2)
 
     expect(screen.getByText('Z on q0')).toBeInTheDocument()
-    expect(screen.getByText('Step 2 of 3')).toBeInTheDocument()
+    expect(screen.getByText('Step 3 of 4')).toBeInTheDocument()
     expect(displayedRows()).toEqual([
       ['|0⟩', '0.707 + 0.000i'],
       ['|1⟩', `${MINUS}0.707 + 0.000i`], // <- the one that was shown as 0.707
@@ -94,7 +94,7 @@ describe('H -> Z -> H trace: signs survive from the backend to the screen', () =
     const step2 = displayedRows()[1]![1]
     expect(step2.codePointAt(0)).toBe(0x2212)
 
-    fireEvent.click(screen.getByRole('button', { name: /^Step 1:/ }))
+    fireEvent.click(screen.getByRole('button', { name: /^Step 2:/ }))
     const step1 = displayedRows()[1]![1]
     expect(step1).toBe('0.707 + 0.000i')
     expect(step1).not.toBe(step2)
@@ -104,7 +104,7 @@ describe('H -> Z -> H trace: signs survive from the backend to the screen', () =
     await renderTraceAndOpenStep(0)
 
     for (let step = 0; step < BACKEND_STATES.length; step++) {
-      fireEvent.click(screen.getByRole('button', { name: new RegExp(`^Step ${step}:`) }))
+      fireEvent.click(screen.getByRole('button', { name: new RegExp(`^Step ${step + 1}:`) }))
       const shown = displayedRows().map(([, amplitude]) => amplitude)
 
       BACKEND_STATES[step]!.forEach(([re, im], basisIndex) => {

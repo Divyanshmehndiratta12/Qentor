@@ -21,7 +21,7 @@ from pydantic import ValidationError
 from qentor.api import app as app_module
 from qentor.api.schemas import TutorRequest
 from qentor.circuit.model import Circuit, GateOp
-from qentor.lessons import LESSONS, ConceptCheckSection, ExplanationSection
+from qentor.lessons import LESSONS, ConceptCheckSection, ExplanationSection, get_lesson
 from qentor.tutor import answer_lesson_aware_question, resolve_lesson_context
 from qentor.tutor.deterministic import UNSUPPORTED_QUESTION_ANSWER, answer_question
 from qentor.tutor.facts import build_fact_sheet
@@ -51,6 +51,38 @@ HI_EXPLAIN = "पाठ के इस भाग के बारे में"
 KN_EXPLAIN = "ಪಾಠದ ಈ ಭಾಗದ ಬಗ್ಗೆ"
 
 DECIMAL = re.compile(r"\d+\.\d+|\d+%")
+
+
+def _section(lesson_id: str, section_id: str):
+    return next(sec for sec in get_lesson(lesson_id).sections if sec.id == section_id)
+
+
+def prose(lesson_id: str, section_id: str) -> str:
+    """The section's own teaching/prompt text, straight from the lesson registry."""
+    sec = _section(lesson_id, section_id)
+    return getattr(sec, "body", None) or getattr(sec, "instructions", None) or sec.prompt
+
+
+def description(lesson_id: str) -> str:
+    return get_lesson(lesson_id).short_description
+
+
+def correct_option_text(lesson_id: str, section_id: str) -> str:
+    sec = _section(lesson_id, section_id)
+    return next(o.text for o in sec.options if o.id == sec.correct_option_id)
+
+
+# Content the tests below refer to, read from the registry (never retyped here).
+QM_S1 = prose("qubits-measurement", "s1")
+PHASE_S1 = prose("phase", "s1")
+PHASE_LAB = prose("phase", "s6")  # the interactive lab
+PHASE_REFLECTION = prose("phase", "s9")
+PHASE_DESC = description("phase")
+INTERF_DESC = description("interference")
+INTERF_QUIZ = "s5"  # interference's first concept check
+INTERF_MATERIAL = prose("interference", "s4")  # the explanation closest before it
+INTERF_CORRECT = correct_option_text("interference", INTERF_QUIZ)
+INTERF_RATIONALE = _section("interference", INTERF_QUIZ).explanation
 
 
 def ask(**kwargs):
@@ -146,24 +178,43 @@ class TestResolveLessonContext(unittest.TestCase):
         self.assertEqual(ctx.section_type, "explanation")
         section_facts = ctx.of_kind("lesson_section")
         self.assertEqual(len(section_facts), 1)
-        self.assertIn("A Z gate flips the sign of the |1> amplitude.", section_facts[0].description)
+        self.assertIn(PHASE_S1, section_facts[0].description)
         self.assertEqual(ctx.of_kind("lesson_material"), [])
 
     def test_quiz_section_pulls_in_the_lessons_explanatory_text_as_material(self) -> None:
-        ctx = resolve_lesson_context("phase", "s2")
+        ctx = resolve_lesson_context("phase", "s5")
         self.assertEqual(ctx.section_type, "concept_check")
         material = ctx.of_kind("lesson_material")
-        self.assertEqual(len(material), 1)
-        self.assertIn("A Z gate flips the sign of the |1> amplitude.", material[0].description)
+        # The (up to two) explanation sections closest BEFORE the check — s3 and s4 — in order.
+        self.assertEqual(len(material), 2)
+        self.assertIn(prose("phase", "s3"), material[0].description)
+        self.assertIn(prose("phase", "s4"), material[1].description)
+
+    def test_material_is_the_nearest_preceding_explanations_not_the_whole_lesson(self) -> None:
+        for lesson in LESSONS:
+            for index, section in enumerate(lesson.sections):
+                if isinstance(section, ExplanationSection):
+                    continue
+                ctx = resolve_lesson_context(lesson.id, section.id)
+                material = ctx.of_kind("lesson_material")
+                preceding = [s for s in lesson.sections[:index] if isinstance(s, ExplanationSection)]
+                self.assertLessEqual(len(material), 2, f"{lesson.id}/{section.id}")
+                expected = preceding[-2:] or [next(s for s in lesson.sections if isinstance(s, ExplanationSection))]
+                self.assertEqual([m.description for m in material], [f'material — "{s.title}": {s.body}' for s in expected], f"{lesson.id}/{section.id}")
+                # a long lesson never dumps every explanation into one prompt
+                every_explanation = [s for s in lesson.sections if isinstance(s, ExplanationSection)]
+                if len(every_explanation) > 2:
+                    self.assertLess(len(material), len(every_explanation), f"{lesson.id}/{section.id}")
 
     def test_only_the_current_section_is_included_not_the_whole_lesson(self) -> None:
         ctx = resolve_lesson_context("phase", "s1")
         text = " ".join(f.description for f in ctx.facts)
-        self.assertNotIn("Why is phase still physically meaningful?", text)  # s4 reflection
-        self.assertNotIn("Execute H then Z in statevector mode", text)  # s3 lab
+        self.assertNotIn(PHASE_REFLECTION, text)  # the reflection
+        self.assertNotIn(PHASE_LAB, text)  # the lab
+        self.assertNotIn(prose("phase", "s3"), text)  # a later explanation
 
     def test_facts_are_l_prefixed_unique_and_carry_no_result_id(self) -> None:
-        ctx = resolve_lesson_context("phase", "s2")
+        ctx = resolve_lesson_context("phase", "s5")
         ids = [f.id for f in ctx.facts]
         self.assertEqual(ids, [f"L{i}" for i in range(1, len(ids) + 1)])
         self.assertTrue(all(f.result_id is None for f in ctx.facts))
@@ -179,11 +230,11 @@ class TestResolveLessonContext(unittest.TestCase):
         self.assertEqual(ctx.exception.code, SECTION_NOT_FOUND)
 
     def test_section_belonging_to_another_lesson_is_a_mismatch(self) -> None:
-        # bloch-sphere has s1..s3; s4 exists only in other lessons.
+        # phase-kickback has s1..s4; s9 exists only in the foundation lessons.
         with self.assertRaises(LessonContextError) as ctx:
-            resolve_lesson_context("bloch-sphere", "s4")
+            resolve_lesson_context("phase-kickback", "s9")
         self.assertEqual(ctx.exception.code, SECTION_MISMATCH)
-        self.assertIn("bloch-sphere", ctx.exception.message)
+        self.assertIn("phase-kickback", ctx.exception.message)
         # The message names a few owning lessons, not the whole catalog.
         self.assertIn("qubits-measurement", ctx.exception.message)
         self.assertIn("…", ctx.exception.message)
@@ -243,37 +294,39 @@ class TestLessonOnlyDeterministicAnswers(unittest.TestCase):
     def test_explain_uses_the_current_section_text(self) -> None:
         answer, fallback = self._answer(EXPLAIN)
         self.assertTrue(fallback)
-        self.assertIn("A Z gate flips the sign of the |1> amplitude.", answer)
+        self.assertIn(PHASE_S1, answer)
         self.assertIn("L", answer)  # cites lesson fact ids
 
     def test_explain_differs_by_section(self) -> None:
         s1, _ = self._answer(EXPLAIN, section_id="s1")
-        s3, _ = self._answer(EXPLAIN, section_id="s3")
-        self.assertNotEqual(s1, s3)
-        self.assertIn("Execute H then Z in statevector mode", s3)
+        lab, _ = self._answer(EXPLAIN, section_id="s6")
+        self.assertNotEqual(s1, lab)
+        self.assertIn(PHASE_LAB, lab)
+        self.assertNotIn(PHASE_S1, lab)  # s1 is not among the two explanations nearest the lab
 
     def test_explain_on_a_lesson_with_no_section_uses_the_overview(self) -> None:
         answer, _ = self._answer(EXPLAIN, section_id=None)
-        self.assertIn("The part of a qubit's state that measurement alone can't see.", answer)
+        self.assertIn(PHASE_DESC, answer)
 
     def test_simpler_is_short_and_from_the_lesson(self) -> None:
         simpler, _ = self._answer(SIMPLER)
         explain, _ = self._answer(EXPLAIN)
         self.assertTrue(simpler.startswith("In short:"))
-        self.assertIn("The part of a qubit's state that measurement alone can't see.", simpler)
-        self.assertLess(len(simpler), len(explain))
+        self.assertIn(PHASE_DESC, simpler)
+        # "Simpler" cites fewer lesson facts than the full explanation.
+        self.assertLess(simpler.count("(L"), explain.count("(L"))
 
     def test_hint_on_a_quiz_points_at_the_material_and_not_the_answer(self) -> None:
-        answer, _ = self._answer(HINT, "interference", "s2")
+        answer, _ = self._answer(HINT, "interference", INTERF_QUIZ)
         self.assertTrue(answer.startswith("A hint:"))
-        self.assertIn("Recombining a superposition can concentrate probability onto one outcome.", answer)
+        self.assertIn(INTERF_MATERIAL, answer)
         # The correct option and the answer rationale are absent.
-        self.assertNotIn("Always 1, from destructive interference on outcome 0", answer)
-        self.assertNotIn("H, Z, H equals the X gate", answer)
+        self.assertNotIn(INTERF_CORRECT, answer)
+        self.assertNotIn(INTERF_RATIONALE, answer)
 
     def test_hint_on_a_lab_quotes_the_instructions(self) -> None:
-        answer, _ = self._answer(HINT, "phase", "s3")
-        self.assertIn("Execute H then Z in statevector mode", answer)
+        answer, _ = self._answer(HINT, "phase", "s6")
+        self.assertIn(PHASE_LAB, answer)
 
     def test_circuit_or_result_question_without_a_result_is_honest_not_invented(self) -> None:
         for q in ("What was the result?", "Explain this circuit"):
@@ -307,7 +360,7 @@ class TestLessonOnlyDeterministicAnswers(unittest.TestCase):
         self.assertIn(KN_EXPLAIN, kn)
         # The lesson text itself, gate names and notation are not translated.
         for answer in (en, hi, kn):
-            self.assertIn("A Z gate flips the sign of the |1> amplitude.", answer)
+            self.assertIn(PHASE_S1, answer)
             self.assertIn("(L", answer)
 
     def test_hindi_and_kannada_hint_and_simpler_wrappers(self) -> None:
@@ -355,7 +408,7 @@ class TestLLMAdapterLessonContext(unittest.TestCase):
         )
         content = body["messages"][0]["content"]
         self.assertIn("LESSON CONTEXT:", content)
-        self.assertIn("A Z gate flips the sign of the |1> amplitude.", content)
+        self.assertIn(PHASE_S1, content)
         self.assertIn("QUANTUM RESULT FACTS:", content)
         self.assertIn("USER QUESTION: Why didn't the probability change?", content)
         self.assertIn("LANGUAGE: Hindi", content)
@@ -429,7 +482,7 @@ class TestLessonAwareOrchestration(unittest.TestCase):
         answer, fallback = answer_lesson_aware_question(EXPLAIN, self.lesson, [], None, llm, "en")
         self.assertTrue(fallback)
         self.assertNotIn("0.707107", answer)
-        self.assertIn("A Z gate flips the sign of the |1> amplitude.", answer)
+        self.assertIn(PHASE_S1, answer)
 
     def test_guard_rejects_a_citation_to_a_fact_that_does_not_exist(self) -> None:
         llm = RecordingLLM(LLMDraft(answer="Trust me (L99).", cited_fact_ids=["L99"]))
@@ -466,12 +519,12 @@ class TestEndpointLessonOnly(TutorEndpointTestCase):
         self.assertEqual(response.lesson_id, "phase")
         self.assertIsNone(response.section_id)
         self.assertTrue(response.used_fallback_template)
-        self.assertIn("The part of a qubit's state that measurement alone can't see.", response.answer)
+        self.assertIn(PHASE_DESC, response.answer)
 
     def test_lesson_id_and_section_id(self) -> None:
         response = ask(question=EXPLAIN, lesson_id="phase", section_id="s1")
         self.assertEqual((response.lesson_id, response.section_id), ("phase", "s1"))
-        self.assertIn("A Z gate flips the sign of the |1> amplitude.", response.answer)
+        self.assertIn(PHASE_S1, response.answer)
 
     def test_lesson_only_answer_is_not_presented_as_a_quantum_result(self) -> None:
         response = ask(question=EXPLAIN, lesson_id="phase", section_id="s1")
@@ -487,9 +540,9 @@ class TestEndpointLessonOnly(TutorEndpointTestCase):
 
     def test_the_three_learn_quick_actions_are_answered_from_the_lesson_without_an_llm(self) -> None:
         cases = [
-            ("qubits-measurement", "s1", EXPLAIN, "A qubit is a two-level quantum system."),
-            ("phase", "s1", SIMPLER, "The part of a qubit's state that measurement alone can't see."),
-            ("interference", "s2", HINT, "Recombining a superposition can concentrate probability onto one outcome."),
+            ("qubits-measurement", "s1", EXPLAIN, QM_S1),
+            ("phase", "s1", SIMPLER, PHASE_DESC),
+            ("interference", INTERF_QUIZ, HINT, INTERF_MATERIAL),
         ]
         for lesson_id, section_id, question, expected in cases:
             with self.subTest(lesson=lesson_id, section=section_id, question=question):
@@ -503,8 +556,8 @@ class TestEndpointLessonOnly(TutorEndpointTestCase):
         kn = ask(question=EXPLAIN, lesson_id="phase", section_id="s1", language="kn").answer
         self.assertIn(HI_EXPLAIN, hi)
         self.assertIn(KN_EXPLAIN, kn)
-        self.assertIn("A Z gate flips the sign of the |1> amplitude.", hi)
-        self.assertIn("A Z gate flips the sign of the |1> amplitude.", kn)
+        self.assertIn(PHASE_S1, hi)
+        self.assertIn(PHASE_S1, kn)
 
     def test_result_question_with_no_result_is_honest(self) -> None:
         response = ask(question="What was the result?", lesson_id="phase", section_id="s1")
@@ -536,7 +589,7 @@ class TestEndpointInvalidLessonContext(TutorEndpointTestCase):
         self.assertEqual(exc.detail["code"], "TUTOR_SECTION_NOT_FOUND")
 
     def test_section_from_the_wrong_lesson(self) -> None:
-        exc = self._error(lesson_id="bloch-sphere", section_id="s4")
+        exc = self._error(lesson_id="phase-kickback", section_id="s9")
         self.assertEqual(exc.status_code, 422)
         self.assertEqual(exc.detail["code"], "TUTOR_SECTION_MISMATCH")
 
@@ -586,7 +639,7 @@ class TestEndpointLessonPlusResult(TutorEndpointTestCase):
             if fact.kind == "amplitude":
                 self.assertIn(fact.description, response.answer)
         self.assertIn("Lesson context:", response.answer)
-        self.assertIn("A Z gate flips the sign of the |1> amplitude.", response.answer)
+        self.assertIn(PHASE_S1, response.answer)
 
     def test_result_numbers_are_the_backends_not_the_lessons(self) -> None:
         record = self._insert_record(H_Z, "statevector")
@@ -601,8 +654,8 @@ class TestEndpointLessonPlusResult(TutorEndpointTestCase):
 
     def test_lesson_question_with_a_result_attached_is_still_answered_from_the_lesson(self) -> None:
         record = self._insert_record(H_Z, "statevector")
-        response = ask(result_id=record.result_id, circuit=H_Z, question=HINT, lesson_id="phase", section_id="s3")
-        self.assertIn("Execute H then Z in statevector mode", response.answer)
+        response = ask(result_id=record.result_id, circuit=H_Z, question=HINT, lesson_id="phase", section_id="s6")
+        self.assertIn(PHASE_LAB, response.answer)
         self.assertEqual(response.result_id, record.result_id)
 
     def test_a_failed_execution_is_not_explained_but_a_lesson_question_still_is(self) -> None:
@@ -613,7 +666,7 @@ class TestEndpointLessonPlusResult(TutorEndpointTestCase):
         self.assertIn(record.result_id, failed.answer)
         self.assertIn("ERROR", failed.answer)
         lesson = ask(result_id=record.result_id, circuit=BELL, question=EXPLAIN, lesson_id="phase", section_id="s1")
-        self.assertIn("A Z gate flips the sign of the |1> amplitude.", lesson.answer)
+        self.assertIn(PHASE_S1, lesson.answer)
         self.assertEqual(lesson.verification_status, "ERROR")
 
     def test_unknown_result_id_and_circuit_mismatch_still_fail_as_before(self) -> None:
@@ -739,30 +792,30 @@ class TestFreeTextLessonQuestions(unittest.TestCase):
 
     def test_what_is_a_qubit_is_a_lesson_question_even_though_qubit_is_a_circuit_keyword(self) -> None:
         answer = self._ask("What is a qubit?", "qubits-measurement", "s1")
-        self.assertIn("A qubit is a two-level quantum system.", answer)
+        self.assertIn(QM_S1, answer)
         self.assertNotIn("no executed result", answer)
 
     def test_what_is_measurement_is_a_lesson_question_even_though_measure_is_a_result_keyword(self) -> None:
         answer = self._ask("What is measurement?", "qubits-measurement", "s1")
-        self.assertIn("A qubit is a two-level quantum system.", answer)
+        self.assertIn(QM_S1, answer)
         self.assertNotIn("no executed result", answer)
 
     def test_what_is_interference_uses_the_interference_lesson(self) -> None:
-        answer = self._ask("What is interference?", "interference", "s2")
-        self.assertIn("Recombining a superposition can concentrate probability onto one outcome.", answer)
+        answer = self._ask("What is interference?", "interference", INTERF_QUIZ)
+        self.assertIn(INTERF_MATERIAL, answer)
 
     def test_the_lesson_that_is_open_decides_the_answer(self) -> None:
         a = self._ask("What is a qubit?", "qubits-measurement", "s1")
         b = self._ask("What is a qubit?", "phase", "s1")
         self.assertNotEqual(a, b)
-        self.assertIn("Z gate flips the sign", b)
+        self.assertIn(PHASE_S1, b)
 
     def test_follow_up_more_simply_is_a_simpler_request_in_the_same_lesson(self) -> None:
         for q in ("Explain that more simply.", "Can you explain that more simply?", "Could you make it simpler?"):
             with self.subTest(q=q):
                 answer = self._ask(q, "interference", "s1")
                 self.assertTrue(answer.startswith("In short:"), answer)
-                self.assertIn("How phase differences combine to change measurement outcomes.", answer)
+                self.assertIn(INTERF_DESC, answer)
 
     def test_asking_for_the_result_or_circuit_with_none_attached_stays_honest_even_if_the_lesson_says_result(self) -> None:
         # interference's own objective says "Predict the result of H, Z, H ...",
@@ -832,7 +885,7 @@ class TestFreeTextLessonQuestions(unittest.TestCase):
         )
         facts = build_fact_sheet(H_Z, record)
         answer, _ = answer_lesson_aware_question("What is phase?", ctx, facts, record, None, "en")
-        self.assertIn("A Z gate flips the sign of the |1> amplitude.", answer)
+        self.assertIn(PHASE_S1, answer)
         result_answer, _ = answer_lesson_aware_question("What was the result?", ctx, facts, record, None, "en")
         self.assertIn("For this result:", result_answer)  # unchanged result path
 
@@ -846,7 +899,7 @@ class TestEndpointFreeTextLesson(TutorEndpointTestCase):
 
     def test_free_text_lesson_question_with_no_result_over_the_endpoint(self) -> None:
         response = ask(question="What is a qubit?", lesson_id="qubits-measurement", section_id="s1")
-        self.assertIn("A qubit is a two-level quantum system.", response.answer)
+        self.assertIn(QM_S1, response.answer)
         self.assertEqual((response.lesson_id, response.section_id), ("qubits-measurement", "s1"))
         self.assertIsNone(response.result_id)
 
@@ -855,6 +908,157 @@ class TestEndpointFreeTextLesson(TutorEndpointTestCase):
         follow_up = ask(question="Explain that more simply.", lesson_id="qubits-measurement", section_id="s1")
         self.assertEqual((follow_up.lesson_id, follow_up.section_id), (first.lesson_id, first.section_id))
         self.assertTrue(follow_up.answer.startswith("In short:"))
+
+
+class TestExpandedLessonsWithTheTutor(unittest.TestCase):
+    """Phase-2 content: the seven foundation lessons now have nine sections each.
+    The tutor must stay compact, honest and answer-safe on every one of them, in
+    every language, while reading the registry rather than copying it."""
+
+    FOUNDATION = [
+        "qubits-measurement", "bloch-sphere", "superposition", "phase", "interference", "entanglement", "bell-state",
+    ]
+
+    def _ask(self, question, lesson_id, section_id, language="en"):
+        ctx = resolve_lesson_context(lesson_id, section_id)
+        return answer_lesson_aware_question(question, ctx, [], None, None, language)[0]
+
+    def _teaching(self, lesson) -> str:
+        return " ".join(s.body for s in lesson.sections if isinstance(s, ExplanationSection))
+
+    def test_explain_simpler_and_hint_work_on_every_section_of_every_foundation_lesson(self) -> None:
+        swept = 0
+        for lesson_id in self.FOUNDATION:
+            for section in get_lesson(lesson_id).sections:
+                for question, marker in ((EXPLAIN, "About this part of the lesson:"), (SIMPLER, "In short:"), (HINT, "A hint:")):
+                    answer = self._ask(question, lesson_id, section.id)
+                    swept += 1
+                    self.assertTrue(answer.startswith(marker), f"{lesson_id}/{section.id}/{question}: {answer[:60]}")
+                    self.assertFalse(DECIMAL.search(answer), f"{lesson_id}/{section.id}/{question}")
+        self.assertEqual(swept, 7 * 9 * 3)
+
+    def test_answers_stay_compact_even_though_lessons_are_longer(self) -> None:
+        for lesson_id in self.FOUNDATION:
+            for section in get_lesson(lesson_id).sections:
+                for question in (EXPLAIN, SIMPLER, HINT):
+                    answer = self._ask(question, lesson_id, section.id)
+                    limit = 2200 if question == EXPLAIN else 1500
+                    self.assertLess(len(answer), limit, f"{lesson_id}/{section.id}/{question}: {len(answer)} chars")
+
+    def test_no_answer_or_fact_for_any_section_leaks_a_quiz_answer_or_rationale(self) -> None:
+        checked = 0
+        for lesson_id in self.FOUNDATION:
+            lesson = get_lesson(lesson_id)
+            teaching = self._teaching(lesson)
+            for check in [s for s in lesson.sections if isinstance(s, ConceptCheckSection)]:
+                # the rationale is quiz-only text: it appears in no explanation
+                self.assertNotIn(check.explanation, teaching, f"{lesson_id}/{check.id}")
+                correct = next(o.text for o in check.options if o.id == check.correct_option_id)
+                for section in lesson.sections:
+                    ctx = resolve_lesson_context(lesson_id, section.id)
+                    facts = " ".join(f.description for f in ctx.facts)
+                    self.assertNotIn(check.explanation, facts, f"{lesson_id}/{section.id}")
+                    self.assertNotIn(check.explanation, ctx.topic_text, f"{lesson_id}/{section.id}")
+                    if correct not in teaching:
+                        self.assertNotIn(correct, facts, f"{lesson_id}/{section.id}")
+                    for question in (EXPLAIN, SIMPLER, HINT):
+                        answer = self._ask(question, lesson_id, section.id)
+                        self.assertNotIn(check.explanation, answer, f"{lesson_id}/{section.id}/{question}")
+                        if correct not in teaching:
+                            self.assertNotIn(correct, answer, f"{lesson_id}/{section.id}/{question}")
+                checked += 1
+        self.assertEqual(checked, 14)
+
+    def test_the_whole_endpoint_response_for_a_quiz_section_carries_no_answer_or_rationale(self) -> None:
+        for lesson_id in self.FOUNDATION:
+            lesson = get_lesson(lesson_id)
+            for check in [s for s in lesson.sections if isinstance(s, ConceptCheckSection)]:
+                response = ask(question=HINT, lesson_id=lesson_id, section_id=check.id)
+                blob = response.model_dump_json()
+                self.assertNotIn(check.explanation, blob, f"{lesson_id}/{check.id}")
+                self.assertNotIn("correct_option", blob)
+                self.assertNotIn("correctOption", blob)
+
+    def test_a_hint_on_a_check_points_at_the_nearest_explanation_and_the_first_objective(self) -> None:
+        for lesson_id in self.FOUNDATION:
+            lesson = get_lesson(lesson_id)
+            for index, section in enumerate(lesson.sections):
+                if not isinstance(section, ConceptCheckSection):
+                    continue
+                nearest = [s for s in lesson.sections[:index] if isinstance(s, ExplanationSection)][-1]
+                answer = self._ask(HINT, lesson_id, section.id)
+                self.assertIn(nearest.body, answer, f"{lesson_id}/{section.id}")
+                self.assertIn(lesson.learning_objectives[0], answer, f"{lesson_id}/{section.id}")
+
+    def test_localised_wrappers_around_english_lesson_prose_on_the_new_content(self) -> None:
+        for lesson_id in self.FOUNDATION:
+            first = get_lesson(lesson_id).sections[0]
+            hi = self._ask(EXPLAIN, lesson_id, first.id, "hi")
+            kn = self._ask(EXPLAIN, lesson_id, first.id, "kn")
+            self.assertIn(HI_EXPLAIN, hi)
+            self.assertIn(KN_EXPLAIN, kn)
+            # the lesson prose itself is NOT translated — it is quoted verbatim
+            self.assertIn(first.body, hi, lesson_id)
+            self.assertIn(first.body, kn, lesson_id)
+
+    def test_free_text_questions_are_answered_from_the_expanded_lessons(self) -> None:
+        cases = [
+            ("What is the Born rule?", "qubits-measurement", "s3"),
+            ("What is a relative phase?", "phase", "s2"),
+            ("What is destructive interference?", "interference", "s2"),
+            ("Why is a Bell pair entangled?", "bell-state", "s8"),
+            ("What does the verifier check?", "bell-state", "s4"),
+        ]
+        for question, lesson_id, section_id in cases:
+            with self.subTest(question=question):
+                answer = self._ask(question, lesson_id, section_id)
+                self.assertTrue(answer.startswith("About this part of the lesson:"), answer[:80])
+                self.assertIn(prose(lesson_id, section_id), answer)
+
+    def test_the_tutor_reads_the_registry_so_changed_lesson_prose_changes_the_answer(self) -> None:
+        """Nothing in the tutor holds a copy of lesson text: patch the registry and the
+        very next answer quotes the patched text."""
+        lesson = get_lesson("phase")
+        edited_sections = [
+            s.model_copy(update={"body": "SENTINEL: prose that exists only in this test."}) if s.id == "s1" else s
+            for s in lesson.sections
+        ]
+        edited = lesson.model_copy(update={"sections": edited_sections})
+        with patch("qentor.tutor.lesson_context.get_lesson", lambda lid: edited if lid == "phase" else get_lesson(lid)):
+            answer = self._ask(EXPLAIN, "phase", "s1")
+        self.assertIn("SENTINEL: prose that exists only in this test.", answer)
+        self.assertNotIn(PHASE_S1, answer)
+
+    def test_no_tutor_source_file_contains_any_lesson_prose(self) -> None:
+        """Static guard against duplicating lesson content inside tutor templates."""
+        from pathlib import Path
+
+        tutor_dir = Path(__file__).resolve().parents[1] / "qentor" / "tutor"
+        source = "\n".join(p.read_text(encoding="utf-8") for p in tutor_dir.glob("*.py"))
+        self.assertGreater(len(source), 5000)
+        for lesson_id in self.FOUNDATION:
+            lesson = get_lesson(lesson_id)
+            for s in lesson.sections:
+                if isinstance(s, ExplanationSection):
+                    # sliding windows, so a copied fragment from anywhere in a body is caught
+                    for start in range(0, len(s.body) - 45, 5):
+                        window = s.body[start : start + 45]
+                        self.assertNotIn(window, source, f"{lesson_id}/{s.id}: {window!r}")
+            for objective in lesson.learning_objectives:
+                self.assertNotIn(objective[:40], source, lesson_id)
+            self.assertNotIn(lesson.short_description, source, lesson_id)
+
+    def test_lesson_facts_sent_to_the_llm_are_the_registrys_and_come_from_the_current_section(self) -> None:
+        llm = RecordingLLM(LLMDraft(answer="ok (L1).", cited_fact_ids=["L1"]))
+        ctx = resolve_lesson_context("interference", INTERF_QUIZ)
+        answer_lesson_aware_question("Explain this concept", ctx, [], None, llm, "en")
+        (call,) = llm.calls
+        text = " ".join(f.description for f in call["lesson_facts"])
+        self.assertIn(INTERF_MATERIAL, text)
+        self.assertNotIn(INTERF_CORRECT, text)
+        self.assertNotIn(INTERF_RATIONALE, text)
+        # only the two nearest explanations reach the prompt, not all five
+        self.assertEqual(len([f for f in call["lesson_facts"] if f.kind == "lesson_material"]), 2)
 
 
 if __name__ == "__main__":

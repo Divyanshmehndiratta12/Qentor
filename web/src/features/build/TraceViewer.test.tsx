@@ -113,7 +113,7 @@ describe('one-step trace (empty circuit)', () => {
   it('shows just the initial state, with navigation disabled at both ends', () => {
     renderViewer(emptyOneQubit())
 
-    expect(screen.getByText('Step 0 of 0')).toBeInTheDocument()
+    expect(screen.getByText('Step 1 of 1')).toBeInTheDocument()
     expect(screen.getByText('Initial state')).toBeInTheDocument()
     expect(chips()).toHaveLength(1)
     expect(screen.getByRole('button', { name: 'Previous step' })).toBeDisabled()
@@ -130,7 +130,7 @@ describe('multi-step trace (H, Z, H)', () => {
     renderViewer(hzh())
 
     expect(chips()).toHaveLength(4)
-    expect(screen.getByText('Step 0 of 3')).toBeInTheDocument()
+    expect(screen.getByText('Step 1 of 4')).toBeInTheDocument()
     expect(screen.getByText('Initial state')).toBeInTheDocument()
     expect(tableRows()).toEqual([
       ['|0⟩', '1.000 + 0.000i'],
@@ -138,26 +138,26 @@ describe('multi-step trace (H, Z, H)', () => {
     ])
 
     next()
-    expect(screen.getByText('Step 1 of 3')).toBeInTheDocument()
+    expect(screen.getByText('Step 2 of 4')).toBeInTheDocument()
     expect(screen.getByText('H on q0')).toBeInTheDocument()
-    expect(screen.getByText(/Operation 0 of your circuit/)).toBeInTheDocument()
+    expect(screen.getByText(/Operation 1 of your circuit/)).toBeInTheDocument()
     expect(tableRows()).toEqual([
       ['|0⟩', '0.707 + 0.000i'],
       ['|1⟩', '0.707 + 0.000i'],
     ])
 
     next()
-    expect(screen.getByText('Step 2 of 3')).toBeInTheDocument()
+    expect(screen.getByText('Step 3 of 4')).toBeInTheDocument()
     expect(screen.getByText('Z on q0')).toBeInTheDocument()
-    expect(screen.getByText(/Operation 1 of your circuit/)).toBeInTheDocument()
+    expect(screen.getByText(/Operation 2 of your circuit/)).toBeInTheDocument()
     expect(tableRows()).toEqual([
       ['|0⟩', '0.707 + 0.000i'],
       ['|1⟩', '−0.707 + 0.000i'],
     ])
 
     next()
-    expect(screen.getByText('Step 3 of 3')).toBeInTheDocument()
-    expect(screen.getByText(/Operation 2 of your circuit/)).toBeInTheDocument()
+    expect(screen.getByText('Step 4 of 4')).toBeInTheDocument()
+    expect(screen.getByText(/Operation 3 of your circuit/)).toBeInTheDocument()
     expect(tableRows()).toEqual([
       ['|0⟩', '0.000 + 0.000i'],
       ['|1⟩', '1.000 + 0.000i'],
@@ -171,18 +171,18 @@ describe('multi-step trace (H, Z, H)', () => {
     next()
 
     previous()
-    expect(screen.getByText('Step 1 of 3')).toBeInTheDocument()
+    expect(screen.getByText('Step 2 of 4')).toBeInTheDocument()
     previous()
-    expect(screen.getByText('Step 0 of 3')).toBeInTheDocument()
+    expect(screen.getByText('Step 1 of 4')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Previous step' })).toBeDisabled()
   })
 
   it('clicking a timeline chip jumps straight to that step', () => {
     renderViewer(hzh())
 
-    fireEvent.click(chip('Step 3: H on q0'))
+    fireEvent.click(chip('Step 4: H on q0'))
 
-    expect(screen.getByText('Step 3 of 3')).toBeInTheDocument()
+    expect(screen.getByText('Step 4 of 4')).toBeInTheDocument()
     expect(tableRows()[1]).toEqual(['|1⟩', '1.000 + 0.000i'])
   })
 
@@ -190,11 +190,11 @@ describe('multi-step trace (H, Z, H)', () => {
     const { rerenderWith } = renderViewer(hzh('a'))
     next()
     next()
-    expect(screen.getByText('Step 2 of 3')).toBeInTheDocument()
+    expect(screen.getByText('Step 3 of 4')).toBeInTheDocument()
 
     rerenderWith({ trace: hzh('b'), isLoading: false, error: null })
 
-    expect(screen.getByText('Step 0 of 3')).toBeInTheDocument()
+    expect(screen.getByText('Step 1 of 4')).toBeInTheDocument()
     expect(field('result')).toBe('res_b0')
   })
 })
@@ -206,7 +206,7 @@ describe('operation metadata', () => {
     next()
 
     expect(screen.getByText('CX — control q0, target q1')).toBeInTheDocument()
-    expect(chip(/Step 2: CX — control q0, target q1/)).toBeInTheDocument()
+    expect(chip(/Step 3: CX — control q0, target q1/)).toBeInTheDocument()
   })
 
   it('shows a rotation angle from the circuit (the learner’s own parameter)', () => {
@@ -227,7 +227,7 @@ describe('operation metadata', () => {
   it('labels each timeline chip with its step number and gate', () => {
     renderViewer(bellMeasured())
 
-    expect(chips().map((c) => c.textContent)).toEqual(['● 0initial', '1H q0', '2CX q0→q1'])
+    expect(chips().map((c) => c.textContent)).toEqual(['● 1initial', '2H q0', '3CX q0→q1'])
   })
 })
 
@@ -375,7 +375,7 @@ describe('provenance', () => {
     renderViewer(hzh())
     expect(screen.queryByText('final result', { selector: 'dd' })).not.toBeInTheDocument()
 
-    fireEvent.click(chip(/^Step 3/))
+    fireEvent.click(chip(/^Step 4/))
     expect(screen.getByText('final result', { selector: 'dd' })).toBeInTheDocument()
     expect(field('result')).toBe('res_a3')
   })
@@ -417,14 +417,14 @@ describe('terminal measurements (X then measure)', () => {
     expect(chips()).toHaveLength(2)
     expect(within(timeline()).queryByText(/measure/i)).not.toBeInTheDocument()
 
-    expect(screen.getByText('Step 0 of 1')).toBeInTheDocument()
+    expect(screen.getByText('Step 1 of 2')).toBeInTheDocument()
     expect(tableRows()).toEqual([
       ['|0⟩', '1.000 + 0.000i'],
       ['|1⟩', '0.000 + 0.000i'],
     ])
 
     next()
-    expect(screen.getByText('Step 1 of 1')).toBeInTheDocument()
+    expect(screen.getByText('Step 2 of 2')).toBeInTheDocument()
     expect(screen.getByText('X on q0')).toBeInTheDocument()
     expect(tableRows()).toEqual([
       ['|0⟩', '0.000 + 0.000i'],
@@ -437,7 +437,7 @@ describe('terminal measurements (X then measure)', () => {
     renderViewer(xThenMeasure())
 
     const section = screen.getByText('Terminal measurements').parentElement!
-    expect(within(section).getByText('op 1: Measure q0 → c0')).toBeInTheDocument()
+    expect(within(section).getByText('op 2: Measure q0 → c0')).toBeInTheDocument()
     expect(within(section).getByText(/Not a step/)).toBeInTheDocument()
     expect(within(section).queryByRole('table')).not.toBeInTheDocument()
     // Only ONE statevector table exists — none for the measurement.
@@ -450,8 +450,8 @@ describe('terminal measurements (X then measure)', () => {
     expect(chips()).toHaveLength(3)
     const section = screen.getByText('Terminal measurements').parentElement!
     expect(within(section).getAllByRole('listitem').map((li) => li.textContent)).toEqual([
-      'op 2: Measure q0 → c0',
-      'op 3: Measure q1 → c1',
+      'op 3: Measure q0 → c0',
+      'op 4: Measure q1 → c1',
     ])
   })
 
@@ -476,9 +476,9 @@ describe('accessibility', () => {
     expect(screen.getByRole('button', { name: 'Previous step' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Next step' })).toBeInTheDocument()
     expect(chips().map((c) => c.getAttribute('aria-label'))).toEqual([
-      'Step 0: initial state',
-      'Step 1: H on q0',
-      'Step 2: CX — control q0, target q1',
+      'Step 1: initial state',
+      'Step 2: H on q0',
+      'Step 3: CX — control q0, target q1',
     ])
   })
 
@@ -495,13 +495,13 @@ describe('accessibility', () => {
     expect(chips()[1]).toHaveAttribute('aria-current', 'step')
     expect(chips()[1]!.textContent).toContain('●')
     // ...and the position is also stated in words.
-    expect(screen.getByText('Step 1 of 2')).toBeInTheDocument()
+    expect(screen.getByText('Step 2 of 3')).toBeInTheDocument()
   })
 
   it('the step timeline is a labelled group and the step counter is announced politely', () => {
     renderViewer(hzh())
     expect(screen.getByRole('group', { name: 'Trace steps' })).toBeInTheDocument()
-    expect(screen.getByText('Step 0 of 3')).toHaveAttribute('aria-live', 'polite')
+    expect(screen.getByText('Step 1 of 4')).toHaveAttribute('aria-live', 'polite')
   })
 
   it('arrow keys move between steps and move focus with them; Home/End jump', () => {
@@ -511,18 +511,18 @@ describe('accessibility', () => {
     expect(first).toHaveFocus()
 
     fireEvent.keyDown(first, { key: 'ArrowRight' })
-    expect(screen.getByText('Step 1 of 3')).toBeInTheDocument()
+    expect(screen.getByText('Step 2 of 4')).toBeInTheDocument()
     expect(chips()[1]).toHaveFocus()
 
     fireEvent.keyDown(chips()[1]!, { key: 'End' })
-    expect(screen.getByText('Step 3 of 3')).toBeInTheDocument()
+    expect(screen.getByText('Step 4 of 4')).toBeInTheDocument()
     expect(chips()[3]).toHaveFocus()
 
     fireEvent.keyDown(chips()[3]!, { key: 'ArrowLeft' })
-    expect(screen.getByText('Step 2 of 3')).toBeInTheDocument()
+    expect(screen.getByText('Step 3 of 4')).toBeInTheDocument()
 
     fireEvent.keyDown(chips()[2]!, { key: 'Home' })
-    expect(screen.getByText('Step 0 of 3')).toBeInTheDocument()
+    expect(screen.getByText('Step 1 of 4')).toBeInTheDocument()
     expect(chips()[0]).toHaveFocus()
   })
 
@@ -531,15 +531,15 @@ describe('accessibility', () => {
     const first = chips()[0]!
 
     fireEvent.keyDown(first, { key: 'ArrowLeft' })
-    expect(screen.getByText('Step 0 of 3')).toBeInTheDocument()
+    expect(screen.getByText('Step 1 of 4')).toBeInTheDocument()
 
     fireEvent.keyDown(first, { key: 'a' })
     fireEvent.keyDown(first, { key: 'Enter' })
-    expect(screen.getByText('Step 0 of 3')).toBeInTheDocument()
+    expect(screen.getByText('Step 1 of 4')).toBeInTheDocument()
 
     fireEvent.keyDown(first, { key: 'End' })
     fireEvent.keyDown(chips()[3]!, { key: 'ArrowRight' })
-    expect(screen.getByText('Step 3 of 3')).toBeInTheDocument()
+    expect(screen.getByText('Step 4 of 4')).toBeInTheDocument()
   })
 
   it('Previous/Next keep focus inside the trace controls as the step changes', () => {

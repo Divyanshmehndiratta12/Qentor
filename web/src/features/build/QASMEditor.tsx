@@ -13,7 +13,7 @@
  */
 import { useEffect, useRef, useState } from 'react'
 import { EditorView, basicSetup } from 'codemirror'
-import { EditorState, Compartment, StateEffect, StateField } from '@codemirror/state'
+import { Annotation, EditorState, Compartment, StateEffect, StateField } from '@codemirror/state'
 import { Decoration, type DecorationSet } from '@codemirror/view'
 import { useBuildStore } from './store'
 
@@ -37,6 +37,17 @@ const theme = EditorView.theme(
   },
   { dark: true },
 )
+
+/**
+ * Marks a change the editor makes to ITSELF to mirror the store (a canvas edit,
+ * "Open in Lab", an applied optimisation). CodeMirror reports those exactly like
+ * typing, so without this the editor would echo the store's own text back into
+ * `applyQasmEdit` 400ms later — which re-parses identical text, replaces the
+ * circuit and clears every result, trace and verification that arrived in the
+ * meantime (an auto-run answers at ~250ms + latency, i.e. just before the echo).
+ * Only what a PERSON types is a user edit.
+ */
+const programmaticSync = Annotation.define<boolean>()
 
 const errorLineMark = Decoration.line({ attributes: { class: 'cm-error-line' } })
 const setErrorLine = StateEffect.define<number | null>()
@@ -79,6 +90,8 @@ export function QASMEditor() {
         readOnlyCompartment.of([]),
         EditorView.updateListener.of((update) => {
           if (!update.docChanged) return
+          // A store-driven mirror of the canvas is not the learner editing.
+          if (update.transactions.some((tr) => tr.annotation(programmaticSync))) return
           const text = update.state.doc.toString()
           if (debounceRef.current) clearTimeout(debounceRef.current)
           debounceRef.current = setTimeout(() => {
@@ -117,9 +130,17 @@ export function QASMEditor() {
     if (qasmText === lastAppliedRef.current) return
     if (qasmText === view.state.doc.toString()) return
 
+    // The store moved on (a canvas edit, say). A user edit still waiting on its
+    // debounce is now STALE — applying it would overwrite this newer circuit with
+    // older text — so it is dropped, and the editor takes the store's text.
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current)
+      debounceRef.current = null
+    }
     view.dispatch({
       changes: { from: 0, to: view.state.doc.length, insert: qasmText },
       effects: setErrorLine.of(null),
+      annotations: programmaticSync.of(true),
     })
     lastAppliedRef.current = qasmText
     setParseError(null)

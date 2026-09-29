@@ -173,6 +173,33 @@ describe('depth cue and labels (not colour alone)', () => {
     expect(pole(`${MINUS}y`)).toBe(`|${MINUS}i⟩${MINUS}y`)
   })
 
+  it('draws the pole labels large enough to read, with a halo so the vector or an axis cannot hide them', () => {
+    renderSphere(bloch([1, 0, 0])) // the vector ends right beside |+⟩
+    const group = screen.getByTestId('bloch-pole-+x').parentElement!
+    expect(Number(group.getAttribute('font-size'))).toBeGreaterThanOrEqual(11) // the ket
+    expect(group.getAttribute('paint-order')).toBe('stroke') // dark outline behind the glyphs
+    expect(Number(group.getAttribute('stroke-width'))).toBeGreaterThan(0)
+    for (const label of group.querySelectorAll('tspan[font-size]')) {
+      expect(Number(label.getAttribute('font-size'))).toBeGreaterThanOrEqual(9) // the axis name (was 8)
+    }
+  })
+
+  it('keeps every pole label inside the drawing, so larger text cannot be clipped', () => {
+    renderSphere(bloch([0, 0, 1]))
+    const box = screen.getByTestId('bloch-svg').getAttribute('viewBox')!.split(' ').map(Number)
+    const [, , width, height] = box as [number, number, number, number]
+    for (const name of ['+z', `${MINUS}z`, '+x', `${MINUS}x`, '+y', `${MINUS}y`]) {
+      const text = screen.getByTestId(`bloch-pole-${name}`)
+      const x = Number(text.getAttribute('x'))
+      const y = Number(text.getAttribute('y'))
+      const half = 14 // half of the widest label ("|−i⟩" at 11px) in drawing units
+      expect(x - half).toBeGreaterThanOrEqual(0)
+      expect(x + half).toBeLessThanOrEqual(width)
+      expect(y - 9).toBeGreaterThanOrEqual(0) // the ket's ascent above its baseline
+      expect(y + 10 + 2).toBeLessThanOrEqual(height) // the axis name one line below, plus its descent
+    }
+  })
+
   it('has an arrowhead and an endpoint marker in addition to any colour', () => {
     const { container } = renderSphere(bloch([1, 0, 0]))
     expect(container.querySelector('marker')).not.toBeNull()
@@ -330,7 +357,7 @@ describe('provenance of the vector', () => {
 
     const dl = screen.getByText('Derived from').closest('div')!.parentElement!
     const field = (label: string) => within(dl).getByText(label, { selector: 'dt' }).nextElementSibling?.textContent
-    expect(field('source step')).toBe('trace step 0')
+    expect(field('source step')).toBe('trace step 1')
     expect(field('source result')).toBe('res_src0')
     expect(field('source execution')).toBe('aer-local-src0')
     expect(field('source circuit')).toBe('hash_prefix_src0')

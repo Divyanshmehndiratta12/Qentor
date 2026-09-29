@@ -59,9 +59,18 @@ class TestListLessonsEndpoint(unittest.TestCase):
         response = app_module.list_lessons()
         bell_state = next(lesson for lesson in response.lessons if lesson.id == "bell-state")
 
+        # Exactly the declared order in the registry (no reordering by the API)…
+        declared = next(lesson for lesson in LESSONS if lesson.id == "bell-state")
+        self.assertEqual([s.id for s in bell_state.sections], [s.id for s in declared.sections])
+        self.assertEqual([s.type for s in bell_state.sections], [s.type for s in declared.sections])
+        # …which for a foundation lesson is: four explanations, a check, the lab, a
+        # second check, a connecting explanation, then a reflection.
         self.assertEqual(
             [section.type for section in bell_state.sections],
-            ["explanation", "concept_check", "interactive_lab", "reflection"],
+            [
+                "explanation", "explanation", "explanation", "explanation",
+                "concept_check", "interactive_lab", "concept_check", "explanation", "reflection",
+            ],
         )
 
     def test_interactive_lab_sections_only_ever_name_an_existing_capability(self) -> None:

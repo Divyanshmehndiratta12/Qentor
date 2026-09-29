@@ -29,6 +29,8 @@ import { BlochSphere } from './BlochSphere'
 import {
   basisLabel,
   describeOperation,
+  displayOperationNumber,
+  displayStepNumber,
   displaysAsZero,
   formatAmplitude,
   isKnownBasisOrdering,
@@ -134,7 +136,7 @@ function LoadedTrace({ trace }: { trace: ExecutionTraceResult }) {
           Previous step
         </button>
         <span className="font-mono-qasm text-xs text-slate-200" aria-live="polite">
-          Step {current} of {lastIndex}
+          Step {displayStepNumber(current)} of {trace.steps.length}
         </span>
         <button
           type="button"
@@ -164,7 +166,7 @@ function LoadedTrace({ trace }: { trace: ExecutionTraceResult }) {
               type="button"
               onClick={() => go(position)}
               aria-current={isCurrent ? 'step' : undefined}
-              aria-label={`Step ${s.stepIndex}: ${s.operation ? describeOperation(s.operation) : 'initial state'}`}
+              aria-label={`Step ${displayStepNumber(s.stepIndex)}: ${s.operation ? describeOperation(s.operation) : 'initial state'}`}
               className={`flex shrink-0 flex-col items-start rounded-md border px-2 py-1 text-left font-mono-qasm text-[11px] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-cyan-glow ${
                 isCurrent
                   ? 'border-2 border-cyan-glow bg-cyan-dim/40 font-semibold text-cyan-glow'
@@ -173,7 +175,7 @@ function LoadedTrace({ trace }: { trace: ExecutionTraceResult }) {
             >
               <span>
                 {isCurrent && <span aria-hidden="true">● </span>}
-                {s.stepIndex}
+                {displayStepNumber(s.stepIndex)}
               </span>
               <span className="whitespace-nowrap">{label}</span>
             </button>
@@ -206,7 +208,7 @@ function StepDetail({ trace, step }: { trace: ExecutionTraceResult; step: TraceS
         </p>
         <p className="mt-0.5 text-[11px] text-void-200">
           {step.operation && step.operationIndex !== null
-            ? `Operation ${step.operationIndex} of your circuit, applied to the previous step's state.`
+            ? `Operation ${displayOperationNumber(step.operationIndex)} of your circuit, applied to the previous step's state.`
             : 'The backend’s state before any operation is applied.'}
         </p>
       </div>
@@ -326,7 +328,7 @@ function TerminalMeasurements({ trace }: { trace: ExecutionTraceResult }) {
       <ul className="flex flex-col gap-0.5 font-mono-qasm text-xs text-slate-200">
         {trace.terminalMeasurements.map((m) => (
           <li key={m.operationIndex}>
-            op {m.operationIndex}: {describeOperation(m.operation)}
+            op {displayOperationNumber(m.operationIndex)}: {describeOperation(m.operation)}
           </li>
         ))}
       </ul>

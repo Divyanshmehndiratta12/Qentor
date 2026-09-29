@@ -69,6 +69,9 @@ const TRACE_CLEARED = { isTracing: false, trace: null, traceError: null } as con
 
 // Guards against an older, slower trace request resolving after a newer one.
 let traceRequestSeq = 0
+// Same for executions: the newest `runExecution` call is the only one whose
+// answer may be shown.
+let executionRequestSeq = 0
 
 interface BuildState {
   circuit: Circuit
@@ -273,6 +276,11 @@ export const useBuildStore = create<BuildState>((set, get) => ({
   },
 
   applyQasmEdit: (text) => {
+    // Text identical to the circuit's own is not an edit: nothing changed, so
+    // nothing derived from this circuit (its result, trace, verification, ...)
+    // is stale. Without this, a stale echo of the store's own text would erase
+    // a NEWER result. A real edit (different text) still invalidates as before.
+    if (text === get().qasmText) return { ok: true }
     try {
       const circuit = parseQasm3(text)
       set({
@@ -316,8 +324,12 @@ export const useBuildStore = create<BuildState>((set, get) => ({
 
   runExecution: async () => {
     const { circuit, mode, shots } = get()
+    // Every call is a new "latest" request; anything still in flight from an
+    // earlier call is superseded (see `isStale` below).
+    const seq = ++executionRequestSeq
     if (circuit.ops.length === 0) {
       set({
+        isExecuting: false,
         result: null,
         executionError: null,
         verification: null,
@@ -343,11 +355,28 @@ export const useBuildStore = create<BuildState>((set, get) => ({
       multiInputTest: null,
       multiInputTestError: null,
     })
+    // A response only counts if it is still the answer to the CURRENT question:
+    // no newer run has started, and the circuit / mode / shots it was asked about
+    // are still the ones on screen. Otherwise it is discarded — never shown as the
+    // result of a circuit that has since changed. Only the latest request owns
+    // `isExecuting`, so a discarded one cannot strand it `true` (or flip it
+    // `false` under a newer run that is still going).
+    const isStale = () =>
+      seq !== executionRequestSeq ||
+      get().circuit !== circuit ||
+      get().mode !== mode ||
+      (mode === 'shots' && get().shots !== shots)
+    const dropStale = () => {
+      if (seq === executionRequestSeq) set({ isExecuting: false })
+    }
+
     try {
       const client = getApiClient()
       const result = await client.executeCircuit(circuit, mode, mode === 'shots' ? shots : undefined)
+      if (isStale()) return dropStale()
       set({ result, isExecuting: false })
     } catch (err) {
+      if (isStale()) return dropStale()
       const message =
         err instanceof BackendUnavailableError || err instanceof EndpointNotImplementedError
           ? err.message

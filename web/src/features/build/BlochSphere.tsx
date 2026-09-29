@@ -43,7 +43,7 @@ import {
   isDrawable,
   projectBloch,
 } from './blochProjection'
-import { formatComponent } from './traceFormat'
+import { displayStepNumber, formatComponent } from './traceFormat'
 
 export interface BlochSphereProps {
   /** The backend's Bloch vector for the selected step, or null. */
@@ -163,7 +163,7 @@ function SphereAndReadout({ bloch }: { bloch: TraceBlochVector }) {
         </div>
         <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 font-mono-qasm text-[11px] text-void-200">
           <dt>source step</dt>
-          <dd className="text-slate-300">trace step {derivedFrom.stepIndex}</dd>
+          <dd className="text-slate-300">trace step {displayStepNumber(derivedFrom.stepIndex)}</dd>
           <dt>source result</dt>
           <dd className="truncate text-slate-300" title={derivedFrom.resultId ?? undefined}>
             {derivedFrom.resultId ?? '—'}
@@ -250,14 +250,25 @@ function SphereSvg({
         })}
       </g>
 
-      {/* Pole labels: the standard state at each end of each axis. */}
-      <g className="fill-slate-400 font-mono-qasm" fontSize={10} textAnchor="middle">
+      {/* Pole labels: the standard state at each end of each axis. Sized to be
+          readable (the ket 11px, its axis name 9px, both in light greys) and drawn
+          with a dark halo (`paint-order: stroke`) so the vector's arrowhead or an
+          axis line passing under a label cannot make it hard to read. Positions
+          are unchanged: any farther out and the top/right labels leave the viewBox. */}
+      <g
+        className="fill-slate-300 stroke-void-950 font-mono-qasm"
+        fontSize={11}
+        textAnchor="middle"
+        strokeWidth={3}
+        strokeLinejoin="round"
+        paintOrder="stroke"
+      >
         {POLES.map(({ ket, name, at }) => {
           const p = projectBloch(at[0], at[1], at[2], 1.34)
           return (
             <text key={name} x={p.sx} y={p.sy} data-testid={`bloch-pole-${name}`}>
               <tspan>{ket}</tspan>
-              <tspan x={p.sx} dy={10} fontSize={8} className="fill-void-200">
+              <tspan x={p.sx} dy={10} fontSize={9} className="fill-slate-400">
                 {name}
               </tspan>
             </text>

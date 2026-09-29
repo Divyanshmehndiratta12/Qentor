@@ -115,8 +115,15 @@ Two sources, two authorities, kept apart by id:
   blocks. Its system prompt adds: quantum numbers come only from the result facts, never compute a new
   result, say so if the facts are not enough. The guard validates a draft against both lists together,
   so a number that appears in neither is still rejected.
-- Only the current section is included, not the whole lesson. A quiz's correct option and answer
-  rationale are never included, so a hint cannot give the answer away.
+- Only the current section is included, not the whole lesson. For a quiz, lab or reflection that is
+  the section itself plus the (up to two) explanation sections closest before it, in lesson order
+  (the first explanation if none precede it); a foundation lesson has nine sections, and a prompt
+  never carries all of them. A quiz's correct option and answer rationale are never included, so a
+  hint cannot give the answer away. "Simpler" and "hint" quote the nearest of those explanations.
+- Lesson prose lives only in `qentor.lessons` and is authored in English. No lesson text contains a
+  decimal or percentage (so it cannot be mistaken for a result), and worked examples are labelled as
+  textbook algebra with the numbers left to the Lab and Trace. `tests/test_lesson_content.py` checks
+  each lab circuit and each computable answer key against the real backend.
 - With no key, a small router answers `explain` / `simpler` / `hint` from the lesson facts, in English,
   Hindi or Kannada. Only the wrapper text is localised; lesson prose, gate names, ids and numbers are
   interpolated verbatim. A circuit or result question with no result attached says there is nothing to

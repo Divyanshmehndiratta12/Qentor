@@ -118,7 +118,7 @@ describe('TracePanel in the Lab', () => {
       setCircuit(HZH_CIRCUIT)
       traceCircuit.mockResolvedValue(hzh())
       fireEvent.click(runButton())
-      await screen.findByText('Step 0 of 3')
+      await screen.findByText('Step 1 of 4')
 
       expect(traceCircuit.mock.calls[1]![0]).toEqual(HZH_CIRCUIT)
     })
@@ -164,7 +164,7 @@ describe('TracePanel in the Lab', () => {
 
       expect(within(timeline).getAllByRole('button')).toHaveLength(2)
       expect(screen.getByText('Terminal measurements')).toBeInTheDocument()
-      expect(screen.getByText('op 1: Measure q0 → c0')).toBeInTheDocument()
+      expect(screen.getByText('op 2: Measure q0 → c0')).toBeInTheDocument()
       expect(screen.getAllByRole('table')).toHaveLength(1)
     })
   })
@@ -435,7 +435,7 @@ describe('TracePanel in the Lab', () => {
 
       traceCircuit.mockResolvedValueOnce(hzh())
       fireEvent.click(runButton())
-      await screen.findByText('Step 0 of 3')
+      await screen.findByText('Step 1 of 4')
       act(() => useBuildStore.getState().loadCircuit(X_MEASURE_CIRCUIT))
       expect(useBuildStore.getState().trace).toBeNull()
     })
@@ -473,13 +473,13 @@ describe('TracePanel in the Lab', () => {
       await act(async () => {
         fast.resolve(hzh('fast'))
       })
-      await screen.findByText('Step 0 of 3')
+      await screen.findByText('Step 1 of 4')
       await act(async () => {
         slow.resolve(xThenMeasure('slow'))
       })
 
       expect(useBuildStore.getState().trace?.steps[0]?.state.provenance.resultId).toBe('res_fast0')
-      await waitFor(() => expect(screen.getByText('Step 0 of 3')).toBeInTheDocument())
+      await waitFor(() => expect(screen.getByText('Step 1 of 4')).toBeInTheDocument())
     })
   })
 })

@@ -201,15 +201,17 @@ def _select_lesson_facts(route: Route, lesson: LessonContext) -> list[TutorFact]
     if route == "explain":
         if not section:
             return overview + objectives
-        return section + ([] if lesson.section_type == "explanation" else material) + objectives
+        # (Lessons have several objectives; two keep the answer short.)
+        return section + ([] if lesson.section_type == "explanation" else material) + objectives[:2]
 
+    # `teaching[-1:]` is the explanation closest to the learner's current step.
     if route == "simpler":
-        return overview + (teaching[:1] or section[:1] or objectives[:1])
+        return overview + (teaching[-1:] or section[:1] or objectives[:1])
 
     # hint: point at the objective and the material — never at the answer.
     if lesson.section_type == "interactive_lab":
         return objectives[:1] + section
-    return objectives[:1] + (teaching[:1] or section[:1])
+    return objectives[:1] + (teaching[-1:] or section[:1])
 
 
 def _lesson_note_facts(lesson: LessonContext) -> list[TutorFact]:
