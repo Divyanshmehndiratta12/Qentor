@@ -7,7 +7,7 @@ algorithm learning platform. Read `docs/PRODUCT_CONTRACT.md` before changing sco
 
 **The LLM is not the quantum computer.**
 
-- Statevectors, amplitudes, probabilities, counts, expectation values, fidelities, equivalence verdicts, pass/fail, counterexamples, hardware results and optimisation results come only from `server/qentor/execution/` or `server/qentor/verification/`.
+- Statevectors, amplitudes, probabilities, counts, expectation values, fidelities, equivalence verdicts, pass/fail, counterexamples, hardware results and optimisation results come only from `backend/qentor/execution/` or `backend/qentor/verification/`.
 - Every displayed quantum number carries provenance: result id, circuit hash, backend and version, execution mode, provenance class (SIMULATION, REAL_HARDWARE, RECORDED_HARDWARE), verification status.
 - The tutor receives result ids and reads facts from the provenance log. It never receives numbers from the client and never writes results.
 - AI candidate circuits, code and optimisations are shown as VERIFIED only after the verification layer passes them.
@@ -16,7 +16,7 @@ algorithm learning platform. Read `docs/PRODUCT_CONTRACT.md` before changing sco
 ## Never do these
 
 - Never hard-code, mock or approximate a quantum result in shipped code. Test fixtures stay in tests.
-- Never fabricate, simulate or "fill in" hardware results. Only `server/scripts/record_hardware.py`, run with a real IBM token, may write to `server/data/hardware_runs/`. A noise-model simulation is labelled SIMULATION.
+- Never fabricate, simulate or "fill in" hardware results. Only `backend/scripts/record_hardware.py` (not built yet), run with a real IBM token, may write to `backend/data/hardware_runs/`. A noise-model simulation is labelled SIMULATION.
 - Never label a simulation as hardware, or a recorded run as live.
 - Never execute learner- or AI-supplied Python. Code enters only as OpenQASM 3 parsed into the canonical model.
 - Never copy code from third-party research checkouts kept under `research/` (local only, git-ignored). They are read-only research. Do not import from them or paste from them.
@@ -26,7 +26,7 @@ algorithm learning platform. Read `docs/PRODUCT_CONTRACT.md` before changing sco
 ## Architecture in one breath
 
 One FastAPI process serves the React build and the API. Python 3.12. SQLite for the provenance
-log and progress. Recorded hardware runs are read-only JSON with a SHA-256 manifest. No
+log and progress. Recorded hardware runs (not built yet) are read-only JSON with a SHA-256 manifest. No
 microservices, Redis, queues, PostgreSQL, WebSockets or accounts. See `docs/ARCHITECTURE.md`.
 
 - Dependency direction: `api → tutor → verification → execution → circuit`. Execution and verification never import tutor.
@@ -62,23 +62,29 @@ Work in P0 order from `docs/48_HOUR_PLAN.md`. Do not start P1 until the P0 hero 
 
 ## Commands
 
-Backend venv is dedicated Python 3.12, never the system interpreter — see `docs/BUILD_STATE.md`
-for why and for the current Smart App Control blocker on this machine.
+Development happens inside WSL2 (Ubuntu) with a dedicated Python 3.12 venv, never the system interpreter — see
+`docs/BUILD_STATE.md`. Run from the repo root:
 
 ```
-py -3.12 -m venv backend/.venv
-backend/.venv/Scripts/python.exe -m pip install -r backend/requirements.txt
-backend/.venv/Scripts/python.exe backend/scripts/check_versions.py
-backend/.venv/Scripts/python.exe -m unittest discover -s backend/tests -t backend -v
+python3.12 -m venv backend/.venv
+backend/.venv/bin/python -m pip install -r backend/requirements.txt
+backend/.venv/bin/python backend/scripts/check_versions.py
+
+backend/.venv/bin/python -m unittest discover -s backend/tests -t backend          # backend (one module: -p test_x.py)
+(cd web && npm ci && npx vitest run && npx tsc -b && npm run build)               # frontend tests, typecheck, build
+backend/.venv/bin/python backend/scripts/mutation_check.py [backend|web]           # trust mutation check
+backend/scripts/serve_production.sh 8000                                           # web build + API from one process
 ```
 
-Frontend commands are not yet defined (web/ does not exist yet).
+Challenge verdicts, debugger reports and experiment comparisons are computed on the server (`backend/qentor/challenges/`,
+`tutor/debugger.py`, `verification/experiment_compare.py`); the frontend only sends ids and circuits and renders what returns.
+Test counts and what is not built live in `docs/BUILD_STATE.md`, not here.
 
 ## Document index
 
 - `docs/PRODUCT_CONTRACT.md` — what we promised and the hero demo path
 - `docs/PPT_REQUIREMENTS_MATRIX.md` — every PPT promise with priority
-- `docs/ARCHITECTURE.md` — modules, model, adapters, storage, deployment
+- `docs/ARCHITECTURE.md` — modules, model, adapters, storage, deployment, API surface
 - `docs/VERIFICATION_ARCHITECTURE.md` — how results are trusted
 - `docs/AI_BOUNDARY.md` — what the AI may and may not do
 - `docs/48_HOUR_PLAN.md` — milestones and cut conditions

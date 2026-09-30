@@ -4,6 +4,12 @@ The LLM is a narrator and a proposer. It is never the quantum computer, the grad
 hardware. This document lists exactly what it may do, what it may not do, and what must pass
 through a backend before a learner sees it.
 
+> **As built (read this first).** The rules below are enforced by code, but the pipeline is simpler than §4 describes: the LLM returns
+> a plain answer plus the ids of the facts it used (not typed claims or candidate circuits), and `tutor/guard.py` + `tutor/claims.py`
+> reject any draft with a number, ket, bitstring, qualitative probability or verdict that the supplied facts do not support, or that cites
+> a fact id that does not exist; the guard does not re-simulate. The LLM is off by default (`QENTOR_TUTOR_LLM_ENABLED` plus a key, both
+> server-side only). §8 covers the debugger and comparison answers added later.
+
 ## 1. What the AI is allowed to do
 
 | Allowed | Condition |
@@ -223,3 +229,34 @@ obeying them. The model is told:
 - Every number in a tutor message is a `VerifiedValue` with its badge.
 - Rejected AI claims are counted visibly. This is a deliberate demo moment: the judge sees the verifier catch the AI.
 - A candidate circuit is never auto-applied. The learner applies it only after it shows VERIFIED.
+
+## 8. Debugger, comparison and challenge verdicts
+
+Three features touch verdicts and explanations. The boundary is the same; this is how it applies.
+
+**Challenge pass/fail is never AI.** `challenges/evaluate.py` decides it from backend statevectors and structural rules. The
+challenges package cannot import the tutor or any LLM code (import-graph test), the submit request has no field for a verdict or a
+number, and a test runs the endpoint with an LLM adapter that raises if called. The tutor and the debugger only ever explain a verdict
+that already exists.
+
+**"Debug my circuit"** (`POST /api/debug`, `tutor/debugger.py`) is built from facts the server holds: `F#` (a Lab run's record), `S#` (a
+verified trace step), `C#` (the challenge's goal and authored coaching) and `E#` (the per-check outcomes of an attempt the server
+judged, with the numbers behind them). The report is deterministic:
+
+- the **evidence** bullets quote facts verbatim;
+- the **likely mismatch** and **next experiment** for a failed check are authored per check in the challenge definition;
+- the **hint** is the authored hint for the failing check;
+- the learner's **goal text** is untrusted: cleaned, capped at 400 characters, echoed (quoted) only where there is no challenge, never acted on.
+
+An LLM, if configured, may rewrite only the three prose fields (observed, mismatch, next experiment). Its draft must pass the claim guard
+**and** must agree with the attempt's own verdict (a draft that calls a failed attempt solved, or the reverse, is rejected), cite only
+real fact ids, and otherwise the template is used and labelled "Explanation generated without AI". It can never supply evidence or the
+hint. Ids are verified before anything is built: an unknown record is 404, and a result or attempt made for a different circuit is 422.
+
+**Comparing experiments** (`POST /api/compare/experiments`) is computed entirely by `verification/experiment_compare.py` and stored as its
+own provenance record. **"Ask Tutor about this difference"** (`POST /api/tutor/comparison`) sends only the comparison id; the tutor reads
+`X#` facts from that record and answers through the same guard. Runs that failed their state check, or that are not simulations, are
+refused rather than compared.
+
+Tests that pin this: `test_debugger.py` (fake LLMs that invent numbers, verdicts, kets and citations), `test_experiment_compare.py`,
+`test_challenges.py`, and `backend/scripts/mutation_check.py` (each rule above has a mutant that must be caught).

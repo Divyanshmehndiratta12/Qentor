@@ -1,119 +1,70 @@
 # Build State
 
-Last updated: 2026-09-28, Milestone 1 ("canonical circuit → QASM → Qiskit parser → Qiskit Aer →
-structured result → provenance record → FastAPI response → end-to-end test").
+What is built and verified right now, what is not, and how to run it. Numbers below were measured at the last full
+verification (see "Verification" for the commands). If this file and the code disagree, the code wins: fix this file.
 
-## Status: RESOLVED. Milestone 1 spine is built, executing on real Aer, and fully tested.
+## What exists
+
+| Area | State |
+|---|---|
+| Canonical circuit model, OpenQASM 3 emitter, SHA-256 hash | Built. Gates: h x y z s sdg t tdg rx ry rz cx cz swap ccx measure. Golden fixtures in `fixtures/circuits/` are shared by backend and web tests. |
+| Execution | Qiskit Aer, Cirq, PennyLane; statevector and shots; per-step trace; single-qubit Bloch vectors; size/gate limits; state sanity check before a result is stored |
+| Verification | Equivalence (operator, up to global phase), cross-backend agreement (threshold 1e-6), Bell-state verifier, multi-input basis sweep, optimiser (each proposal equivalence-checked), experiment comparison |
+| Challenges | Nine backend-owned challenges, deterministic server verdicts, authored hints and coaching, attempt log. DJ and BV use one fixed oracle each. |
+| Tutor and debugger | Result-, lesson-, trace-step-, comparison-grounded answers; "Debug my circuit"; one claim guard; LLM off unless configured |
+| Learn | 10 lessons with concept checks; progress, mastery and misconception signals; browser-local persistence (versioned, recoverable) |
+| Frontend | Lab, Learn, Challenges, Progress; URL routing with deep links; sampled vs theoretical labelling; Compare experiments; Share and export; welcome entry; keyboard/ARIA/focus work from the shell pass |
+| Serving | One FastAPI process serves `/api/*` and `web/dist` with SPA fallback; `GET /api/health` |
+| Packaging | `Dockerfile`, `.dockerignore`, `render.yaml`, `backend/scripts/serve_production.sh` |
+
+## What is NOT built
+
+- **Hardware.** No recorded or live hardware adapter, no `record_hardware.py` run, no `server/data/hardware_runs/`. The UI shows Recorded and Live QPU as unavailable. Nothing in this build is, or is labelled as, a hardware result.
+- The Aer noise model, qBraid, stabilizer simulation, Grover/QFT lessons, retrieval over docs.
+- The 72-oracle Deutsch-Jozsa family sweep (`CLAUDE.md` lists "DJ family size is exactly 72" as a required test; it does not exist). The two oracle challenges use one fixed oracle each.
+- Accounts and any server-side learner data. Progress is browser-local; the learner report is one learner's record, with no cohort data.
+- A public deployment. The production process was verified locally; the Docker image has not been built (no Docker on the build machine) and nothing has been hosted.
+
+## Verification (last full run)
+
+| Check | Result |
+|---|---|
+| Backend `unittest` | 1003 tests, all passed |
+| Frontend `vitest` | 1422 tests in 63 files, all passed |
+| `tsc -b` | clean |
+| `npm run build` | succeeds (one chunk over 500 kB; Plotly and Three.js) |
+| Mutation check (`backend/scripts/mutation_check.py`) | 29 backend and 24 frontend trust-breaking mutants, all killed |
+| Real Chrome journey against the production build (FastAPI serving `web/dist`, no Vite) | 45 checks, all passed: direct `/learn`, `/progress`, `/challenges/<id>`; Learn -> concept check -> Open in Lab -> run -> trace -> select step -> tutor; Hindi answer; Aer vs Cirq comparison and tutor about it; Debug my circuit; share link round trip; a wrong then a right challenge; the fixed Deutsch-Jozsa example built through the UI and solved by the backend; Progress and reload persistence; phone-width layout of four screens; no console errors, no failed API responses |
+
+The browser journey is a throwaway CDP script (Windows Chrome, headless), not committed. Web fonts are requested from Google Fonts;
+that is the only third-party request the journey observed.
+
+## Known limitations
+
+- The browser journey ran on one machine and one Chrome version; Firefox and Safari were not tried.
+- The debugger's template text is English only. Tutor answer wrappers support English, Hindi and Kannada.
+- Starting a challenge replaces the Lab's circuit with its starter (they share one workspace); the screen says so.
+- Sampled frequencies from shots are compared with theoretical probabilities only with a label; no significance test is offered.
+- The provenance database is one SQLite file with no retention policy; a hosted deployment should mount a volume (`QENTOR_DB_PATH`).
 
 ## Environment
 
-| Item | Value |
-|---|---|
-| Development environment | WSL2 (Ubuntu), per remediation option 2 below |
-| Dedicated venv | `backend/.venv`, Python 3.12.14 |
-| Executable | `backend/.venv/bin/python` |
-| Git repository | Initialized in this session; see "Not committed" below for the first commit. |
+Development is inside WSL2 (Ubuntu) with a dedicated Python 3.12 venv, because Windows Smart App Control blocked
+qiskit's unsigned native extension on the original host (a reputation policy, not a dependency problem; turning Smart App
+Control off is irreversible, so it was not touched). Node 22 via nvm in WSL.
 
-Python 3.12 was installed via `~/.local/bin/python3.12` inside WSL2. The venv at `backend/.venv`
-was built from that interpreter with `backend/requirements.txt` installed unmodified.
-
-## Resolved: the Windows Smart App Control blocker
-
-This section is kept for history. It no longer describes the current environment.
-
-`qiskit/_accelerate.pyd` — a Rust-compiled native extension inside the `qiskit` package
-itself (not `qiskit-aer`) — failed to import on the Windows host used earlier in this milestone:
+## Commands (from the repo root, inside WSL)
 
 ```
-ImportError: DLL load failed while importing _accelerate: An Application Control policy has blocked this file.
+py -3.12 -m venv backend/.venv                       # once; on Linux: python3.12 -m venv backend/.venv
+backend/.venv/bin/python -m pip install -r backend/requirements.txt
+backend/.venv/bin/python backend/scripts/check_versions.py
+
+backend/.venv/bin/python -m unittest discover -s backend/tests -t backend        # backend tests
+(cd web && npm ci && npx vitest run && npx tsc -b && npm run build)             # frontend tests, typecheck, build
+backend/.venv/bin/python backend/scripts/mutation_check.py                       # trust mutation check (backend + web)
+
+backend/scripts/serve_production.sh 8000           # build web, serve it and the API from one process
 ```
 
-Root cause, confirmed by direct inspection at the time:
-
-- `Get-AuthenticodeSignature` on the `.pyd` reported **`NotSigned`**.
-- The registry key `HKLM\SYSTEM\CurrentControlSet\Control\CI\Policy` had
-  `VerifiedAndReputablePolicyState = 1` and `SAC_PreviousState = 2`, which is **Windows Smart App
-  Control**, enabled and enforcing.
-- The file carried **no** mark-of-the-web / zone-identifier stream (`Get-Item -Stream *` showed
-  only `:$DATA`), so this was not a "downloaded file" block that `Unblock-File` could clear —
-  confirmed by running `Unblock-File` and re-testing the import, which still failed identically.
-- This was a **reputation-based** block: Smart App Control only allows binaries it or Microsoft's
-  cloud recognises as reputable. `numpy`, `scipy` and `pydantic_core` — also compiled native
-  extensions, installed in the same `pip install` — imported successfully, so the policy was not
-  blocking native code categorically. It specifically declined `qiskit`'s freshly-downloaded,
-  unsigned `.pyd`.
-
-**Blast radius at the time:** `qiskit`, `qiskit-aer`, and `qiskit-qasm3-import` all failed (the
-latter two import `qiskit` internally). `cirq-core`, `pennylane`, `fastapi`, `pydantic`, `uvicorn`,
-`numpy` were unaffected.
-
-### What was deliberately not done about it
-
-Turning Smart App Control off is a one-way, machine-wide security change — Microsoft documents
-that once turned off it cannot be turned back on without reinstalling Windows. No security policy,
-registry key, or Defender setting was changed to work around this. The only mitigation attempted
-was `Unblock-File` (reversible, unrelated to Smart App Control, and confirmed not to be the cause).
-
-### How it was resolved
-
-**Remediation option 2 was taken: development moved inside WSL2 (Ubuntu).** Smart App Control is a
-Windows executable-loading policy; it does not apply inside the Linux subsystem.
-`pip install -r backend/requirements.txt` there worked unmodified, and `qiskit`/`qiskit-aer` import
-and execute correctly. This was reversible and did not change Windows' security posture at all.
-
-The other options considered and not taken:
-
-1. Turn off Smart App Control system-wide — irreversible without a Windows reinstall, not needed.
-3. Use a different machine or cloud dev environment for the backend — not needed once WSL2 worked.
-4. Wait for Smart App Control's reputation system to learn the file — not reliable on a hackathon
-   timeline, not needed.
-
-## What is built and verified
-
-Everything in `backend/qentor/` is implemented and covered by passing tests, run in the WSL2
-environment, today:
-
-| Module | What it does | Test evidence |
-|---|---|---|
-| `qentor/circuit/model.py` | Canonical circuit model (Pydantic): qubit/clbit counts, gate ops with arity/index/parameter validation for h, x, y, z, s, t, rx, ry, rz, cx, measure. Deterministic canonical JSON. | 20/20 tests pass — valid circuits, every malformed/invalid case listed in the milestone spec, round-trip serialisation |
-| `qentor/circuit/qasm.py` | Deterministic OpenQASM 3 emitter, no code execution, fixed statement templates only | 5/5 golden-fixture and determinism tests pass (`|0⟩`, X, H, Bell), plus independent re-parse via `qiskit_qasm3_import` |
-| `qentor/circuit/hashing.py` | SHA-256 of the canonical QASM text; `qc_`-prefixed short id | 5/5 tests pass |
-| `qentor/provenance/` | Pydantic `ProvenanceRecord` + SQLite `ProvenanceStore` (insert, get, list-by-hash, persistence across reopen) | 5/5 tests pass |
-| `qentor/api/app.py`, `schemas.py` | `POST /api/execute`; request schema built on the canonical `Circuit` model with `extra="forbid"`, so a client cannot submit a probability, count, statevector or pass/fail field — there is no field for one | App imports and registers the route correctly; schema-rejection tests pass; Bell-circuit end-to-end acceptance tests pass in both statevector and shots mode |
-| `qentor/execution/adapter.py`, `aer.py` | Real `AerAdapter` built against the actual `qiskit`/`qiskit-aer` API (statevector mode via `save_statevector()`, shots mode via `AerSimulator().run(..., shots=...)`, real error paths, no hand-computed probabilities) | Executes for real: Bell-state statevector and shots tests pass against live Aer output |
-| Architecture rule | `execution/` and `verification/` contain no import of any `tutor` module, checked by static AST scan of every file in those packages, and re-checked on every future addition to them | 2/2 tests pass |
-
-**Full suite: 44 tests, 44 passed, 0 skipped, 0 failed, 0 errored.**
-
-```
-backend/.venv/bin/python -m unittest discover -s backend/tests -t backend -v
-```
-
-## What changed since the previous update
-
-- The Aer adapter has now actually run a circuit. `AerAdapter.run()` produces real statevectors and
-  counts from a live Aer process; the 9 tests that were previously skipped (task 5's independent
-  parser check, task 7's Aer execution, task 10's Bell acceptance test, task 12's Aer failure-mode
-  behaviour) all pass now, with no code changes needed beyond a fix for a `qiskit-aer`
-  `DeprecationWarning` (statevector results must be cast with `np.asarray` before use as an array;
-  fixed in `qentor/execution/aer.py`).
-- The emitted QASM's `bit[n] c;` / `c[i] = measure q[i];` syntax was confirmed to round-trip
-  through `qiskit_qasm3_import` without modification.
-- Aer's statevector amplitude ordering was confirmed to match the `q[n-1]…q[0]` convention this
-  codebase assumes (the Bell-state acceptance tests would have failed otherwise).
-
-Nothing above was worked around with mock data, a hand-rolled probability calculation, or a stub
-that returns a plausible-looking result.
-
-## Not committed (as of the previous update — see current git state for what followed)
-
-No commit had been made as of the last update; there was no git repository at the project root.
-That was because the milestone's stop condition (an actual end-to-end Aer run) was not yet met.
-With the Aer blocker resolved and the full suite green, this is no longer the case.
-
-## Next milestone
-
-With Milestone 1's exit check met (Bell circuit through `/api/execute` returns provenance-carrying
-probabilities), the next step per `docs/48_HOUR_PLAN.md` is the hour 6–12 Build screen, run in
-parallel with starting the hour 6–8 hardware recording script (IBM queues are unpredictable and
-this is the item most sensitive to elapsed time).
+A single backend test module needs `-p test_x.py`, not a dotted name.
