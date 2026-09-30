@@ -21,6 +21,7 @@ import { isLessonComplete } from './lessonState'
 import { LessonCard } from './LessonCard'
 import { LessonDetailPanel } from './LessonDetailPanel'
 import { LearnerSummaryPanel } from './LearnerSummaryPanel'
+import { StateNotice } from '@/features/shell/StateNotice'
 
 export function LearnScreen({ onOpenLab }: { onOpenLab: (circuit: Circuit) => void }) {
   const lessons = useLearnStore((s) => s.lessons)
@@ -43,8 +44,8 @@ export function LearnScreen({ onOpenLab }: { onOpenLab: (circuit: Circuit) => vo
   )
 
   return (
-    <div className="flex h-full min-h-0 flex-1">
-      <div className="flex w-[380px] shrink-0 flex-col border-r border-void-500 bg-void-900">
+    <div className="flex h-full min-h-0 flex-1 flex-col lg:flex-row">
+      <div className="flex max-h-[60vh] w-full shrink-0 flex-col border-b border-void-500 bg-void-900 lg:max-h-none lg:w-[380px] lg:border-r lg:border-b-0">
         <div className="border-b border-void-500 px-5 py-4">
           <h1 className="font-sans-ui text-lg font-semibold text-slate-100">Learn</h1>
           <p className="mt-1 text-[13px] leading-snug text-slate-400">
@@ -63,22 +64,21 @@ export function LearnScreen({ onOpenLab }: { onOpenLab: (circuit: Circuit) => vo
         )}
 
         <div className="min-h-0 flex-1 overflow-auto p-3">
-          {isLoading && <p className="p-2 text-xs text-slate-500">Loading lessons…</p>}
+          {isLoading && <StateNotice kind="loading" compact title="Loading lessons…" className="p-2" />}
 
           {!isLoading && error && (
-            <div
-              role="alert"
-              className="m-1 rounded-lg border border-danger-glow/40 bg-danger-dim/30 p-3 text-xs text-danger-glow"
-            >
-              <p className="font-medium">Couldn't load lessons.</p>
-              <p className="mt-1 text-danger-glow/80">{error}</p>
-            </div>
+            <StateNotice
+              kind="error"
+              compact
+              title="Couldn't load lessons."
+              detail={error}
+              onRetry={() => void fetchLessons()}
+              className="m-1"
+            />
           )}
 
           {!isLoading && !error && lessons.length === 0 && (
-            <p className="m-1 rounded-lg border border-void-400 bg-void-800 p-3 text-xs text-slate-500">
-              No lessons are available yet.
-            </p>
+            <StateNotice kind="empty" compact title="No lessons are available yet." className="m-1 rounded-lg border border-void-400 bg-void-800 p-3" />
           )}
 
           {!isLoading && !error && lessons.length > 0 && (
@@ -99,7 +99,7 @@ export function LearnScreen({ onOpenLab }: { onOpenLab: (circuit: Circuit) => vo
         </div>
       </div>
 
-      <div className="min-w-0 flex-1 overflow-auto bg-void-950">
+      <div className="min-w-0 flex-1 overflow-auto bg-void-950" aria-label="Lesson">
         {selectedLesson ? (
           <LessonDetailPanel
             lesson={selectedLesson}

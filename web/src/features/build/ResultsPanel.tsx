@@ -16,6 +16,7 @@ import { TracePanel } from './TracePanel'
 import { AgreementPanel } from './AgreementPanel'
 import { BackendSelector } from './BackendSelector'
 import { EquivalencePanel } from './EquivalencePanel'
+import { StateNotice } from '@/features/shell/StateNotice'
 import { VerifiedValueInline } from '@/provenance/VerifiedValue'
 import { ProvenanceBadge } from '@/provenance/ProvenanceBadge'
 import { toQuantumValue } from '@/provenance/QuantumValue'
@@ -30,6 +31,7 @@ export function ResultsPanel() {
   const setMode = useBuildStore((s) => s.setMode)
   const shots = useBuildStore((s) => s.shots)
   const setShots = useBuildStore((s) => s.setShots)
+  const runExecution = useBuildStore((s) => s.runExecution)
   const hasMeasurement = useBuildStore((s) => s.circuit.ops.some((op) => op.gate === 'measure'))
 
   return (
@@ -78,25 +80,20 @@ export function ResultsPanel() {
       </div>
 
       <div className="min-h-0 flex-1 overflow-auto p-4">
-        {isExecuting && (
-          <p className="flex items-center gap-2 text-sm text-slate-400">
-            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-cyan-glow" />
-            Running on backend…
-          </p>
-        )}
+        {isExecuting && <StateNotice kind="loading" title="Running on backend…" />}
 
         {!isExecuting && executionError && (
-          <div className="rounded-lg border border-danger-glow/40 bg-danger-dim/30 p-3.5 text-sm">
-            <p className="font-semibold text-danger-glow">Backend unavailable</p>
-            <p className="mt-1 font-mono-qasm text-xs text-danger-glow/80">{executionError}</p>
-            <p className="mt-2.5 text-xs text-slate-400">
-              No substitute result is shown. This circuit has not been executed.
-            </p>
-          </div>
+          <StateNotice
+            kind="error"
+            title="Backend unavailable"
+            detail={executionError}
+            hint="No substitute result is shown. This circuit has not been executed."
+            onRetry={() => void runExecution()}
+          />
         )}
 
         {!isExecuting && !executionError && !result && (
-          <p className="text-sm text-void-200">Add gates to the circuit to run it.</p>
+          <StateNotice kind="empty" title="Add gates to the circuit to run it." />
         )}
 
         {!isExecuting && result && result.value.probabilities && (

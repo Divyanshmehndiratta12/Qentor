@@ -15,6 +15,7 @@
  * access to `localStorage` is guarded, since it can throw (blocked site data,
  * private mode, quota).
  */
+import { browserStorage } from './browserStorage'
 import { EMPTY_ACTIVITY_HISTORY, normalizeActivityDates, type ActivityHistory } from './streak'
 
 export const ACTIVITY_STORAGE_KEY = 'qentor.learn.activity.v1'
@@ -22,14 +23,6 @@ const STORAGE_VERSION = 1
 
 /** The subset of `Storage` this module needs — lets tests pass a fake. */
 export type ActivityStorage = Pick<Storage, 'getItem' | 'setItem'>
-
-function browserStorage(): ActivityStorage | null {
-  try {
-    return typeof localStorage === 'undefined' ? null : localStorage
-  } catch {
-    return null // accessing localStorage itself can throw
-  }
-}
 
 /** Raw persisted string -> history. Anything malformed -> empty history. */
 export function parseActivityHistory(raw: string | null): ActivityHistory {

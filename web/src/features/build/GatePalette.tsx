@@ -55,6 +55,7 @@ function DockButton({ gate, label, title }: { gate: GateName; label: string; tit
       }}
       onClick={() => selectGate(active ? null : gate)}
       title={title}
+      aria-pressed={active}
       className={`flex h-[38px] min-w-[38px] shrink-0 cursor-grab items-center justify-center rounded-lg px-1.5 font-mono-qasm text-[13px] font-semibold select-none active:cursor-grabbing ${
         active
           ? 'bg-cyan-glow text-void-950 shadow-[0_0_0_2px_var(--color-void-700),0_0_0_4px_var(--color-cyan-glow)]'
@@ -83,7 +84,12 @@ export function GatePalette() {
       {(statusText || isRotationSelected) && (
         <div className="pointer-events-auto flex items-center gap-3 rounded-xl border border-void-400 bg-void-700/95 px-3 py-2 text-xs shadow-lg backdrop-blur">
           {statusText && (
-            <span className={canvasError ? 'text-danger-glow' : 'text-violet-glow/90'}>{statusText}</span>
+            <span
+              role={canvasError ? 'alert' : 'status'}
+              className={canvasError ? 'text-danger-glow' : 'text-violet-glow/90'}
+            >
+              {statusText}
+            </span>
           )}
           {isRotationSelected && (
             <label className="flex items-center gap-2 text-slate-400">
@@ -100,7 +106,11 @@ export function GatePalette() {
         </div>
       )}
 
-      <div className="pointer-events-auto flex items-center gap-1 rounded-xl border border-void-400 bg-void-700/95 p-1.5 shadow-lg backdrop-blur">
+      <div
+        role="toolbar"
+        aria-label="Gate palette"
+        className="pointer-events-auto flex max-w-full items-center gap-1 overflow-x-auto rounded-xl border border-void-400 bg-void-700/95 p-1.5 shadow-lg backdrop-blur"
+      >
         <span className="px-2 font-mono-qasm text-[11px] whitespace-nowrap text-void-200">drag or click</span>
         {SINGLE_QUBIT.map((g) => (
           <DockButton key={g.gate} {...g} />

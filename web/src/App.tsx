@@ -23,7 +23,7 @@
  * computes anything itself. Progress's only bridge is `openLesson`, which
  * selects a lesson in the Learn store and switches to Learn.
  */
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { Circuit } from '@/circuit/types'
 import { BuildScreen } from '@/features/build/BuildScreen'
 import { ResultsPanel } from '@/features/build/ResultsPanel'
@@ -43,11 +43,22 @@ function App() {
   // tutor conversation and language stay in `useBuildStore`.
   const [guideOpen, setGuideOpen] = useState(false)
   const guideButtonRef = useRef<HTMLButtonElement>(null)
+  const isFirstScreen = useRef(true)
   const loadCircuit = useBuildStore((s) => s.loadCircuit)
   const selectLesson = useLearnStore((s) => s.selectLesson)
 
   // The Guide is offered where there is something to be guided through.
   const guideScreen = screen === 'lab' || screen === 'learn' ? screen : null
+
+  // Moving to another screen puts keyboard and screen-reader focus on that screen's content (not left on the nav button that
+  // no longer describes where you are). Not on first load, where the page should start at its top.
+  useEffect(() => {
+    if (isFirstScreen.current) {
+      isFirstScreen.current = false
+      return
+    }
+    document.getElementById('main-content')?.focus()
+  }, [screen])
 
   function closeGuide() {
     setGuideOpen(false)
@@ -65,7 +76,13 @@ function App() {
   }
 
   return (
-    <div className="flex h-screen flex-col bg-void-950 text-slate-200">
+    <div className="flex min-h-screen flex-col bg-void-950 text-slate-200 lg:h-screen">
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded-md focus:bg-slate-100 focus:px-3 focus:py-1.5 focus:text-sm focus:font-semibold focus:text-void-950"
+      >
+        Skip to main content
+      </a>
       <TopBar
         screen={screen}
         onNavigate={setScreen}
@@ -78,28 +95,32 @@ function App() {
 
       {screen === 'lab' ? (
         <>
-          <div className="flex min-h-0 flex-1">
-            <main className="min-w-0 flex-1 border-r border-void-500 bg-void-950">
+          <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
+            <main
+              id="main-content"
+              tabIndex={-1}
+              className="h-[34rem] min-w-0 shrink-0 border-b border-void-500 bg-void-950 outline-none lg:h-auto lg:flex-1 lg:shrink lg:border-r lg:border-b-0"
+            >
               <BuildScreen />
             </main>
 
-            <aside className="w-96 shrink-0 bg-void-900">
+            <aside aria-label="Results" className="h-[32rem] w-full shrink-0 bg-void-900 lg:h-auto lg:w-96">
               <ResultsPanel />
             </aside>
           </div>
 
-          <footer className="h-64 shrink-0 border-t border-void-500 bg-void-900">
+          <footer aria-label="Tutor" className="h-72 shrink-0 border-t border-void-500 bg-void-900 lg:h-64">
             <TutorPanel />
           </footer>
         </>
       ) : screen === 'learn' ? (
-        <div className="min-h-0 flex-1">
+        <main id="main-content" tabIndex={-1} className="min-h-0 flex-1 outline-none">
           <LearnScreen onOpenLab={openInLab} />
-        </div>
+        </main>
       ) : (
-        <div className="min-h-0 flex-1 overflow-auto bg-void-950">
+        <main id="main-content" tabIndex={-1} className="min-h-0 flex-1 overflow-auto bg-void-950 outline-none">
           <ProgressScreen onOpenLesson={openLesson} />
-        </div>
+        </main>
       )}
 
       {guideScreen && guideOpen && <GuidePanel screen={guideScreen} onClose={closeGuide} />}

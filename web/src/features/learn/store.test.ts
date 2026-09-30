@@ -216,7 +216,8 @@ describe('useLearnStore learning-activity recording', () => {
     useLearnStore.getState().submitConceptCheckAnswer('a', 'q1', 'y', 'x')
     const setItem = vi.spyOn(Storage.prototype, 'setItem')
     useLearnStore.getState().submitConceptCheckAnswer('a', 'q1', 'x', 'x')
-    expect(setItem).not.toHaveBeenCalled()
+    // The lesson progress is saved again (the attempt count changed) — the ACTIVITY history is not, it already has today.
+    expect(setItem.mock.calls.filter(([key]) => key === ACTIVITY_STORAGE_KEY)).toEqual([])
     setItem.mockRestore()
   })
 
@@ -243,8 +244,8 @@ describe('useLearnStore learning-activity recording', () => {
 
     expect(reloaded.useLearnStore).not.toBe(useLearnStore)
     expect(reloaded.useLearnStore.getState().activityHistory.activityDates).toEqual(['2026-09-29'])
-    // ...while session-only lesson progress correctly did NOT survive.
-    expect(reloaded.useLearnStore.getState().lessonProgress).toEqual({})
+    // Lesson progress survives too (see progressPersistence.test.tsx for the full round trip).
+    expect(reloaded.useLearnStore.getState().lessonProgress.a?.conceptCheckAttempts.q1?.selectedOptionId).toBe('y')
   })
 
   it('recovers from malformed saved data on load with an empty history', async () => {

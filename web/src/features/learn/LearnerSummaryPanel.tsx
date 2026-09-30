@@ -12,6 +12,7 @@
  */
 import type { Lesson } from '@/api'
 import type { LessonProgress } from './lessonState'
+import { PersistenceNote } from './PersistenceNote'
 import {
   getMasteryBreakdown,
   getMisconceptions,
@@ -69,9 +70,7 @@ export function LearnerSummaryPanel({
           {overall.conceptChecksAttempted} correct
           {overall.overallAccuracy !== null ? ` (${Math.round(overall.overallAccuracy * 100)}%)` : ''}
         </p>
-        <p className="mt-1 text-[10px] text-void-200">
-          This session only — nothing here is saved or shared with anyone else.
-        </p>
+        <PersistenceNote className="mt-1 text-[10px] text-void-200" />
       </div>
 
       <div>

@@ -37,7 +37,7 @@ function Logo() {
         <span className="absolute inset-x-[1px] top-[6px] h-[7px] rounded-full border-[1.5px] border-slate-200/45" />
         <span className="absolute -right-[3px] -bottom-[3px] h-2 w-2 rounded-full bg-cyan-glow shadow-[0_0_6px_1px_theme(colors.cyan-glow/70)]" />
       </span>
-      <span className="font-sans-ui text-[15px] font-semibold tracking-tight text-slate-100">Qentor</span>
+      <span className="hidden font-sans-ui text-[15px] font-semibold tracking-tight text-slate-100 sm:inline">Qentor</span>
     </div>
   )
 }
@@ -106,28 +106,28 @@ export function TopBar({
     <header className="flex h-[52px] shrink-0 items-center justify-between border-b border-void-500 bg-void-900 py-0 pr-3.5 pl-4">
       <div className="flex min-w-0 items-center gap-4">
         <Logo />
-        <nav className="flex gap-0.5 text-[13px]">
+        <nav aria-label="Primary" className="flex gap-0.5 text-[13px]">
           <NavItem label="Lab" active={screen === 'lab'} onClick={() => onNavigate('lab')} />
           <NavItem label="Learn" active={screen === 'learn'} onClick={() => onNavigate('learn')} />
           <NavItem label="Progress" active={screen === 'progress'} onClick={() => onNavigate('progress')} />
         </nav>
         {screen === 'lab' && (
           <>
-            <span className="h-4.5 w-px bg-void-400" />
-            <span className="font-mono-qasm text-xs whitespace-nowrap text-slate-400">
+            <span className="hidden h-4.5 w-px bg-void-400 md:block" />
+            <span className="hidden font-mono-qasm text-xs whitespace-nowrap text-slate-400 md:inline">
               lab / <span className="text-slate-200">{numQubits}q circuit · {numOps} op{numOps === 1 ? '' : 's'}</span>
             </span>
           </>
         )}
       </div>
 
-      <div data-testid="guide-slot" className="relative mx-3 h-full min-w-11 flex-1">
+      <div data-testid="guide-slot" className="relative mx-1 h-full min-w-11 flex-1 sm:mx-3">
         {guideSlot}
       </div>
 
       {screen === 'lab' && (
         <div className="flex items-center gap-2.5">
-          <div className="flex items-center gap-1 rounded-lg border border-void-500 bg-void-950 p-[3px] text-xs font-medium">
+          <div className="hidden items-center gap-1 rounded-lg border border-void-500 bg-void-950 p-[3px] text-xs font-medium lg:flex">
             <ModeChip label="Simulator" dotClassName="bg-void-200" active />
             <ModeChip label="Recorded" dotClassName="bg-violet-glow" soon />
             <ModeChip label="Live QPU" dotClassName="bg-void-300" soon />
@@ -139,7 +139,7 @@ export function TopBar({
                 ? 'VITE_USE_MOCK_API=true — FIXTURE adapter, fixed at build time'
                 : 'Real backend adapter (server/qentor/execution/) — fixed at build time'
             }
-            className="flex items-center gap-1.5 rounded-lg border border-void-400 px-2.5 py-1.5 font-mono-qasm text-xs font-medium whitespace-nowrap text-slate-200"
+            className="hidden items-center gap-1.5 rounded-lg border border-void-400 px-2.5 py-1.5 font-mono-qasm text-xs font-medium whitespace-nowrap text-slate-200 lg:flex"
           >
             {isMock ? 'FIXTURE · mock' : 'Qentor backend'}
             <span className="text-void-200">▾</span>
@@ -149,15 +149,15 @@ export function TopBar({
             type="button"
             onClick={() => void runExecution()}
             disabled={isExecuting || numOps === 0}
-            className="flex items-center gap-2 rounded-lg bg-slate-100 px-3.5 py-1.5 text-[13px] font-semibold whitespace-nowrap text-void-950 disabled:cursor-not-allowed disabled:opacity-40"
+            className="flex items-center gap-2 rounded-lg bg-slate-100 px-3.5 py-1.5 text-[13px] font-semibold whitespace-nowrap text-void-950 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-glow disabled:cursor-not-allowed disabled:opacity-40"
           >
             {isExecuting ? 'Running…' : 'Run'}
             <span className="font-mono-qasm text-[11px] opacity-55">⌘↵</span>
           </button>
 
           <div
-            title="local session — Qentor has no accounts"
-            className="grid h-[30px] w-[30px] place-items-center rounded-full bg-void-500 text-slate-400"
+            title="Qentor has no accounts — progress is saved in this browser only"
+            className="hidden h-[30px] w-[30px] place-items-center rounded-full bg-void-500 text-slate-400 lg:grid"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <circle cx="12" cy="8" r="4" stroke="currentColor" strokeWidth="1.6" />

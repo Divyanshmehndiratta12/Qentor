@@ -18,6 +18,7 @@ import {
   type Mastery,
 } from './lessonState'
 import { LessonPlayer } from './LessonPlayer'
+import { PersistenceNote } from './PersistenceNote'
 
 const DIFFICULTY_LABEL: Record<LessonDifficulty, string> = {
   beginner: 'Beginner',
@@ -102,9 +103,7 @@ export function LessonDetailPanel({
           </span>
         </div>
       </div>
-      <p className="-mt-4 text-[11px] text-void-200">
-        Progress is tracked locally in this session only — there is no learner-progress backend yet.
-      </p>
+      <PersistenceNote className="-mt-4 text-[11px] text-void-200" />
 
       {prerequisiteTitles.length > 0 && (
         <div className="rounded-lg border border-void-500 bg-void-900 p-3 text-xs text-slate-400">

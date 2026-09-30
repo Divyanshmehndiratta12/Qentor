@@ -6,11 +6,10 @@
  * rule of its own, holds no lesson content of its own (titles/concepts come
  * from GET /api/lessons via the store), and never touches `useBuildStore`.
  *
- * Two honesty notes shown on screen:
- * - Lesson progress (sections, concept checks, mastery) is this browser
- *   SESSION only — lost on reload — exactly as in Learn.
- * - The streak's activity days ARE saved, in this browser's localStorage
- *   only; there is no account, no server and no cross-device sync.
+ * Honesty note shown on screen (`PersistenceNote`): lesson progress and the
+ * streak's activity days are saved in this browser's localStorage only — no
+ * account, no server, no cross-device sync — or, when the browser refuses to
+ * save, exist for this page load only, and the note says so.
  *
  * The one outward action is `onOpenLesson`, wired by `App.tsx` to select that
  * lesson and switch to Learn.
@@ -30,6 +29,8 @@ import {
   type Mastery,
 } from '../learn/learnerInsights'
 import { getActivitySummary, toLocalDateKey } from '../learn/streak'
+import { PersistenceNote } from '../learn/PersistenceNote'
+import { StateNotice } from '../shell/StateNotice'
 import { StreakPanel } from './StreakPanel'
 
 const MASTERY_LABEL: Record<Mastery, string> = {
@@ -95,22 +96,14 @@ export function ProgressScreen({ onOpenLesson }: { onOpenLesson: (lessonId: stri
 
       <StreakPanel summary={activity} todayKey={todayKey} />
 
-      {isLoading && <p className="text-xs text-slate-500">Loading lessons…</p>}
+      {isLoading && <StateNotice kind="loading" compact title="Loading lessons…" />}
 
       {!isLoading && error && (
-        <div
-          role="alert"
-          className="rounded-lg border border-danger-glow/40 bg-danger-dim/30 p-3 text-xs text-danger-glow"
-        >
-          <p className="font-medium">Couldn't load lessons.</p>
-          <p className="mt-1 text-danger-glow/80">{error}</p>
-        </div>
+        <StateNotice kind="error" compact title="Couldn't load lessons." detail={error} onRetry={() => void fetchLessons()} />
       )}
 
       {!isLoading && !error && lessons.length === 0 && (
-        <p className="rounded-lg border border-void-400 bg-void-800 p-3 text-xs text-slate-500">
-          No lessons are available yet.
-        </p>
+        <StateNotice kind="empty" compact title="No lessons are available yet." className="rounded-lg border border-void-400 bg-void-800 p-3" />
       )}
 
       {catalogReady && <LessonDashboard onOpenLesson={onOpenLesson} />}
@@ -168,9 +161,7 @@ function LessonDashboard({ onOpenLesson }: { onOpenLesson: (lessonId: string) =>
               {overall.lessonsCompleted} of {overall.totalLessons}
             </dd>
           </dl>
-          <p className="mt-3 text-[10px] leading-snug text-void-200">
-            Lesson progress is tracked in this browser session only — it resets on reload.
-          </p>
+          <PersistenceNote className="mt-3 text-[10px] leading-snug text-void-200" />
         </section>
 
         <section aria-labelledby="checks-heading" className={CARD}>
