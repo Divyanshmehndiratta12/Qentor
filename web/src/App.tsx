@@ -34,6 +34,7 @@ import { GuideLauncher } from '@/features/guide/GuideLauncher'
 import { GuidePanel } from '@/features/guide/GuidePanel'
 import { ChallengesScreen } from '@/features/challenges/ChallengesScreen'
 import { NextStep } from '@/features/challenges/NextStep'
+import { WelcomeCard, rememberWelcomeDismissed, welcomeDismissed } from '@/features/shell/WelcomeCard'
 import { ProgressScreen } from '@/features/progress/ProgressScreen'
 import { TutorPanel } from '@/features/tutor/TutorPanel'
 import { TopBar, type Screen } from '@/features/shell/TopBar'
@@ -55,6 +56,9 @@ function App() {
   const loadCircuit = useBuildStore((s) => s.loadCircuit)
   // A share link (`/#c=…`) carries a circuit and nothing else. It is validated, loaded onto the canvas WITHOUT any result, and the
   // fragment is removed so a reload does not silently replace the learner's work again.
+  // First-visit welcome on the Lab: until dismissed, or until the learner has started a lesson.
+  const [welcomeShown, setWelcomeShown] = useState(() => !welcomeDismissed())
+  const startedAny = useLearnStore((s) => s.startedLessonIds.size > 0)
   const [sharedNotice, setSharedNotice] = useState<{ ok: boolean; text: string } | null>(null)
   useEffect(() => {
     const decoded = decodeShareFragment(window.location.hash)
@@ -148,6 +152,17 @@ function App() {
         }
       />
 
+      {screen === 'lab' && welcomeShown && !startedAny && !sharedNotice && (
+        <WelcomeCard
+          onStartLearning={() => goTo('learn')}
+          onOpenChallenges={() => goTo('challenges')}
+          onDismiss={() => {
+            rememberWelcomeDismissed()
+            setWelcomeShown(false)
+          }}
+        />
+      )}
+
       {sharedNotice && (
         <div
           role={sharedNotice.ok ? 'status' : 'alert'}
@@ -185,7 +200,7 @@ function App() {
         </>
       ) : screen === 'learn' ? (
         <main id="main-content" tabIndex={-1} className="min-h-0 flex-1 outline-none">
-          <LearnScreen onOpenLab={openInLab} />
+          <LearnScreen onOpenLab={openInLab} onOpenChallenge={openChallenge} />
         </main>
       ) : screen === 'challenges' ? (
         <ChallengesScreen

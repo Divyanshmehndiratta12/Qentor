@@ -19,6 +19,7 @@ import {
 } from './lessonState'
 import { LessonPlayer } from './LessonPlayer'
 import { PersistenceNote } from './PersistenceNote'
+import { LessonChallenges } from '@/features/challenges/LessonChallenges'
 
 const DIFFICULTY_LABEL: Record<LessonDifficulty, string> = {
   beginner: 'Beginner',
@@ -44,12 +45,15 @@ export function LessonDetailPanel({
   progress,
   started,
   onOpenLab,
+  onOpenChallenge,
 }: {
   lesson: Lesson
   lessons: Lesson[]
   progress: LessonProgress | undefined
   started: boolean
   onOpenLab: (circuit: Circuit) => void
+  /** Where a lesson's challenges lead. Optional: without it the practice card is not shown. */
+  onOpenChallenge?: (challengeId: string) => void
 }) {
   const prerequisiteTitles = lesson.prerequisiteLessonIds.map(
     (id) => lessons.find((l) => l.id === id)?.title ?? id,
@@ -136,6 +140,8 @@ export function LessonDetailPanel({
       </div>
 
       <LessonPlayer lesson={lesson} onOpenLab={onOpenLab} />
+
+      {onOpenChallenge && <LessonChallenges lessonId={lesson.id} lessonComplete={complete} onOpenChallenge={onOpenChallenge} />}
     </div>
   )
 }

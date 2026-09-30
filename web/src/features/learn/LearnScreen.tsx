@@ -22,8 +22,15 @@ import { LessonCard } from './LessonCard'
 import { LessonDetailPanel } from './LessonDetailPanel'
 import { LearnerSummaryPanel } from './LearnerSummaryPanel'
 import { StateNotice } from '@/features/shell/StateNotice'
+import { useChallengeStore } from '@/features/challenges/store'
 
-export function LearnScreen({ onOpenLab }: { onOpenLab: (circuit: Circuit) => void }) {
+export function LearnScreen({
+  onOpenLab,
+  onOpenChallenge,
+}: {
+  onOpenLab: (circuit: Circuit) => void
+  onOpenChallenge?: (challengeId: string) => void
+}) {
   const lessons = useLearnStore((s) => s.lessons)
   const isLoading = useLearnStore((s) => s.isLoading)
   const error = useLearnStore((s) => s.error)
@@ -36,6 +43,15 @@ export function LearnScreen({ onOpenLab }: { onOpenLab: (circuit: Circuit) => vo
   useEffect(() => {
     void fetchLessons()
   }, [fetchLessons])
+
+  // The challenges that belong to each lesson (for "Practice this lesson"). Not needed to learn, so a failure here is silent.
+  const challengeCount = useChallengeStore((s) => s.challenges.length)
+  const challengesLoading = useChallengeStore((s) => s.isLoading)
+  const challengesError = useChallengeStore((s) => s.error)
+  const fetchChallenges = useChallengeStore((s) => s.fetchChallenges)
+  useEffect(() => {
+    if (challengeCount === 0 && !challengesLoading && !challengesError) void fetchChallenges()
+  }, [challengeCount, challengesLoading, challengesError, fetchChallenges])
 
   const selectedLesson = lessons.find((lesson) => lesson.id === selectedLessonId) ?? null
 
@@ -107,6 +123,7 @@ export function LearnScreen({ onOpenLab }: { onOpenLab: (circuit: Circuit) => vo
             progress={lessonProgress[selectedLesson.id]}
             started={startedLessonIds.has(selectedLesson.id)}
             onOpenLab={onOpenLab}
+            onOpenChallenge={onOpenChallenge}
           />
         ) : (
           <div className="flex h-full items-center justify-center p-8 text-center">
