@@ -41,6 +41,10 @@ class _Check(BaseModel):
     label: str
     # Index into ``Challenge.hints`` of the hint that helps when THIS check fails: hints are deterministic, not generated.
     hint_index: int = Field(ge=0)
+    # Authored coaching for the debugger (Phase C), shown when THIS check fails: the idea the learner most likely has wrong,
+    # and one concrete experiment to run next. Deterministic, written per check, free of any quantum number.
+    misconception: str = Field(min_length=1)
+    experiment: str = Field(min_length=1)
 
 
 class StateMatches(_Check):
@@ -157,7 +161,7 @@ class Challenge(BaseModel):
 # ---------------------------------------------------------------------------------------------------------------------
 
 
-class PublicCheck(BaseModel):
+class PublicCheck(BaseModel):  # no coaching text: that belongs to the debugger's answer, not the question
     model_config = ConfigDict(extra="forbid")
 
     id: str

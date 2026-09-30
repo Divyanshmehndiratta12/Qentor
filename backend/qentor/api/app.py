@@ -46,6 +46,8 @@ from qentor.provenance.models import ExecutionStatus, ProvenanceClass, Provenanc
 from qentor.provenance.attempts import AttemptRecord, AttemptStore
 from qentor.provenance.store import ProvenanceStore
 from qentor.tutor import (
+    AttemptView,
+    DebugInputs,
     LessonContextError,
     TraceContextError,
     answer_failed_execution,
@@ -55,6 +57,7 @@ from qentor.tutor import (
     build_default_llm_adapter,
     build_fact_sheet,
     build_trace_step_context,
+    debug_circuit,
     resolve_lesson_context,
 )
 from qentor.tutor.trace_context import TRACE_RESULT_NOT_FOUND
@@ -82,6 +85,9 @@ from .schemas import (
     ChallengeSubmitResponse,
     CodeRequest,
     CodeResponse,
+    DebugRequest,
+    DebugResponse,
+    DebugSectionResponse,
     EquivalenceRequest,
     EquivalenceResponse,
     ExecuteRequest,
@@ -429,6 +435,37 @@ def verify_bell_state_endpoint(request: VerifyBellStateRequest) -> VerifyBellSta
     )
 
 
+def _verified_trace_context(ref, circuit):
+    """A selected trace step's identity, VERIFIED against the circuit and the records the server itself holds (never believed).
+    ``None`` when no step was selected. Shared by the tutor and the debugger."""
+    if ref is None:
+        return None
+    step_record = _store.get(ref.result_id)
+    if step_record is None:
+        raise HTTPException(
+            status_code=404,
+            detail={
+                "code": TRACE_RESULT_NOT_FOUND,
+                "message": f"no provenance record found for the trace step's result_id '{ref.result_id}'",
+            },
+        )
+    previous_record = None
+    if ref.previous_result_id is not None:
+        previous_record = _store.get(ref.previous_result_id)
+        if previous_record is None:
+            raise HTTPException(
+                status_code=404,
+                detail={
+                    "code": TRACE_RESULT_NOT_FOUND,
+                    "message": f"no provenance record found for the previous step's result_id '{ref.previous_result_id}'",
+                },
+            )
+    try:
+        return build_trace_step_context(ref, circuit, step_record, previous_record)
+    except TraceContextError as exc:
+        raise HTTPException(status_code=422, detail={"code": exc.code, "message": exc.message}) from exc
+
+
 @app.post("/api/tutor", response_model=TutorResponse)
 def tutor_endpoint(request: TutorRequest) -> TutorResponse:
     """Grounded tutor answer — deterministic by default, optionally backed by
@@ -488,35 +525,7 @@ def tutor_endpoint(request: TutorRequest) -> TutorResponse:
 
     # Optional trace-step context: the step's identity, VERIFIED against the
     # circuit and the records the server itself holds (never believed).
-    trace_context = None
-    if request.trace_step is not None:
-        ref = request.trace_step
-        step_record = _store.get(ref.result_id)
-        if step_record is None:
-            raise HTTPException(
-                status_code=404,
-                detail={
-                    "code": TRACE_RESULT_NOT_FOUND,
-                    "message": f"no provenance record found for the trace step's result_id '{ref.result_id}'",
-                },
-            )
-        previous_record = None
-        if ref.previous_result_id is not None:
-            previous_record = _store.get(ref.previous_result_id)
-            if previous_record is None:
-                raise HTTPException(
-                    status_code=404,
-                    detail={
-                        "code": TRACE_RESULT_NOT_FOUND,
-                        "message": f"no provenance record found for the previous step's result_id '{ref.previous_result_id}'",
-                    },
-                )
-        try:
-            trace_context = build_trace_step_context(ref, request.circuit, step_record, previous_record)
-        except TraceContextError as exc:
-            raise HTTPException(
-                status_code=422, detail={"code": exc.code, "message": exc.message}
-            ) from exc
+    trace_context = _verified_trace_context(request.trace_step, request.circuit)
 
     if trace_context is not None:
         answer, used_fallback_template = answer_step_aware_question(
@@ -576,6 +585,87 @@ def tutor_endpoint(request: TutorRequest) -> TutorResponse:
             if trace_context
             else None
         ),
+    )
+
+
+@app.post("/api/debug", response_model=DebugResponse)
+def debug_endpoint(request: DebugRequest) -> DebugResponse:
+    """"Debug my circuit": observed behaviour, concrete evidence, the likely conceptual mismatch, a next experiment and a hint
+    (``qentor.tutor.debugger``).
+
+    Grounded in things the server already holds: the Lab result (``result_id``), the judged challenge attempt (``attempt_id`` +
+    ``challenge_id``: its per-check outcomes and the numbers behind them were computed by ``qentor.challenges.evaluate``), and an
+    optional verified trace step. The request carries no quantum value and no verdict; the learner's goal is untrusted text that
+    is echoed and never acted on. Nothing is re-run and nothing is written. The prose may be rewritten by the configured LLM only
+    after the tutor's claim guard accepts it; evidence and hint are always deterministic. Every id is checked here first: a record
+    that does not exist is 404, a circuit that is not the one the record or attempt was made for is 422.
+    """
+    circuit_hash_ = circuit_hash(request.circuit)
+
+    record = None
+    if request.result_id is not None:
+        record = _store.get(request.result_id)
+        if record is None:
+            raise HTTPException(status_code=404, detail=f"no provenance record found for result_id '{request.result_id}'")
+        if record.circuit_hash != circuit_hash_:
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    f"circuit does not match provenance record '{request.result_id}': "
+                    f"got circuit hash '{circuit_hash_}', expected '{record.circuit_hash}'"
+                ),
+            )
+
+    challenge = attempt_view = None
+    attempt_record = None
+    if request.attempt_id is not None:
+        challenge = get_challenge(request.challenge_id or "")
+        if challenge is None:
+            raise HTTPException(status_code=404, detail={"code": "CHALLENGE_NOT_FOUND", "message": f"no challenge {request.challenge_id!r}"})
+        attempt_record = _attempts.get(request.attempt_id)
+        if attempt_record is None:
+            raise HTTPException(status_code=404, detail={"code": "ATTEMPT_NOT_FOUND", "message": f"no challenge attempt {request.attempt_id!r}"})
+        if attempt_record.challenge_id != challenge.id or attempt_record.circuit_hash != circuit_hash_:
+            raise HTTPException(
+                status_code=422,
+                detail={
+                    "code": "ATTEMPT_MISMATCH",
+                    "message": "that attempt was not made for this challenge and this circuit; submit the circuit again first",
+                },
+            )
+        attempt_view = AttemptView(attempt_id=attempt_record.attempt_id, passed=attempt_record.passed, checks=attempt_record.checks)
+
+    step = _verified_trace_context(request.trace_step, request.circuit)
+
+    report = debug_circuit(
+        DebugInputs(
+            circuit=request.circuit,
+            goal=request.goal,
+            record=record,
+            challenge=challenge,
+            attempt=attempt_view,
+            step=step,
+        ),
+        _llm_adapter,
+        request.language,
+    )
+
+    section = lambda s: DebugSectionResponse(text=s.text, fact_ids=s.fact_ids)  # noqa: E731
+    provenance = record
+    return DebugResponse(
+        observed=section(report.observed),
+        evidence=[section(e) for e in report.evidence],
+        mismatch=section(report.mismatch),
+        next_experiment=section(report.next_experiment),
+        hint=section(report.hint) if report.hint else None,
+        facts=[TutorFactResponse(id=f.id, kind=f.kind, description=f.description, result_id=f.result_id) for f in report.facts],
+        used_fallback_template=report.used_fallback_template,
+        grounded_in=report.grounded_in,
+        result_id=provenance.result_id if provenance else None,
+        circuit_hash=circuit_hash_,
+        provenance_class=provenance.provenance_class.value if provenance else None,
+        verification_status=provenance.verification_status.value if provenance else None,
+        attempt_id=attempt_record.attempt_id if attempt_record else None,
     )
 
 

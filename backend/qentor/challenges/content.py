@@ -57,7 +57,7 @@ RAW_CHALLENGES: list[Challenge] = [
         success_condition="The qubit's final state is |1⟩.",
         constraints=Constraints(num_qubits=1, allowed_gates=ONE_QUBIT, max_ops=6),
         starter_circuit=circ(1, []),
-        checks=[StateMatches(id="state.is_one", label="The final state is |1⟩", hint_index=1, target=circ(1, [g("x", 0)]))],
+        checks=[StateMatches(id="state.is_one", label="The final state is |1⟩", hint_index=1, misconception='The qubit starts in |0⟩ and a gate has to move it; a gate that only adds a phase, or that creates a superposition, does not leave it in |1⟩.', experiment='Add your circuit, open the trace and look at the state after each gate: which gate makes |1⟩ the only outcome?', target=circ(1, [g("x", 0)]))],
         hints=[
             "Every qubit starts in |0⟩. You need a gate that swaps the roles of |0⟩ and |1⟩.",
             "The X gate flips |0⟩ to |1⟩ and |1⟩ to |0⟩.",
@@ -75,7 +75,7 @@ RAW_CHALLENGES: list[Challenge] = [
         success_condition="The qubit's final state is |+⟩.",
         constraints=Constraints(num_qubits=1, allowed_gates=ONE_QUBIT, max_ops=6),
         starter_circuit=circ(1, []),
-        checks=[StateMatches(id="state.is_plus", label="The final state is |+⟩", hint_index=1, target=circ(1, [g("h", 0)]))],
+        checks=[StateMatches(id="state.is_plus", label="The final state is |+⟩", hint_index=1, misconception='|+⟩ is an equal superposition with both parts positive. A gate that flips the qubit (X) gives a definite state, and one that changes only the sign gives |−⟩.', experiment='Run the trace after your first gate and compare the two outcomes: are they equally likely, and do they have the same sign?', target=circ(1, [g("h", 0)]))],
         hints=[
             "You need a gate that turns a definite state into an equal mix of |0⟩ and |1⟩.",
             "The Hadamard gate (H) does that from |0⟩.",
@@ -93,7 +93,7 @@ RAW_CHALLENGES: list[Challenge] = [
         success_condition="The qubit's final state is |−⟩.",
         constraints=Constraints(num_qubits=1, allowed_gates=ONE_QUBIT, max_ops=6),
         starter_circuit=circ(1, []),
-        checks=[StateMatches(id="state.is_minus", label="The final state is |−⟩", hint_index=1, target=circ(1, [g("x", 0), g("h", 0)]))],
+        checks=[StateMatches(id="state.is_minus", label="The final state is |−⟩", hint_index=1, misconception='|−⟩ has the same measurement odds as |+⟩ but the |1⟩ part has the opposite sign, so the difference is in the phase, which a measurement alone cannot show.', experiment='Build |+⟩ first, then find the one extra gate that changes only the sign, and compare both states in the trace.', target=circ(1, [g("x", 0), g("h", 0)]))],
         hints=[
             "|−⟩ is like |+⟩ but with a minus sign between the two parts. Which gate changes a sign?",
             "H makes the superposition; something must flip the sign of the |1⟩ part. Try flipping to |1⟩ first.",
@@ -115,7 +115,7 @@ RAW_CHALLENGES: list[Challenge] = [
             StateMatches(
                 id="state.is_bell",
                 label="The final state is (|00⟩ + |11⟩)/√2",
-                hint_index=1,
+                hint_index=1, misconception='A Bell state needs entanglement: a superposition on one qubit, then a two-qubit gate that ties the other qubit to it. Two independent superpositions are not entangled.', experiment='Run the trace and check the state after each gate: after the first, is q[1] still in |0⟩? After the CX, are only the correlated outcomes left?',
                 target=circ(2, [g("h", 0), g("cx", 1, 0)]),
             )
         ],
@@ -143,10 +143,10 @@ RAW_CHALLENGES: list[Challenge] = [
             ProbabilitiesMatch(
                 id="odds.match_plus",
                 label="Measurement odds match |+⟩",
-                hint_index=1,
+                hint_index=1, misconception='The measurement odds must be those of |+⟩, so the qubit must first be put into an equal superposition; a phase gate on |0⟩ changes nothing.', experiment='Apply H first, then check in the Results panel that both outcomes are equally likely.',
                 target=circ(1, [g("h", 0)]),
             ),
-            StateDiffers(id="state.not_plus", label="But the state is not |+⟩", hint_index=2, other=circ(1, [g("h", 0)])),
+            StateDiffers(id="state.not_plus", label="But the state is not |+⟩", hint_index=2, misconception='A phase change is invisible to measurement: the odds stay equal but the state must differ from |+⟩. If the state is still |+⟩, no phase was added.', experiment='After H, add one gate that changes the sign or phase of the |1⟩ part, then compare the state in the trace with |+⟩.', other=circ(1, [g("h", 0)])),
         ],
         hints=[
             "Start by making the equal superposition, so both outcomes are equally likely.",
@@ -169,8 +169,8 @@ RAW_CHALLENGES: list[Challenge] = [
         constraints=Constraints(num_qubits=1, allowed_gates=ONE_QUBIT, max_ops=6, min_gate_counts={GateName.H: 2}),
         starter_circuit=circ(1, []),
         checks=[
-            PassesThroughSuperposition(id="mid.superposition", label="Passes through a superposition", hint_index=1),
-            EndsInBasisState(id="end.definite", label="Ends in one definite outcome", hint_index=2),
+            PassesThroughSuperposition(id="mid.superposition", label="Passes through a superposition", hint_index=1, misconception='Interference needs a real superposition first. If the qubit is in a definite state after every step, there is nothing to interfere.', experiment='Open the trace and look at the state after each gate: at which step are both outcomes possible?'),
+            EndsInBasisState(id="end.definite", label="Ends in one definite outcome", hint_index=2, misconception='The paths must recombine so that they cancel for one outcome. A second H does that only if nothing in between changed the phase in a way that leaves the qubit in a superposition.', experiment='Add a second H and look at the last trace step: is one outcome now certain? Try putting Z between the two H gates and compare.'),
         ],
         hints=[
             "Interference needs two steps that can cancel or reinforce each other.",
@@ -202,13 +202,13 @@ RAW_CHALLENGES: list[Challenge] = [
                 id="before.eigenstate",
                 label="Before the CX: q[0] is |+⟩ and q[1] is |−⟩",
                 at=Point.BEFORE_ANCHOR,
-                hint_index=1,
+                hint_index=1, misconception='Kickback needs q[1] in |−⟩ (an eigenstate of X) and q[0] in a superposition |+⟩ before the CX. If either is missing, the CX has nothing to kick back.', experiment='Run the trace and check the state just before the CX: prepare q[0] with H, and q[1] with X then H.',
                 target=circ(2, [g("h", 0), g("x", 1), g("h", 1)]),
             ),
             StateMatches(
                 id="final.kicked_back",
                 label="At the end: q[0] is |1⟩ and q[1] is |−⟩",
-                hint_index=2,
+                hint_index=2, misconception='After the CX the phase is on q[0], but a phase cannot be read directly: one more H on q[0] turns it into a definite outcome.', experiment='Add H on q[0] after the CX and check the last trace step: is q[0] now definite?',
                 target=circ(2, [g("h", 0), g("x", 1), g("h", 1), g("cx", 1, 0), g("h", 0)]),
             ),
         ],
@@ -246,13 +246,13 @@ RAW_CHALLENGES: list[Challenge] = [
                 id="before.superposed_inputs",
                 label="Before the oracle: inputs in |+⟩, ancilla in |−⟩",
                 at=Point.BEFORE_ANCHOR,
-                hint_index=1,
+                hint_index=1, misconception="The algorithm needs every input qubit in |+⟩ and the ancilla in |−⟩ before the oracle is called; otherwise the oracle's phase kickback cannot happen.", experiment='Run the trace and look at the state just before the oracle: which qubits are not yet in superposition, and is the ancilla in |−⟩ (X then H)?',
                 target=circ(3, [g("h", 0), g("h", 1), g("x", 2), g("h", 2)], 3),
             ),
             ProbabilitiesMatch(
                 id="final.balanced_answer",
                 label="Measuring the inputs gives the balanced-oracle answer",
-                hint_index=2,
+                hint_index=2, misconception='After the oracle the answer is stored in the phases of the input qubits. It only becomes visible after a second layer of H gates on the input qubits.', experiment='Add H on each input qubit after the oracle and compare the last trace step: which inputs now have a definite outcome?',
                 qubits=[0, 1],
                 target=circ(
                     3,
@@ -304,13 +304,13 @@ RAW_CHALLENGES: list[Challenge] = [
                 id="before.superposed_inputs",
                 label="Before the oracle: inputs in |+⟩, ancilla in |−⟩",
                 at=Point.BEFORE_ANCHOR,
-                hint_index=1,
+                hint_index=1, misconception="The algorithm needs every input qubit in |+⟩ and the ancilla in |−⟩ before the oracle is called; otherwise the oracle's phase kickback cannot happen.", experiment='Run the trace and look at the state just before the oracle: which qubits are not yet in superposition, and is the ancilla in |−⟩ (X then H)?',
                 target=circ(4, [g("h", 0), g("h", 1), g("h", 2), g("x", 3), g("h", 3)], 4),
             ),
             ProbabilitiesMatch(
                 id="final.hidden_string",
                 label="Measuring the inputs reads out the hidden string",
-                hint_index=2,
+                hint_index=2, misconception='The hidden string is stored in the phases of the input qubits after the oracle call. It appears as measurement outcomes only after H is applied to every input qubit again.', experiment="Add H on every input qubit after the oracle, measure them, and compare the outcomes with the oracle's CX gates: which inputs does it touch?",
                 qubits=[0, 1, 2],
                 target=circ(
                     4,

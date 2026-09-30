@@ -578,3 +578,61 @@ class ChallengeSubmitResponse(BaseModel):
     next_hint: str | None
     success_message: str | None
     created_at: str
+
+
+# --------------------------------------------------------------------------- #
+# Circuit debugger                                                            #
+# --------------------------------------------------------------------------- #
+
+
+class DebugRequest(BaseModel):
+    """Everything is an identifier or free text, never a quantum value: the circuit, the id of the Lab result and/or of a challenge
+    attempt the server judged, an optional trace step (identity only) and the learner's goal in their own words.
+
+    ``goal`` is untrusted text (echoed, never acted on). ``attempt_id`` needs ``challenge_id`` and vice versa; the server checks
+    that the attempt is that challenge's and is of THIS circuit. At least one of ``result_id`` / ``attempt_id`` is required: there
+    has to be a real run or a real verdict to debug.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    circuit: Circuit
+    result_id: str | None = Field(default=None, min_length=1)
+    challenge_id: str | None = Field(default=None, min_length=1)
+    attempt_id: str | None = Field(default=None, min_length=1)
+    trace_step: TraceStepRef | None = None
+    goal: str | None = Field(default=None, max_length=400)
+    language: Literal["en", "hi", "kn"] = "en"
+
+    @model_validator(mode="after")
+    def _coherent(self) -> "DebugRequest":
+        if (self.challenge_id is None) != (self.attempt_id is None):
+            raise ValueError("challenge_id and attempt_id must be provided together")
+        if self.result_id is None and self.attempt_id is None:
+            raise ValueError("debugging needs an executed result (result_id) or a judged challenge attempt (attempt_id)")
+        return self
+
+
+class DebugSectionResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    text: str
+    fact_ids: list[str]
+
+
+class DebugResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    observed: DebugSectionResponse
+    evidence: list[DebugSectionResponse]
+    mismatch: DebugSectionResponse
+    next_experiment: DebugSectionResponse
+    hint: DebugSectionResponse | None
+    facts: list[TutorFactResponse]
+    used_fallback_template: bool
+    grounded_in: str
+    result_id: str | None
+    circuit_hash: str
+    provenance_class: str | None
+    verification_status: str | None
+    attempt_id: str | None

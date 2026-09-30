@@ -37,6 +37,11 @@ FactKind = Literal[
     "trace_bloch",
     "trace_change",
     "trace_note",
+    # Debugger facts. ``C#``: the challenge's goal and the authored coaching for a failed check. ``E#``: the per-check outcomes of an
+    # attempt the SERVER judged (``qentor.challenges.evaluate``), with the numbers behind them.
+    "challenge_goal",
+    "challenge_check",
+    "challenge_coaching",
 ]
 
 
