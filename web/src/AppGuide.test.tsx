@@ -306,6 +306,9 @@ describe('Lab: opening and closing changes nothing', () => {
 
   it('a quick action uses the current Lab circuit and result — and shows in the Lab’s own tutor too (one shared conversation)', async () => {
     const result = seedLab()
+    // The Lab's mount-time debounced auto-run (250ms) starts every run by clearing the tutor conversation. Under a loaded machine
+    // that timer can fire between the click and the assertion, so this test — about the conversation, not the run — pins it.
+    useBuildStore.setState({ runExecution: vi.fn(async () => {}) })
     render(<App />)
     fireEvent.click(openButton())
 

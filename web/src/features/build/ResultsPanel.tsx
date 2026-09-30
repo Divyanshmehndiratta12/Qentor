@@ -26,6 +26,7 @@ const Plot = createPlotlyComponent(Plotly)
 export function ResultsPanel() {
   const isExecuting = useBuildStore((s) => s.isExecuting)
   const executionError = useBuildStore((s) => s.executionError)
+  const executionErrorStatus = useBuildStore((s) => s.executionErrorStatus)
   const result = useBuildStore((s) => s.result)
   const mode = useBuildStore((s) => s.mode)
   const setMode = useBuildStore((s) => s.setMode)
@@ -33,6 +34,7 @@ export function ResultsPanel() {
   const setShots = useBuildStore((s) => s.setShots)
   const runExecution = useBuildStore((s) => s.runExecution)
   const hasMeasurement = useBuildStore((s) => s.circuit.ops.some((op) => op.gate === 'measure'))
+  const hasOps = useBuildStore((s) => s.circuit.ops.length > 0)
 
   return (
     <div className="flex h-full flex-col">
@@ -85,7 +87,9 @@ export function ResultsPanel() {
         {!isExecuting && executionError && (
           <StateNotice
             kind="error"
-            title="Backend unavailable"
+            // A 4xx means the server answered and refused this run (e.g. shots mode with no measurement, or over a limit);
+            // no answer at all, or a 5xx, means the backend is unavailable. The real message is shown either way.
+            title={executionErrorStatus !== null && executionErrorStatus >= 400 && executionErrorStatus < 500 ? 'The server refused this run' : 'Backend unavailable'}
             detail={executionError}
             hint="No substitute result is shown. This circuit has not been executed."
             onRetry={() => void runExecution()}
@@ -93,7 +97,7 @@ export function ResultsPanel() {
         )}
 
         {!isExecuting && !executionError && !result && (
-          <StateNotice kind="empty" title="Add gates to the circuit to run it." />
+          <StateNotice kind="empty" title={hasOps ? 'Run the circuit to see its result.' : 'Add gates to the circuit to run it.'} />
         )}
 
         {!isExecuting && result && result.value.probabilities && (
@@ -137,7 +141,8 @@ function OutcomeChart({ values, yTitle, color }: { values: Record<string, number
         font: { color: '#a3abb7', size: 11, family: 'JetBrains Mono, monospace' },
         margin: { l: 40, r: 10, t: 10, b: 40 },
         yaxis: { title: { text: yTitle }, gridcolor: '#232830' },
-        xaxis: { gridcolor: '#232830' },
+        // The labels are bitstrings: without an explicit category axis Plotly reads "011" as the number 11 and draws a numeric axis.
+        xaxis: { type: 'category', gridcolor: '#232830' },
         height: 220,
       }}
       config={{ displayModeBar: false, responsive: true }}

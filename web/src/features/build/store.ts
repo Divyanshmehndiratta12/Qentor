@@ -99,6 +99,8 @@ interface BuildState {
   isExecuting: boolean
   result: QuantumValue<ExecutePayload> | null
   executionError: string | null
+  /** HTTP status behind `executionError` when the server answered (a 4xx is a refusal, not an outage); `null` when it never did. */
+  executionErrorStatus: number | null
 
   isVerifying: boolean
   verification: VerifyBellStateResult | null
@@ -221,6 +223,7 @@ export const useBuildStore = create<BuildState>((set, get) => ({
   isExecuting: false,
   result: null,
   executionError: null,
+  executionErrorStatus: null,
 
   isVerifying: false,
   verification: null,
@@ -461,7 +464,12 @@ export const useBuildStore = create<BuildState>((set, get) => ({
           : err instanceof Error
             ? err.message
             : String(err)
-      set({ executionError: message, result: null, isExecuting: false })
+      set({
+        executionError: message,
+        executionErrorStatus: err instanceof BackendUnavailableError ? (err.status ?? null) : null,
+        result: null,
+        isExecuting: false,
+      })
     }
   },
 

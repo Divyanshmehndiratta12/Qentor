@@ -45,7 +45,7 @@ export function LearnScreen({ onOpenLab }: { onOpenLab: (circuit: Circuit) => vo
 
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col lg:flex-row">
-      <div className="flex max-h-[60vh] w-full shrink-0 flex-col border-b border-void-500 bg-void-900 lg:max-h-none lg:w-[380px] lg:border-r lg:border-b-0">
+      <div className="flex w-full shrink-0 flex-col border-b border-void-500 bg-void-900 lg:w-[380px] lg:border-r lg:border-b-0">
         <div className="border-b border-void-500 px-5 py-4">
           <h1 className="font-sans-ui text-lg font-semibold text-slate-100">Learn</h1>
           <p className="mt-1 text-[13px] leading-snug text-slate-400">

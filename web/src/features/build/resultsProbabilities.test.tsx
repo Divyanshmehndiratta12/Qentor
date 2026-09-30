@@ -9,7 +9,7 @@ import type { ExecutePayload } from '@/api'
 import { emptyCircuit, type Circuit } from '@/circuit/types'
 import { toQuantumValue, type Provenance } from '@/provenance/QuantumValue'
 
-const plotted: Array<{ data: Array<{ x: string[]; y: number[] }>; layout: { yaxis: { title: { text: string } } } }> = []
+const plotted: Array<{ data: Array<{ x: string[]; y: number[] }>; layout: { yaxis: { title: { text: string } }; xaxis: { type: string } } }> = []
 
 vi.mock('react-plotly.js/factory', () => ({
   default: () =>
@@ -97,6 +97,12 @@ describe('statevector run: theoretical probabilities', () => {
     expect(screen.queryByTestId('sampled-note')).toBeNull()
   })
 
+  it('draws the outcomes on a CATEGORY axis: bitstrings like 011 must not be read as the number 11', () => {
+    show(H, { ...STATEVECTOR, theoreticalProbabilities: { '000': 0.5, '011': 0.5 } }, 'statevector')
+    expect(plotted[0]!.layout.xaxis.type).toBe('category')
+    expect(plotted[0]!.data[0]!.x).toEqual(['000', '011'])
+  })
+
   it('states the bitstring order beside the chart', () => {
     show(H, STATEVECTOR, 'statevector')
     expect(screen.getByTestId('theoretical-probabilities').textContent).toContain('q[n-1] … q[0]')
@@ -139,6 +145,11 @@ describe('shots run: sampled frequencies', () => {
     expect(plotted[0]!.layout.yaxis.title.text).toBe('sampled frequency')
     expect(screen.getByRole('columnheader', { name: 'sampled frequency' })).toBeTruthy()
     expect(screen.getByText('Sampled measurement outcomes')).toBeTruthy()
+  })
+
+  it('draws sampled outcomes on a category axis too', () => {
+    show(H_MEASURED, { ...SHOTS, probabilities: { '000': 0.5, '011': 0.5 }, counts: { '000': 4, '011': 4 } }, 'shots')
+    expect(plotted[0]!.layout.xaxis.type).toBe('category')
   })
 
   it('never calls a sampled number a probability', () => {
