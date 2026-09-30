@@ -28,6 +28,7 @@ from __future__ import annotations
 
 from fastapi import FastAPI, HTTPException
 
+from qentor.challenges import CHALLENGES, evaluate_challenge, get_challenge, public_view
 from qentor.circuit.codegen import CODEGEN_VERSION, generate_all
 from qentor.circuit.hashing import circuit_hash
 from qentor.circuit.model import Circuit
@@ -42,6 +43,7 @@ from qentor.execution.step_changes import compute_step_change
 from qentor.execution.trace import TraceBackendFault, TraceNotSupported, split_terminal_measurements, trace_circuit
 from qentor.lessons import LESSONS
 from qentor.provenance.models import ExecutionStatus, ProvenanceClass, ProvenanceRecord
+from qentor.provenance.attempts import AttemptRecord, AttemptStore
 from qentor.provenance.store import ProvenanceStore
 from qentor.tutor import (
     LessonContextError,
@@ -75,6 +77,9 @@ from .schemas import (
     AgreementPairResponse,
     AgreementRequest,
     AgreementResponse,
+    ChallengeCatalogResponse,
+    ChallengeSubmitRequest,
+    ChallengeSubmitResponse,
     CodeRequest,
     CodeResponse,
     EquivalenceRequest,
@@ -117,6 +122,7 @@ _adapters = {
     PennyLaneAdapter.name: PennyLaneAdapter(),
 }
 _store = ProvenanceStore()
+_attempts = AttemptStore()
 # None unless QENTOR_TUTOR_LLM_ENABLED and an API key are both set in the
 # server's own environment (qentor.tutor.config) — read once at process
 # startup, like _adapter/_store above. See backend/.env.example.
@@ -899,6 +905,112 @@ def list_lessons() -> LessonCatalogResponse:
     ``/api/execute`` itself accepts, not a result.
     """
     return LessonCatalogResponse(lessons=LESSONS)
+
+
+@app.get("/api/challenges", response_model=ChallengeCatalogResponse)
+def list_challenges() -> ChallengeCatalogResponse:
+    """The challenge catalog as a learner may see it: goals, constraints and hints - never a reference solution or a
+    target circuit (``qentor.challenges.models.public_view``)."""
+    return ChallengeCatalogResponse(challenges=[public_view(c) for c in CHALLENGES])
+
+
+@app.get("/api/challenges/{challenge_id}")
+def get_challenge_definition(challenge_id: str):
+    challenge = get_challenge(challenge_id)
+    if challenge is None:
+        raise HTTPException(status_code=404, detail={"code": "CHALLENGE_NOT_FOUND", "message": f"no challenge {challenge_id!r}"})
+    return public_view(challenge)
+
+
+@app.post("/api/challenges/{challenge_id}/submit", response_model=ChallengeSubmitResponse)
+def submit_challenge(challenge_id: str, request: ChallengeSubmitRequest) -> ChallengeSubmitResponse:
+    """Judge a circuit against a challenge, on the server, deterministically (``qentor.challenges.evaluate``).
+
+    The learner's circuit is traced on Qiskit Aer; every step is an ordinary provenance record, and each check names the
+    record it examined. Pass/fail is computed from backend statevectors and structural rules - never from an LLM, and never
+    from anything the client says (the request carries only a circuit). A failing circuit is a normal 200 response with
+    ``passed = false``; only a request that cannot be judged at all is an error (422 over a limit, 502 unusable backend
+    state, 503 backend unavailable). The attempt is written to the attempt log.
+    """
+    challenge = get_challenge(challenge_id)
+    if challenge is None:
+        raise HTTPException(status_code=404, detail={"code": "CHALLENGE_NOT_FOUND", "message": f"no challenge {challenge_id!r}"})
+
+    adapter = _adapters["qiskit-aer"]
+    _enforce_run_limits(request.circuit, adapter.name)
+    records: dict[str, ProvenanceRecord] = {}
+
+    def record_execution(result: ExecutionResult, prefix_hash: str) -> str:
+        record = _record_run(result, prefix_hash, request.circuit.num_qubits)
+        records[record.result_id] = record
+        return record.result_id
+
+    def error(status_code: int, code: str, message: str) -> HTTPException:
+        return HTTPException(status_code=status_code, detail={"code": code, "message": message})
+
+    try:
+        evaluation = evaluate_challenge(
+            challenge,
+            request.circuit,
+            adapter,
+            max_qubits=MAX_SWEEP_QUBITS,
+            max_operations=MAX_TEST_CASES - 1,
+            record_execution=record_execution,
+        )
+    except TraceNotSupported as exc:
+        raise error(422, exc.code, exc.message) from exc
+    except TraceBackendFault as exc:
+        raise error(502, exc.code, exc.message) from exc
+    except AdapterUnavailable as exc:
+        raise error(503, "CHALLENGE_BACKEND_UNAVAILABLE", f"Backend '{adapter.name}' is unavailable in this environment: {exc}") from exc
+    except AdapterExecutionError as exc:
+        raise error(400, "CHALLENGE_BACKEND_EXECUTION_FAILED", str(exc)) from exc
+
+    attempt = AttemptRecord.new(
+        challenge_id=challenge.id,
+        circuit_hash=evaluation.circuit_hash,
+        passed=evaluation.passed,
+        final_result_id=evaluation.final_result_id,
+        checks=[c.model_dump(mode="json") for c in evaluation.checks],
+    )
+    _attempts.insert(attempt)
+
+    named = {c.result_id for c in evaluation.checks if c.result_id} | ({evaluation.final_result_id} - {None})
+    provenance = {
+        rid: TraceProvenanceResponse(
+            result_id=rec.result_id,
+            circuit_hash=rec.circuit_hash,
+            backend=rec.backend,
+            backend_version=rec.backend_version,
+            execution_mode=rec.execution_mode,
+            provenance_class=rec.provenance_class.value,
+            verification_status=rec.verification_status.value,
+            created_at=rec.created_at,
+        )
+        for rid in named
+        if (rec := records.get(rid)) is not None
+    }
+    hint = (
+        challenge.hints[evaluation.next_hint_index]
+        if evaluation.next_hint_index is not None and evaluation.next_hint_index < len(challenge.hints)
+        else None
+    )
+    return ChallengeSubmitResponse(
+        attempt_id=attempt.attempt_id,
+        challenge_id=challenge.id,
+        circuit_hash=evaluation.circuit_hash,
+        passed=evaluation.passed,
+        verifier=evaluation.verifier,
+        checks=evaluation.checks,
+        backend=evaluation.backend,
+        backend_version=evaluation.backend_version,
+        final_result_id=evaluation.final_result_id,
+        provenance=provenance,
+        next_hint_index=evaluation.next_hint_index,
+        next_hint=hint,
+        success_message=challenge.success_message if evaluation.passed else None,
+        created_at=attempt.created_at,
+    )
 
 
 # Last, so every /api route above wins: serve the production web build (web/dist) from this same process, with the

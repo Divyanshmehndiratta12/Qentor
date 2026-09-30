@@ -202,7 +202,7 @@ def trace_circuit(
         prefix_hash = circuit_hash(prefix)
 
         result = adapter.run(prefix, "statevector")
-        _require_usable_state(result, circuit.num_qubits, prefix_hash)
+        require_usable_state(result, circuit.num_qubits, prefix_hash)
 
         if backend_name is None:
             backend_name, backend_version = result.backend_name, result.backend_version
@@ -282,7 +282,7 @@ def split_terminal_measurements(circuit: Circuit) -> tuple[list[GateOp], list[Te
     ]
 
 
-def _require_usable_state(result: ExecutionResult, num_qubits: int, prefix_hash: str) -> None:
+def require_usable_state(result: ExecutionResult, num_qubits: int, prefix_hash: str) -> None:
     """Reject — never repair — a result that isn't a real, normalised state."""
     state = result.statevector
     if result.execution_mode != "statevector" or state is None:

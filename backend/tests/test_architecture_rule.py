@@ -82,6 +82,11 @@ class TestNoTutorImportFromExecutionOrVerification(unittest.TestCase):
                     imported,
                     f"{py_file} imports qentor.provenance.store, which would let the tutor write results",
                 )
+                self.assertNotIn(
+                    "qentor.provenance.attempts",
+                    imported,
+                    f"{py_file} imports qentor.provenance.attempts, which would let the tutor write challenge verdicts",
+                )
         self.assertTrue(checked_any_file, "no .py files were found to check — test would pass vacuously")
 
 

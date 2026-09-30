@@ -13,6 +13,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from qentor.challenges import CheckOutcome, PublicChallenge
 from qentor.circuit.model import Circuit, GateOp
 from qentor.execution.bloch import BlochVector
 from qentor.execution.step_changes import StepChange
@@ -534,3 +535,46 @@ class AgreementResponse(BaseModel):
     backends: list[AgreementBackendResponse]
     pairs: list[AgreementPairResponse]
     provenance: TraceProvenanceResponse
+
+
+# --------------------------------------------------------------------------- #
+# Challenges                                                                  #
+# --------------------------------------------------------------------------- #
+
+
+class ChallengeCatalogResponse(BaseModel):
+    """Challenge definitions as a learner may see them: goal, constraints, hints. No reference solution and no target
+    circuit (``qentor.challenges.models.public_view``)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    challenges: list[PublicChallenge]
+
+
+class ChallengeSubmitRequest(BaseModel):
+    """The learner's canonical circuit and nothing else. There is no field for a verdict, a state or a number: the server
+    judges the circuit itself."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    circuit: Circuit
+
+
+class ChallengeSubmitResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    attempt_id: str
+    challenge_id: str
+    circuit_hash: str
+    passed: bool
+    verifier: str
+    checks: list[CheckOutcome]
+    backend: str | None
+    backend_version: str | None
+    final_result_id: str | None
+    # The provenance record behind every result id named above or in ``checks``: numbers in ``evidence`` come from these.
+    provenance: dict[str, "TraceProvenanceResponse"]
+    next_hint_index: int | None
+    next_hint: str | None
+    success_message: str | None
+    created_at: str

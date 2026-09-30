@@ -25,6 +25,19 @@ CREATE TABLE IF NOT EXISTS results (
     payload_json         TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_results_circuit_hash ON results (circuit_hash);
+
+-- One row per challenge submission: the deterministic verdict and the provenance record it examined. No user column:
+-- there are no accounts, so this is an audit log of verdicts the server itself computed, not a learner profile.
+CREATE TABLE IF NOT EXISTS challenge_attempts (
+    attempt_id      TEXT PRIMARY KEY,
+    challenge_id    TEXT NOT NULL,
+    circuit_hash    TEXT NOT NULL,
+    passed          INTEGER NOT NULL,
+    final_result_id TEXT,
+    checks_json     TEXT NOT NULL,
+    created_at      TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_attempts_challenge ON challenge_attempts (challenge_id);
 """
 
 
