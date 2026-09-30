@@ -1,0 +1,13 @@
+.git
+research
+docs
+backend/.venv
+backend/data
+backend/tests
+backend/scripts
+backend/.env
+**/__pycache__
+web/node_modules
+web/dist
+.env
+*.env.local

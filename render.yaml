@@ -1,0 +1,17 @@
+# Render blueprint: one web service built from the Dockerfile. Set secrets in the Render dashboard, never here.
+services:
+  - type: web
+    name: qentor
+    runtime: docker
+    plan: starter
+    healthCheckPath: /api/health
+    disk:
+      name: qentor-data
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: QENTOR_DB_PATH
+        value: /data/qentor.db
+      - key: QENTOR_TUTOR_LLM_ENABLED
+        value: "false"
+      # Optional, dashboard only:  QENTOR_TUTOR_LLM_API_KEY

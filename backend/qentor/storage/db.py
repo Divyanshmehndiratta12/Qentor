@@ -7,10 +7,13 @@ system" principle.
 
 from __future__ import annotations
 
+import os
 import sqlite3
 from pathlib import Path
 
-DEFAULT_DB_PATH = Path(__file__).resolve().parents[2] / "data" / "qentor.db"
+DB_PATH_ENV = "QENTOR_DB_PATH"
+# ``QENTOR_DB_PATH`` lets a deployment put the database on a mounted volume; otherwise it lives in backend/data (git-ignored).
+DEFAULT_DB_PATH = Path(os.environ.get(DB_PATH_ENV) or Path(__file__).resolve().parents[2] / "data" / "qentor.db")
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS results (

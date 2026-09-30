@@ -1135,6 +1135,13 @@ def compare_backends_endpoint(request: AgreementRequest) -> AgreementResponse:
     )
 
 
+@app.get("/api/health")
+def health() -> dict[str, str]:
+    """Liveness for a host's health check: the process is up and the API router is answering. It reads nothing, executes nothing
+    and reports nothing about the server (no path, secret or environment)."""
+    return {"status": "ok", "service": "qentor"}
+
+
 @app.get("/api/lessons", response_model=LessonCatalogResponse)
 def list_lessons() -> LessonCatalogResponse:
     """The read-only lesson catalog (``qentor.lessons``), already validated
