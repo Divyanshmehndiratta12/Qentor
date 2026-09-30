@@ -33,6 +33,7 @@ from fastapi import FastAPI, HTTPException
 from qentor.challenges import CHALLENGES, evaluate_challenge, get_challenge, public_view
 from qentor.circuit.codegen import CODEGEN_VERSION, generate_all
 from qentor.circuit.hashing import circuit_hash
+from qentor.circuit.qasm import to_qasm3
 from qentor.circuit.model import Circuit
 from qentor.execution.adapter import AdapterExecutionError, AdapterUnavailable, ExecutionResult
 from qentor.execution.aer import AerAdapter
@@ -100,6 +101,8 @@ from .schemas import (
     EquivalenceResponse,
     ExecuteRequest,
     ExecuteResponse,
+    ExportRequest,
+    ExportResponse,
     LessonCatalogResponse,
     MultiInputCaseResponse,
     MultiInputCounterexampleResponse,
@@ -925,6 +928,47 @@ def circuit_code_endpoint(request: CodeRequest) -> CodeResponse:
         circuit_hash=circuit_hash(request.circuit),
         generator=f"qentor.codegen/{CODEGEN_VERSION}",
         code=generate_all(request.circuit),
+    )
+
+
+EXPORT_FORMAT = "qentor.export/1"
+
+
+@app.post("/api/export/circuit", response_model=ExportResponse)
+def export_circuit_endpoint(request: ExportRequest) -> ExportResponse:
+    """A portable bundle for sharing: the canonical circuit, its OpenQASM 3, the generated Qiskit/Cirq/PennyLane source, and (if
+    ``result_id`` names a run of THIS circuit) that run's provenance metadata. It carries no probability, count or state (running
+    the circuit again produces them) and nothing of the server's: no path, key or storage detail."""
+    if len(request.circuit.ops) > MAX_OPERATIONS:
+        raise _limit_http_error(
+            LimitExceeded(
+                "CIRCUIT_TOO_MANY_OPERATIONS",
+                f"{len(request.circuit.ops)} operations is over the {MAX_OPERATIONS}-operation limit per request",
+                limit=MAX_OPERATIONS,
+                requested=len(request.circuit.ops),
+            )
+        )
+    chash = circuit_hash(request.circuit)
+    execution = None
+    if request.result_id is not None:
+        record = _store.get(request.result_id)
+        if record is None:
+            raise HTTPException(status_code=404, detail=f"no provenance record found for result_id '{request.result_id}'")
+        if record.circuit_hash != chash:
+            raise HTTPException(
+                status_code=422,
+                detail=f"circuit does not match provenance record '{request.result_id}': got circuit hash '{chash}', expected '{record.circuit_hash}'",
+            )
+        execution = _provenance_response(record)
+    return ExportResponse(
+        format=EXPORT_FORMAT,
+        circuit_hash=chash,
+        circuit=request.circuit,
+        qasm=to_qasm3(request.circuit),
+        generator=f"qentor.codegen/{CODEGEN_VERSION}",
+        code=generate_all(request.circuit),
+        execution=execution,
+        note="This file describes the circuit and how it was run. It holds no results: run the circuit again to get them.",
     )
 
 

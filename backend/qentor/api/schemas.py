@@ -686,3 +686,33 @@ class ComparisonTutorRequest(BaseModel):
     comparison_id: str = Field(min_length=1)
     question: str = Field(min_length=1, max_length=500)
     language: Literal["en", "hi", "kn"] = "en"
+
+
+# --------------------------------------------------------------------------- #
+# Export                                                                      #
+# --------------------------------------------------------------------------- #
+
+
+class ExportRequest(BaseModel):
+    """The circuit and, optionally, the id of a run of it whose METADATA should travel with it."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    circuit: Circuit
+    result_id: str | None = Field(default=None, min_length=1)
+
+
+class ExportResponse(BaseModel):
+    """A portable, read-only description of a circuit: canonical model, OpenQASM 3, generated source, and (when a run is named)
+    that run's provenance metadata - never its numbers, never a path, key or internal id of the server."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    format: str
+    circuit_hash: str
+    circuit: Circuit
+    qasm: str
+    generator: str
+    code: dict[str, str]
+    execution: TraceProvenanceResponse | None
+    note: str
