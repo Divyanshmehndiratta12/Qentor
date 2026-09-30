@@ -1,7 +1,7 @@
 """Write (or check) the shared golden fixtures in ``fixtures/circuits/``.
 
 The fixtures are the one definition of "what this circuit is, what its OpenQASM 3 text
-is, and what its hash is" that BOTH test suites check: the Python suite against the server
+is, what its hash is, and what its Qiskit / Cirq / PennyLane views read" that BOTH test suites check: the Python suite against the server
 emitter and hash, the TypeScript suite against the web emitter and parser
 (docs/ARCHITECTURE.md §4; CLAUDE.md: "the web emitter must match [the server's] on the
 fixtures"). Two implementations agreeing with one reviewed file is what makes them agree
@@ -25,6 +25,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from qentor.circuit.codegen import generate_all  # noqa: E402
 from qentor.circuit.hashing import circuit_hash  # noqa: E402
 from qentor.circuit.model import Circuit, GateOp  # noqa: E402
 from qentor.circuit.qasm import to_qasm3  # noqa: E402
@@ -186,6 +187,7 @@ def fixture_files() -> dict[str, str]:
                 "circuit": c.canonical_dict(),
                 "qasm": to_qasm3(c),
                 "hash": circuit_hash(c),
+                "code": generate_all(c),
             }
         )
     files["_equivalence.json"] = _dump(

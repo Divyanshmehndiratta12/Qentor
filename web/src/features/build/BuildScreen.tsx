@@ -8,7 +8,7 @@
 import { useEffect } from 'react'
 import { GatePalette } from './GatePalette'
 import { CircuitCanvas } from './CircuitCanvas'
-import { QASMEditor } from './QASMEditor'
+import { CodePane } from './CodePane'
 import { useBuildStore } from './store'
 
 const DEBOUNCE_MS = 250
@@ -33,7 +33,7 @@ export function BuildScreen() {
         <GatePalette />
       </div>
       <div className="min-h-0 flex-[2] border-t border-void-500">
-        <QASMEditor />
+        <CodePane />
       </div>
     </div>
   )

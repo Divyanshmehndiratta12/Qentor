@@ -119,5 +119,10 @@
     ]
   },
   "qasm": "OPENQASM 3.0;\ninclude \"stdgates.inc\";\nqubit[1] q;\nrz(1e-05) q[0];\nrz(1e-07) q[0];\nrz(1e+16) q[0];\nrz(1.5e+300) q[0];\nrz(0.0001) q[0];\nrz(123456789.125) q[0];\nrz(-0.0) q[0];\nrz(3.0) q[0];\nrz(0.30000000000000004) q[0];\nrz(1e+22) q[0];\n",
-  "hash": "190125eca8212466bceb14ecbad5680e7c32d067c9cbbb4d56b8f3eef0e08bd3"
+  "hash": "190125eca8212466bceb14ecbad5680e7c32d067c9cbbb4d56b8f3eef0e08bd3",
+  "code": {
+    "qiskit": "from qiskit import QuantumCircuit\n\nqc = QuantumCircuit(1)\nqc.rz(1e-05, 0)\nqc.rz(1e-07, 0)\nqc.rz(1e+16, 0)\nqc.rz(1.5e+300, 0)\nqc.rz(0.0001, 0)\nqc.rz(123456789.125, 0)\nqc.rz(-0.0, 0)\nqc.rz(3.0, 0)\nqc.rz(0.30000000000000004, 0)\nqc.rz(1e+22, 0)\n",
+    "cirq": "import cirq\n\nq = cirq.LineQubit.range(1)\n# Cirq lists q[0] first in a state; Qiskit lists qubit 0 last. The circuit is the same.\ncircuit = cirq.Circuit(\n    cirq.rz(1e-05)(q[0]),\n    cirq.rz(1e-07)(q[0]),\n    cirq.rz(1e+16)(q[0]),\n    cirq.rz(1.5e+300)(q[0]),\n    cirq.rz(0.0001)(q[0]),\n    cirq.rz(123456789.125)(q[0]),\n    cirq.rz(-0.0)(q[0]),\n    cirq.rz(3.0)(q[0]),\n    cirq.rz(0.30000000000000004)(q[0]),\n    cirq.rz(1e+22)(q[0]),\n)\n",
+    "pennylane": "import pennylane as qml\n\ndev = qml.device(\"default.qubit\", wires=1)\n\n\n@qml.qnode(dev)\ndef circuit():\n    qml.RZ(1e-05, wires=0)\n    qml.RZ(1e-07, wires=0)\n    qml.RZ(1e+16, wires=0)\n    qml.RZ(1.5e+300, wires=0)\n    qml.RZ(0.0001, wires=0)\n    qml.RZ(123456789.125, wires=0)\n    qml.RZ(-0.0, wires=0)\n    qml.RZ(3.0, wires=0)\n    qml.RZ(0.30000000000000004, wires=0)\n    qml.RZ(1e+22, wires=0)\n    # PennyLane lists wire 0 first in a state; Qiskit lists qubit 0 last. The circuit is the same.\n    return qml.state()\n"
+  }
 }

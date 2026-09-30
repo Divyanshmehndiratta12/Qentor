@@ -58,7 +58,7 @@ class TestFixtureFilesAreWellFormed(unittest.TestCase):
 
     def test_every_fixture_has_the_agreed_fields(self) -> None:
         for name, data in FIXTURES.items():
-            self.assertEqual(list(data), ["name", "description", "circuit", "qasm", "hash"], name)
+            self.assertEqual(list(data), ["name", "description", "circuit", "qasm", "hash", "code"], name)
             self.assertEqual(data["name"] + ".json", name)
             self.assertTrue(data["description"].strip(), name)
 

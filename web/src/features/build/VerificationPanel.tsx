@@ -38,6 +38,11 @@ export function VerificationPanel() {
         </button>
       </div>
 
+      <p className="text-[11px] leading-snug text-void-200" data-testid="verify-source">
+        Checks the stored {result.provenance.executionMode} result from {result.provenance.backend} {result.provenance.backendVersion}. It reads
+        that result, so there is no backend to choose here.
+      </p>
+
       {isVerifying && (
         <p className="flex items-center gap-2 text-sm text-slate-400">
           <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-cyan-glow" aria-hidden="true" />

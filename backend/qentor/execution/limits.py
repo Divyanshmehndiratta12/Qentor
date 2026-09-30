@@ -107,7 +107,14 @@ def check_run_limits(circuit: Circuit, backend: str, *, shots: int | None = None
         )
 
 
-def check_equivalence_limits(num_qubits: int) -> None:
+def check_equivalence_limits(num_qubits: int, num_operations: int = 0) -> None:
+    if num_operations > MAX_OPERATIONS:
+        raise LimitExceeded(
+            TOO_MANY_OPERATIONS,
+            f"{num_operations} operations is over the {MAX_OPERATIONS}-operation limit per request",
+            limit=MAX_OPERATIONS,
+            requested=num_operations,
+        )
     if num_qubits > EQUIVALENCE_MAX_QUBITS:
         raise LimitExceeded(
             TOO_MANY_QUBITS,

@@ -72,5 +72,10 @@
     ]
   },
   "qasm": "OPENQASM 3.0;\ninclude \"stdgates.inc\";\nqubit[3] q;\nbit[3] c;\nx q[0];\nx q[2];\nccx q[2], q[0], q[1];\nc[0] = measure q[0];\nc[1] = measure q[1];\nc[2] = measure q[2];\n",
-  "hash": "4f82e233ca516cbb01bb1b5647b21be84988f8814971e12656c8c36a23942ea8"
+  "hash": "4f82e233ca516cbb01bb1b5647b21be84988f8814971e12656c8c36a23942ea8",
+  "code": {
+    "qiskit": "from qiskit import QuantumCircuit\n\nqc = QuantumCircuit(3, 3)\nqc.x(0)\nqc.x(2)\nqc.ccx(2, 0, 1)\nqc.measure(0, 0)\nqc.measure(1, 1)\nqc.measure(2, 2)\n",
+    "cirq": "import cirq\n\nq = cirq.LineQubit.range(3)\n# Cirq lists q[0] first in a state; Qiskit lists qubit 0 last. The circuit is the same.\ncircuit = cirq.Circuit(\n    cirq.X(q[0]),\n    cirq.X(q[2]),\n    cirq.CCX(q[2], q[0], q[1]),\n    cirq.measure(q[0], key=\"c0\"),\n    cirq.measure(q[1], key=\"c1\"),\n    cirq.measure(q[2], key=\"c2\"),\n)\n",
+    "pennylane": "import pennylane as qml\n\ndev = qml.device(\"default.qubit\", wires=3)\n\n\n@qml.qnode(dev)\ndef circuit():\n    qml.PauliX(wires=0)\n    qml.PauliX(wires=2)\n    qml.Toffoli(wires=[2, 0, 1])\n    # measured: q0 -> c0, q1 -> c1, q2 -> c2\n    return qml.probs(wires=[0, 1, 2])\n"
+  }
 }

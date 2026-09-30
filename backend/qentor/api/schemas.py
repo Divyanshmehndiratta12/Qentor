@@ -417,3 +417,116 @@ class LessonCatalogResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     lessons: list[Lesson]
+
+
+# --------------------------------------------------------------------------- #
+# Read-only code views                                                        #
+# --------------------------------------------------------------------------- #
+
+
+class CodeRequest(BaseModel):
+    """The canonical circuit and nothing else: the server writes the code."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    circuit: Circuit
+
+
+class CodeResponse(BaseModel):
+    """Qiskit, Cirq and PennyLane source for the circuit, as TEXT. Nothing here is executed by the
+    server or by the browser (``qentor.circuit.codegen``)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    circuit_hash: str
+    generator: str
+    code: dict[str, str]
+
+
+# --------------------------------------------------------------------------- #
+# Equivalence                                                                 #
+# --------------------------------------------------------------------------- #
+
+
+class EquivalenceRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    circuit_a: Circuit
+    circuit_b: Circuit
+
+
+class EquivalenceResponse(BaseModel):
+    """The equivalence checker's own report (``qentor.verification.equivalence``): operator equality up to a
+    global phase, with the checks that led to the verdict. ``UNVERIFIABLE`` says why nothing was decided."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    status: str
+    method: str
+    checker_version: str
+    circuit_hash_a: str
+    circuit_hash_b: str
+    global_phase: float | None
+    checks: list[VerificationCheckResponse]
+    reason: str | None
+
+
+# --------------------------------------------------------------------------- #
+# Cross-backend agreement                                                     #
+# --------------------------------------------------------------------------- #
+
+
+class AgreementRequest(BaseModel):
+    """The circuit, and optionally which backends to compare (default: all three; at least two)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    circuit: Circuit
+    backends: list[Literal["qiskit-aer", "cirq", "pennylane"]] | None = None
+
+    @model_validator(mode="after")
+    def _at_least_two_distinct(self) -> "AgreementRequest":
+        if self.backends is not None and len(set(self.backends)) < 2:
+            raise ValueError("backends must name at least two different backends to compare")
+        return self
+
+
+class AgreementBackendResponse(BaseModel):
+    """What happened on one backend. ``status`` is ``RAN`` (state-checked result, with its provenance),
+    ``REFUSED`` (over a limit or a gate it cannot run), ``UNAVAILABLE`` (not installed or blocked),
+    or ``FAILED`` (it ran but failed, or returned a malformed state). Never a substitute result."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    backend: str
+    status: Literal["RAN", "REFUSED", "UNAVAILABLE", "FAILED"]
+    message: str | None
+    provenance: TraceProvenanceResponse | None
+
+
+class AgreementPairResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    backend_a: str
+    backend_b: str
+    max_amplitude_difference: float
+    max_probability_difference: float
+    fidelity: float
+    agrees: bool
+
+
+class AgreementResponse(BaseModel):
+    """The server's comparison of the backends' statevectors. ``provenance`` is the comparison's own record;
+    each backend that ran carries its own. Terminal measurements are stripped before running (a measured
+    statevector collapses at random) and their number is reported."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    method: str
+    threshold: float
+    status: Literal["AGREE", "DISAGREE", "INCOMPLETE"]
+    circuit_hash: str
+    terminal_measurements_stripped: int
+    backends: list[AgreementBackendResponse]
+    pairs: list[AgreementPairResponse]
+    provenance: TraceProvenanceResponse

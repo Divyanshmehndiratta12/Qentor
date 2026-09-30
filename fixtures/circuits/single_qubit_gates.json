@@ -81,5 +81,10 @@
     ]
   },
   "qasm": "OPENQASM 3.0;\ninclude \"stdgates.inc\";\nqubit[1] q;\nh q[0];\nx q[0];\ny q[0];\nz q[0];\ns q[0];\nsdg q[0];\nt q[0];\ntdg q[0];\n",
-  "hash": "77250f70f21bb05128374bc5b40f46c6778bdfbb5f5a950d45385cd95e66b117"
+  "hash": "77250f70f21bb05128374bc5b40f46c6778bdfbb5f5a950d45385cd95e66b117",
+  "code": {
+    "qiskit": "from qiskit import QuantumCircuit\n\nqc = QuantumCircuit(1)\nqc.h(0)\nqc.x(0)\nqc.y(0)\nqc.z(0)\nqc.s(0)\nqc.sdg(0)\nqc.t(0)\nqc.tdg(0)\n",
+    "cirq": "import cirq\n\nq = cirq.LineQubit.range(1)\n# Cirq lists q[0] first in a state; Qiskit lists qubit 0 last. The circuit is the same.\ncircuit = cirq.Circuit(\n    cirq.H(q[0]),\n    cirq.X(q[0]),\n    cirq.Y(q[0]),\n    cirq.Z(q[0]),\n    cirq.S(q[0]),\n    (cirq.S**-1)(q[0]),\n    cirq.T(q[0]),\n    (cirq.T**-1)(q[0]),\n)\n",
+    "pennylane": "import pennylane as qml\n\ndev = qml.device(\"default.qubit\", wires=1)\n\n\n@qml.qnode(dev)\ndef circuit():\n    qml.Hadamard(wires=0)\n    qml.PauliX(wires=0)\n    qml.PauliY(wires=0)\n    qml.PauliZ(wires=0)\n    qml.S(wires=0)\n    qml.adjoint(qml.S)(wires=0)\n    qml.T(wires=0)\n    qml.adjoint(qml.T)(wires=0)\n    # PennyLane lists wire 0 first in a state; Qiskit lists qubit 0 last. The circuit is the same.\n    return qml.state()\n"
+  }
 }

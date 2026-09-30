@@ -174,7 +174,7 @@ def trace_circuit(
             "sampled counts, which have no per-operation state to trace",
         )
 
-    unitary_ops, terminal_measurements = _split_terminal_measurements(circuit)
+    unitary_ops, terminal_measurements = split_terminal_measurements(circuit)
 
     if circuit.num_qubits > max_qubits:
         raise TraceNotSupported(
@@ -260,7 +260,7 @@ def trace_circuit(
     )
 
 
-def _split_terminal_measurements(circuit: Circuit) -> tuple[list[GateOp], list[TerminalMeasurement]]:
+def split_terminal_measurements(circuit: Circuit) -> tuple[list[GateOp], list[TerminalMeasurement]]:
     """Ops before the first ``measure`` are traced; ``measure`` ops after that
     must all be measures (terminal). Anything else after a measure is refused."""
     first_measure = next((i for i, op in enumerate(circuit.ops) if op.gate is GateName.MEASURE), None)

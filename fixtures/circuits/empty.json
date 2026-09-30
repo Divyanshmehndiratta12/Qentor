@@ -8,5 +8,10 @@
     "ops": []
   },
   "qasm": "OPENQASM 3.0;\ninclude \"stdgates.inc\";\nqubit[1] q;\n",
-  "hash": "78ad830c6a53f4666898bd00b494d1a50e7d317b3f960055b32fb4f179c35979"
+  "hash": "78ad830c6a53f4666898bd00b494d1a50e7d317b3f960055b32fb4f179c35979",
+  "code": {
+    "qiskit": "from qiskit import QuantumCircuit\n\nqc = QuantumCircuit(1)\n",
+    "cirq": "import cirq\n\nq = cirq.LineQubit.range(1)\n# Cirq lists q[0] first in a state; Qiskit lists qubit 0 last. The circuit is the same.\ncircuit = cirq.Circuit()\n",
+    "pennylane": "import pennylane as qml\n\ndev = qml.device(\"default.qubit\", wires=1)\n\n\n@qml.qnode(dev)\ndef circuit():\n    # PennyLane lists wire 0 first in a state; Qiskit lists qubit 0 last. The circuit is the same.\n    return qml.state()\n"
+  }
 }

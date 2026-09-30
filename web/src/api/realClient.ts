@@ -4,6 +4,7 @@
  * caller is a `QuantumValue` built from that parsed data — never a raw
  * `fetch` JSON object a component could render without a provenance badge.
  */
+import type { z } from 'zod'
 import { CircuitSchema, type Circuit } from '@/circuit/types'
 import {
   provenanceFromExecuteResponse,
@@ -12,6 +13,9 @@ import {
   type QuantumValue,
 } from '@/provenance/QuantumValue'
 import {
+  AgreementResponseSchema,
+  CodeResponseSchema,
+  EquivalenceResponseSchema,
   ExecuteResponseSchema,
   LessonCatalogResponseSchema,
   MultiInputTestResponseSchema,
@@ -29,7 +33,10 @@ import {
   BackendUnavailableError,
   TraceRejectedError,
   type ApiClient,
+  type AgreementResult,
   type Backend,
+  type CodeViewsResult,
+  type EquivalenceResult,
   type ExecutePayload,
   type ExecutionMode,
   type ExecutionTraceResult,
@@ -75,6 +82,7 @@ export class RealApiClient implements ApiClient {
     circuit: Circuit,
     mode: ExecutionMode,
     shots?: number,
+    backend?: Backend,
   ): Promise<QuantumValue<ExecutePayload>> {
     // Validate the outgoing circuit locally too, so a malformed request never
     // even reaches the network — the server's own `extra="forbid"` model is
@@ -86,7 +94,7 @@ export class RealApiClient implements ApiClient {
       res = await fetch(`${this.baseUrl}/api/execute`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ circuit: validCircuit, mode, shots: shots ?? null }),
+        body: JSON.stringify({ circuit: validCircuit, mode, shots: shots ?? null, ...(backend ? { backend } : {}) }),
       })
     } catch (err) {
       throw new BackendUnavailableError(
@@ -181,6 +189,83 @@ export class RealApiClient implements ApiClient {
       checks: response.checks,
       expectedSupport: response.expected_support,
       observedSupport: response.observed_support,
+    }
+  }
+
+  /**
+   * POST a JSON body, parse the answer with `schema`. Used by the read-only Lab endpoints below: each sends the
+   * canonical circuit(s) and nothing else, so no probability, statevector, verdict or piece of code can be attached.
+   */
+  private async postParsed<S extends z.ZodType>(path: string, body: unknown, schema: S): Promise<z.infer<S>> {
+    let res: Response
+    try {
+      res = await fetch(`${this.baseUrl}${path}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+    } catch (err) {
+      throw new BackendUnavailableError(
+        `could not reach the Qentor backend: ${err instanceof Error ? err.message : String(err)}`,
+      )
+    }
+    if (!res.ok) {
+      const detail = await safeErrorDetail(res)
+      throw new BackendUnavailableError(detail, res.status)
+    }
+    return schema.parse(await res.json())
+  }
+
+  async generateCode(circuit: Circuit): Promise<CodeViewsResult> {
+    const response = await this.postParsed('/api/circuit/code', { circuit: CircuitSchema.parse(circuit) }, CodeResponseSchema)
+    return { circuitHash: response.circuit_hash, generator: response.generator, code: response.code }
+  }
+
+  async checkEquivalence(circuitA: Circuit, circuitB: Circuit): Promise<EquivalenceResult> {
+    const response = await this.postParsed(
+      '/api/verify/equivalence',
+      { circuit_a: CircuitSchema.parse(circuitA), circuit_b: CircuitSchema.parse(circuitB) },
+      EquivalenceResponseSchema,
+    )
+    return {
+      status: response.status,
+      method: response.method,
+      checkerVersion: response.checker_version,
+      circuitHashA: response.circuit_hash_a,
+      circuitHashB: response.circuit_hash_b,
+      globalPhase: response.global_phase,
+      checks: response.checks,
+      reason: response.reason,
+    }
+  }
+
+  async compareBackends(circuit: Circuit, backends?: Backend[]): Promise<AgreementResult> {
+    const response = await this.postParsed(
+      '/api/compare/backends',
+      { circuit: CircuitSchema.parse(circuit), ...(backends ? { backends } : {}) },
+      AgreementResponseSchema,
+    )
+    return {
+      method: response.method,
+      threshold: response.threshold,
+      status: response.status,
+      circuitHash: response.circuit_hash,
+      terminalMeasurementsStripped: response.terminal_measurements_stripped,
+      backends: response.backends.map((b) => ({
+        backend: b.backend,
+        status: b.status,
+        message: b.message,
+        provenance: b.provenance ? provenanceFromTraceStep(b.provenance) : null,
+      })),
+      pairs: response.pairs.map((p) => ({
+        backendA: p.backend_a,
+        backendB: p.backend_b,
+        maxAmplitudeDifference: p.max_amplitude_difference,
+        maxProbabilityDifference: p.max_probability_difference,
+        fidelity: p.fidelity,
+        agrees: p.agrees,
+      })),
+      provenance: provenanceFromTraceStep(response.provenance),
     }
   }
 

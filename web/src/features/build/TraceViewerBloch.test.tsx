@@ -385,7 +385,8 @@ describe('the Lab: browsing a trace changes nothing else', () => {
 
     expect(traceCircuit).toHaveBeenCalledTimes(1)
     expect(traceCircuit.mock.calls[0]![0]).toEqual(CIRCUIT)
-    expect(traceCircuit.mock.calls[0]).toHaveLength(1) // circuit only: nothing about coordinates goes out
+    // the circuit and the NAME of the chosen backend: nothing about coordinates (or any value) goes out
+    expect(traceCircuit.mock.calls[0]).toEqual([CIRCUIT, 'qiskit-aer'])
     expect(HZH_BLOCH_STATES).toHaveLength(4) // (fixture sanity)
   })
 })

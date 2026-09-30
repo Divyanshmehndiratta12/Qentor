@@ -10,7 +10,9 @@ import { create } from 'zustand'
 import { getApiClient, BackendUnavailableError, EndpointNotImplementedError } from '@/api'
 import { TraceRejectedError } from '@/api'
 import type {
+  AgreementResult,
   Backend,
+  EquivalenceResult,
   ExecutePayload,
   ExecutionMode,
   ExecutionTraceResult,
@@ -75,6 +77,10 @@ let traceRequestSeq = 0
 // answer may be shown.
 let executionRequestSeq = 0
 
+// Newest-request-wins counters for the two read-only Lab checks (see `runEquivalence` / `runAgreement`).
+let equivalenceRequestSeq = 0
+let agreementRequestSeq = 0
+
 interface BuildState {
   circuit: Circuit
   qasmText: string
@@ -87,6 +93,8 @@ interface BuildState {
 
   mode: ExecutionMode
   shots: number
+  /** Which simulator Run, Trace and Optimize send their request to (the server runs it; this is only a name). */
+  backend: Backend
 
   isExecuting: boolean
   result: QuantumValue<ExecutePayload> | null
@@ -145,6 +153,28 @@ interface BuildState {
   setShots: (shots: number) => void
   runExecution: () => Promise<void>
   runVerification: () => Promise<void>
+
+  /** Choosing another simulator makes every derived result (which belongs to the old one) stale, so they are cleared. */
+  setBackend: (backend: Backend) => void
+
+  /**
+   * A snapshot of the circuit to compare later edits against ("am I still equivalent to what I started with?").
+   * Just a circuit the learner chose to keep; it holds no result. The verdict comes from the server's checker.
+   */
+  referenceCircuit: Circuit | null
+  pinReference: () => void
+  clearReference: () => void
+  isCheckingEquivalence: boolean
+  /** The server's verdict on `{a, b}`; shown only while `b` is still the circuit on screen and `a` the pinned one. */
+  equivalence: { result: EquivalenceResult; a: Circuit; b: Circuit } | null
+  equivalenceError: string | null
+  runEquivalence: () => Promise<void>
+
+  isComparingBackends: boolean
+  /** The server's cross-backend comparison of `circuit`; shown only while that is still the circuit on screen. */
+  agreement: { result: AgreementResult; circuit: Circuit } | null
+  agreementError: string | null
+  runAgreement: () => Promise<void>
   /** Asks the backend for the per-operation trace of the current circuit.
    * Reads the circuit, never writes it. */
   runTrace: () => Promise<void>
@@ -186,6 +216,7 @@ export const useBuildStore = create<BuildState>((set, get) => ({
 
   mode: 'statevector',
   shots: 1024,
+  backend: 'qiskit-aer',
 
   isExecuting: false,
   result: null,
@@ -194,6 +225,15 @@ export const useBuildStore = create<BuildState>((set, get) => ({
   isVerifying: false,
   verification: null,
   verificationError: null,
+
+  referenceCircuit: null,
+  isCheckingEquivalence: false,
+  equivalence: null,
+  equivalenceError: null,
+
+  isComparingBackends: false,
+  agreement: null,
+  agreementError: null,
 
   tutorTurns: [],
   isAskingTutor: false,
@@ -338,8 +378,29 @@ export const useBuildStore = create<BuildState>((set, get) => ({
     }),
   setShots: (shots) => set({ shots: Math.max(1, Math.floor(shots)) }),
 
+  setBackend: (backend) => {
+    if (backend === get().backend) return // nothing to write: no churn for subscribers
+    ++executionRequestSeq // anything in flight was asked of the old backend
+    ++traceRequestSeq
+    set({
+      backend,
+      ...TRACE_CLEARED,
+      isExecuting: false,
+      result: null,
+      executionError: null,
+      verification: null,
+      verificationError: null,
+      tutorTurns: [],
+      isAskingTutor: false,
+      optimization: null,
+      optimizationError: null,
+      multiInputTest: null,
+      multiInputTestError: null,
+    })
+  },
+
   runExecution: async () => {
-    const { circuit, mode, shots } = get()
+    const { circuit, mode, shots, backend } = get()
     // Every call is a new "latest" request; anything still in flight from an
     // earlier call is superseded (see `isStale` below).
     const seq = ++executionRequestSeq
@@ -381,6 +442,7 @@ export const useBuildStore = create<BuildState>((set, get) => ({
       seq !== executionRequestSeq ||
       get().circuit !== circuit ||
       get().mode !== mode ||
+      get().backend !== backend ||
       (mode === 'shots' && get().shots !== shots)
     const dropStale = () => {
       if (seq === executionRequestSeq) set({ isExecuting: false })
@@ -388,7 +450,7 @@ export const useBuildStore = create<BuildState>((set, get) => ({
 
     try {
       const client = getApiClient()
-      const result = await client.executeCircuit(circuit, mode, mode === 'shots' ? shots : undefined)
+      const result = await client.executeCircuit(circuit, mode, mode === 'shots' ? shots : undefined, backend)
       if (isStale()) return dropStale()
       set({ result, isExecuting: false })
     } catch (err) {
@@ -430,18 +492,18 @@ export const useBuildStore = create<BuildState>((set, get) => ({
     // state. It does not gate on an execution `result` (the backend traces
     // the circuit itself) and does no eligibility checking of its own: an
     // untraceable circuit comes back as the backend's structured refusal.
-    const { circuit } = get()
+    const { circuit, backend } = get()
     const seq = ++traceRequestSeq
     set({ isTracing: true, trace: null, traceError: null, selectedTraceStep: 0 })
 
     // Discard the response if the circuit changed in flight (the mutation
     // already cleared the trace fields) or a newer trace request superseded
     // this one — never resurrect a trace of a circuit that no longer exists.
-    const isStale = () => seq !== traceRequestSeq || get().circuit !== circuit
+    const isStale = () => seq !== traceRequestSeq || get().circuit !== circuit || get().backend !== backend
 
     try {
       const client = getApiClient()
-      const trace = await client.traceCircuit(circuit)
+      const trace = await client.traceCircuit(circuit, backend)
       if (isStale()) return
       set({ trace, isTracing: false, selectedTraceStep: 0 })
     } catch (err) {
@@ -458,8 +520,54 @@ export const useBuildStore = create<BuildState>((set, get) => ({
     set({ selectedTraceStep: next })
   },
 
-  runOptimization: async () => {
+  pinReference: () => set({ referenceCircuit: get().circuit, equivalence: null, equivalenceError: null }),
+
+  clearReference: () => set({ referenceCircuit: null, equivalence: null, equivalenceError: null }),
+
+  runEquivalence: async () => {
+    const { circuit, referenceCircuit } = get()
+    if (!referenceCircuit) return
+    const seq = ++equivalenceRequestSeq
+    set({ isCheckingEquivalence: true, equivalenceError: null })
+    // A verdict only counts for the pair it was asked about: if the circuit or the pinned reference changed
+    // while the server was thinking, the answer is dropped, never shown against a different pair.
+    const isStale = () => seq !== equivalenceRequestSeq || get().circuit !== circuit || get().referenceCircuit !== referenceCircuit
+    // Only the newest request owns the "checking" flag, so a dropped answer can neither strand it on nor turn it off
+    // under a newer request that is still running.
+    const dropStale = () => {
+      if (seq === equivalenceRequestSeq) set({ isCheckingEquivalence: false })
+    }
+    try {
+      const result = await getApiClient().checkEquivalence(referenceCircuit, circuit)
+      if (isStale()) return dropStale()
+      set({ equivalence: { result, a: referenceCircuit, b: circuit }, isCheckingEquivalence: false })
+    } catch (err) {
+      if (isStale()) return dropStale()
+      set({ equivalenceError: err instanceof Error ? err.message : String(err), equivalence: null, isCheckingEquivalence: false })
+    }
+  },
+
+  runAgreement: async () => {
     const { circuit } = get()
+    if (circuit.ops.length === 0) return
+    const seq = ++agreementRequestSeq
+    set({ isComparingBackends: true, agreementError: null })
+    const isStale = () => seq !== agreementRequestSeq || get().circuit !== circuit
+    const dropStale = () => {
+      if (seq === agreementRequestSeq) set({ isComparingBackends: false })
+    }
+    try {
+      const result = await getApiClient().compareBackends(circuit)
+      if (isStale()) return dropStale()
+      set({ agreement: { result, circuit }, isComparingBackends: false })
+    } catch (err) {
+      if (isStale()) return dropStale()
+      set({ agreementError: err instanceof Error ? err.message : String(err), agreement: null, isComparingBackends: false })
+    }
+  },
+
+  runOptimization: async () => {
+    const { circuit, backend } = get()
     // Optimize operates on the circuit itself, not an execution result — it
     // never needs a resultId, so unlike runVerification/askTutor it does not
     // gate on `result` existing at all.
@@ -467,7 +575,7 @@ export const useBuildStore = create<BuildState>((set, get) => ({
     set({ isOptimizing: true, optimizationError: null })
     try {
       const client = getApiClient()
-      const optimization = await client.optimizeCircuit(circuit)
+      const optimization = await client.optimizeCircuit(circuit, backend)
       set({ optimization, isOptimizing: false })
     } catch (err) {
       const message =

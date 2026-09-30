@@ -22,8 +22,11 @@ import type { Circuit } from '@/circuit/types'
 import { FIXTURE, toQuantumValue, type Provenance, type QuantumValue } from '@/provenance/QuantumValue'
 import { EndpointNotImplementedError } from './client'
 import type {
+  AgreementResult,
   ApiClient,
   Backend,
+  CodeViewsResult,
+  EquivalenceResult,
   ExecutePayload,
   ExecutionMode,
   ExecutionTraceResult,
@@ -75,6 +78,7 @@ export class MockApiClient implements ApiClient {
     circuit: Circuit,
     mode: ExecutionMode,
     shots?: number,
+    _backend?: Backend,
   ): Promise<QuantumValue<ExecutePayload>> {
     await delay(150)
 
@@ -111,6 +115,20 @@ export class MockApiClient implements ApiClient {
    */
   async traceCircuit(_circuit: Circuit, _backend?: Backend): Promise<ExecutionTraceResult> {
     throw new EndpointNotImplementedError('POST /api/execute/trace (the FIXTURE mock adapter cannot produce a trace)')
+  }
+
+  /** Deliberately NOT faked: generated code, an equivalence verdict and a cross-backend comparison are the server's
+   * to produce (a made-up one would be a made-up result). The UI renders this as an unavailable state. */
+  async generateCode(_circuit: Circuit): Promise<CodeViewsResult> {
+    throw new EndpointNotImplementedError('POST /api/circuit/code (the FIXTURE mock adapter cannot generate code)')
+  }
+
+  async checkEquivalence(_a: Circuit, _b: Circuit): Promise<EquivalenceResult> {
+    throw new EndpointNotImplementedError('POST /api/verify/equivalence (the FIXTURE mock adapter cannot decide equivalence)')
+  }
+
+  async compareBackends(_circuit: Circuit, _backends?: Backend[]): Promise<AgreementResult> {
+    throw new EndpointNotImplementedError('POST /api/compare/backends (the FIXTURE mock adapter cannot compare backends)')
   }
 
   /** FIXTURE only: the real verifier lives server-side. This recognises the

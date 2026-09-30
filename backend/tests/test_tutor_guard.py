@@ -469,7 +469,7 @@ class _Fake:
 class TestALyingModelNeverReachesTheLearner(unittest.TestCase):
     LIES = [
         "The outcome 00 occurred 512 out of 1024 times.",
-        "Each outcome has probability 1/2 exactly.",
+        "Each outcome has probability 1/7 exactly.",  # never a Bell frequency (1/2 can be, by chance)
         "The amplitude is 1/√2, so this circuit is verified correct.",
         "Your circuit passes and is equivalent to the ideal Bell circuit.",
         "The counts were 733 and 267.",

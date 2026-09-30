@@ -67,5 +67,10 @@
     ]
   },
   "qasm": "OPENQASM 3.0;\ninclude \"stdgates.inc\";\nqubit[2] q;\nbit[1] c;\nx q[1];\nh q[0];\nh q[1];\ncx q[0], q[1];\nh q[0];\nc[0] = measure q[0];\n",
-  "hash": "6b35b92a9606c709d9597d60f790daf83a2330ccf289c19eda42c1aae2e996a6"
+  "hash": "6b35b92a9606c709d9597d60f790daf83a2330ccf289c19eda42c1aae2e996a6",
+  "code": {
+    "qiskit": "from qiskit import QuantumCircuit\n\nqc = QuantumCircuit(2, 1)\nqc.x(1)\nqc.h(0)\nqc.h(1)\nqc.cx(0, 1)\nqc.h(0)\nqc.measure(0, 0)\n",
+    "cirq": "import cirq\n\nq = cirq.LineQubit.range(2)\n# Cirq lists q[0] first in a state; Qiskit lists qubit 0 last. The circuit is the same.\ncircuit = cirq.Circuit(\n    cirq.X(q[1]),\n    cirq.H(q[0]),\n    cirq.H(q[1]),\n    cirq.CNOT(q[0], q[1]),\n    cirq.H(q[0]),\n    cirq.measure(q[0], key=\"c0\"),\n)\n",
+    "pennylane": "import pennylane as qml\n\ndev = qml.device(\"default.qubit\", wires=2)\n\n\n@qml.qnode(dev)\ndef circuit():\n    qml.PauliX(wires=1)\n    qml.Hadamard(wires=0)\n    qml.Hadamard(wires=1)\n    qml.CNOT(wires=[0, 1])\n    qml.Hadamard(wires=0)\n    # measured: q0 -> c0\n    return qml.probs(wires=[0])\n"
+  }
 }

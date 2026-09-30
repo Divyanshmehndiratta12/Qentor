@@ -29,5 +29,10 @@
     ]
   },
   "qasm": "OPENQASM 3.0;\ninclude \"stdgates.inc\";\nqubit[1] q;\nbit[1] c;\nx q[0];\nc[0] = measure q[0];\n",
-  "hash": "96bbfa392fd41a0b002ebca56344e51c92a901d2a79f0042980366dbf9939bc8"
+  "hash": "96bbfa392fd41a0b002ebca56344e51c92a901d2a79f0042980366dbf9939bc8",
+  "code": {
+    "qiskit": "from qiskit import QuantumCircuit\n\nqc = QuantumCircuit(1, 1)\nqc.x(0)\nqc.measure(0, 0)\n",
+    "cirq": "import cirq\n\nq = cirq.LineQubit.range(1)\n# Cirq lists q[0] first in a state; Qiskit lists qubit 0 last. The circuit is the same.\ncircuit = cirq.Circuit(\n    cirq.X(q[0]),\n    cirq.measure(q[0], key=\"c0\"),\n)\n",
+    "pennylane": "import pennylane as qml\n\ndev = qml.device(\"default.qubit\", wires=1)\n\n\n@qml.qnode(dev)\ndef circuit():\n    qml.PauliX(wires=0)\n    # measured: q0 -> c0\n    return qml.probs(wires=[0])\n"
+  }
 }

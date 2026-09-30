@@ -13,6 +13,9 @@ import { VerificationPanel } from './VerificationPanel'
 import { OptimizePanel } from './OptimizePanel'
 import { MultiInputTestPanel } from './MultiInputTestPanel'
 import { TracePanel } from './TracePanel'
+import { AgreementPanel } from './AgreementPanel'
+import { BackendSelector } from './BackendSelector'
+import { EquivalencePanel } from './EquivalencePanel'
 import { VerifiedValueInline } from '@/provenance/VerifiedValue'
 import { ProvenanceBadge } from '@/provenance/ProvenanceBadge'
 import { toQuantumValue } from '@/provenance/QuantumValue'
@@ -35,7 +38,8 @@ export function ResultsPanel() {
         {result && <ProvenanceBadge provenance={result.provenance} />}
       </div>
 
-      <div className="flex items-center gap-3 border-b border-void-500 px-4 py-2.5 text-xs">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-void-500 px-4 py-2.5 text-xs">
+        <BackendSelector />
         <div className="flex items-center gap-1 rounded-lg border border-void-400 bg-void-950 p-[3px] font-medium">
           <button
             type="button"
@@ -106,6 +110,8 @@ export function ResultsPanel() {
         <VerificationPanel />
         <OptimizePanel />
         <MultiInputTestPanel />
+        <AgreementPanel />
+        <EquivalencePanel />
       </div>
     </div>
   )

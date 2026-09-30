@@ -466,3 +466,52 @@ export const MultiInputTestResponseSchema = z.object({
   overall_status: MultiInputOverallStatusSchema,
 })
 export type MultiInputTestResponse = z.infer<typeof MultiInputTestResponseSchema>
+
+// backend/qentor/api/schemas.py::CodeResponse — read-only source text for the circuit in three SDKs, written by the
+// server from the canonical model. It is displayed, never executed.
+export const CodeResponseSchema = z.object({
+  circuit_hash: z.string(),
+  generator: z.string(),
+  code: z.object({ qiskit: z.string(), cirq: z.string(), pennylane: z.string() }),
+})
+export type CodeResponse = z.infer<typeof CodeResponseSchema>
+
+// backend/qentor/api/schemas.py::EquivalenceResponse
+export const EquivalenceResponseSchema = z.object({
+  status: EquivalenceStatusSchema,
+  method: z.string(),
+  checker_version: z.string(),
+  circuit_hash_a: z.string(),
+  circuit_hash_b: z.string(),
+  global_phase: z.number().nullable(),
+  checks: z.array(VerificationCheckSchema),
+  reason: z.string().nullable(),
+})
+export type EquivalenceResponse = z.infer<typeof EquivalenceResponseSchema>
+
+// backend/qentor/api/schemas.py::AgreementResponse — the server's comparison of several backends' statevectors.
+export const AgreementBackendSchema = z.object({
+  backend: z.string(),
+  status: z.enum(['RAN', 'REFUSED', 'UNAVAILABLE', 'FAILED']),
+  message: z.string().nullable(),
+  provenance: TraceProvenanceSchema.nullable(),
+})
+export const AgreementPairSchema = z.object({
+  backend_a: z.string(),
+  backend_b: z.string(),
+  max_amplitude_difference: z.number(),
+  max_probability_difference: z.number(),
+  fidelity: z.number(),
+  agrees: z.boolean(),
+})
+export const AgreementResponseSchema = z.object({
+  method: z.string(),
+  threshold: z.number(),
+  status: z.enum(['AGREE', 'DISAGREE', 'INCOMPLETE']),
+  circuit_hash: z.string(),
+  terminal_measurements_stripped: z.number().int().nonnegative(),
+  backends: z.array(AgreementBackendSchema),
+  pairs: z.array(AgreementPairSchema),
+  provenance: TraceProvenanceSchema,
+})
+export type AgreementResponse = z.infer<typeof AgreementResponseSchema>
