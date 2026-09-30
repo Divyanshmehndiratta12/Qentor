@@ -60,6 +60,7 @@ export function SubmissionPanel({
   onRetry,
   canSubmit,
   nextStep,
+  debugSlot,
 }: {
   submission: ChallengeSubmission | null
   /** True while the circuit on screen is still the one that was judged. */
@@ -75,6 +76,8 @@ export function SubmissionPanel({
   canSubmit: boolean
   /** Rendered after a solve: where to go next (chosen by the recommendation, never by the verdict). */
   nextStep?: React.ReactNode
+  /** The debugger, shown under the checks once there is a verdict to debug. */
+  debugSlot?: React.ReactNode
 }) {
   const evaluatedChecks = submission?.checks.filter((c) => c.evaluated) ?? []
   const passedCount = evaluatedChecks.filter((c) => c.passed).length
@@ -173,6 +176,7 @@ export function SubmissionPanel({
           </p>
 
           {submission.passed && nextStep}
+          {debugSlot}
         </div>
       )}
     </section>

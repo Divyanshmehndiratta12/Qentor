@@ -16,6 +16,7 @@ import {
   AgreementResponseSchema,
   ChallengeCatalogResponseSchema,
   ChallengeSubmitResponseSchema,
+  DebugResponseSchema,
   CodeResponseSchema,
   EquivalenceResponseSchema,
   ExecuteResponseSchema,
@@ -40,6 +41,8 @@ import {
   type Challenge,
   type ChallengeSubmission,
   type CodeViewsResult,
+  type DebugReport,
+  type DebugRequestInput,
   type EquivalenceResult,
   type ExecutePayload,
   type ExecutionMode,
@@ -355,6 +358,49 @@ export class RealApiClient implements ApiClient {
       nextHint: response.next_hint,
       successMessage: response.success_message,
       createdAt: response.created_at,
+    }
+  }
+
+  async debugCircuit(input: DebugRequestInput): Promise<DebugReport> {
+    // Identifiers and the learner's own words only. The trace step is identity (indices, operation, record ids); the server
+    // verifies it against the circuit itself. Nothing quantum can be attached, and nothing is.
+    const body: Record<string, unknown> = { circuit: CircuitSchema.parse(input.circuit), language: input.language ?? 'en' }
+    if (input.resultId) body.result_id = input.resultId
+    if (input.challengeId && input.attemptId) {
+      body.challenge_id = input.challengeId
+      body.attempt_id = input.attemptId
+    }
+    const goal = input.goal?.trim()
+    if (goal) body.goal = goal
+    if (input.traceStep) {
+      body.trace_step = {
+        step_index: input.traceStep.stepIndex,
+        operation_index: input.traceStep.operationIndex,
+        operation: input.traceStep.operation,
+        result_id: input.traceStep.resultId,
+        execution_id: input.traceStep.executionId,
+        circuit_hash: input.traceStep.circuitHash,
+        backend: input.traceStep.backend,
+        backend_version: input.traceStep.backendVersion,
+        previous_result_id: input.traceStep.previousResultId,
+      }
+    }
+    const response = await this.postParsed('/api/debug', body, DebugResponseSchema)
+    const section = (s: { text: string; fact_ids: string[] }) => ({ text: s.text, factIds: s.fact_ids })
+    return {
+      observed: section(response.observed),
+      evidence: response.evidence.map(section),
+      mismatch: section(response.mismatch),
+      nextExperiment: section(response.next_experiment),
+      hint: response.hint ? section(response.hint) : null,
+      facts: response.facts.map((f) => ({ id: f.id, kind: f.kind, description: f.description, resultId: f.result_id })),
+      usedFallbackTemplate: response.used_fallback_template,
+      groundedIn: response.grounded_in,
+      resultId: response.result_id,
+      circuitHash: response.circuit_hash,
+      provenanceClass: response.provenance_class,
+      verificationStatus: response.verification_status,
+      attemptId: response.attempt_id,
     }
   }
 

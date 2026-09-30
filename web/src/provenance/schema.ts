@@ -606,3 +606,27 @@ export const ChallengeSubmitResponseSchema = z.object({
   created_at: z.string(),
 })
 export type ChallengeSubmitResponse = z.infer<typeof ChallengeSubmitResponseSchema>
+
+
+// ---------------------------------------------------------------------------
+// Circuit debugger — backend/qentor/api/schemas.py::DebugResponse
+// ---------------------------------------------------------------------------
+
+export const DebugSectionSchema = z.object({ text: z.string(), fact_ids: z.array(z.string()) })
+
+export const DebugResponseSchema = z.object({
+  observed: DebugSectionSchema,
+  evidence: z.array(DebugSectionSchema),
+  mismatch: DebugSectionSchema,
+  next_experiment: DebugSectionSchema,
+  hint: DebugSectionSchema.nullable(),
+  facts: z.array(TutorFactSchema),
+  used_fallback_template: z.boolean(),
+  grounded_in: z.enum(['challenge', 'result', 'failed_run']),
+  result_id: z.string().nullable(),
+  circuit_hash: z.string(),
+  provenance_class: z.string().nullable(),
+  verification_status: z.string().nullable(),
+  attempt_id: z.string().nullable(),
+})
+export type DebugResponse = z.infer<typeof DebugResponseSchema>

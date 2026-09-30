@@ -27,6 +27,8 @@ import type {
   Backend,
   Challenge,
   ChallengeSubmission,
+  DebugReport,
+  DebugRequestInput,
   CodeViewsResult,
   EquivalenceResult,
   ExecutePayload,
@@ -140,6 +142,11 @@ export class MockApiClient implements ApiClient {
 
   async submitChallenge(_challengeId: string, _circuit: Circuit): Promise<ChallengeSubmission> {
     throw new EndpointNotImplementedError('POST /api/challenges/{id}/submit (the FIXTURE mock adapter cannot judge a circuit)')
+  }
+
+  /** Deliberately NOT faked: a debugging report is built by the server from its own records. */
+  async debugCircuit(_request: DebugRequestInput): Promise<DebugReport> {
+    throw new EndpointNotImplementedError('POST /api/debug (the FIXTURE mock adapter cannot debug a circuit)')
   }
 
   /** FIXTURE only: the real verifier lives server-side. This recognises the

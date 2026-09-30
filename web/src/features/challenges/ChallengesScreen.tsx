@@ -15,6 +15,8 @@ import { useAutoRun } from '@/features/build/useAutoRun'
 import { useLearnStore } from '@/features/learn/store'
 import { StateNotice } from '@/features/shell/StateNotice'
 import { TutorPanel } from '@/features/tutor/TutorPanel'
+import { DebugPanel } from '@/features/debug/DebugPanel'
+import { useDebugStore } from '@/features/debug/store'
 import { ChallengeBrief } from './ChallengeBrief'
 import { ChallengeList } from './ChallengeList'
 import { SubmissionPanel } from './SubmissionPanel'
@@ -63,6 +65,8 @@ export function ChallengesScreen({
   const circuit = useBuildStore((s) => s.circuit)
   const lessons = useLearnStore((s) => s.lessons)
   const fetchLessons = useLearnStore((s) => s.fetchLessons)
+  const tutorLanguage = useBuildStore((s) => s.tutorLanguage)
+  const clearDebug = useDebugStore((s) => s.clear)
   const [tab, setTab] = useState<Tab>('check')
 
   useEffect(() => {
@@ -89,6 +93,12 @@ export function ChallengesScreen({
   useEffect(() => {
     selectionChange.current?.(selectedId)
   }, [selectedId])
+
+  // A debugging report belongs to one challenge and one judged attempt: drop it when either changes.
+  const attemptId = submission?.result.attemptId
+  useEffect(() => {
+    clearDebug('challenge')
+  }, [selectedId, attemptId, clearDebug])
 
   const challenge = challenges.find((c) => c.id === selectedId) ?? null
   const record = (challenge && outcomes.records[challenge.id]) || emptyRecord()
@@ -211,6 +221,23 @@ export function ChallengesScreen({
                       if (index !== null && index !== undefined) revealHintsThrough(challenge.id, index)
                     }}
                     nextStep={renderNextStep?.(challenge.id)}
+                    debugSlot={
+                      <DebugPanel
+                        scope="challenge"
+                        disabledReason="Submit your circuit first: the debugger works from what the server checked."
+                        input={
+                          submission && submission.challengeId === challenge.id && current
+                            ? {
+                                circuit,
+                                challengeId: challenge.id,
+                                attemptId: submission.result.attemptId,
+                                resultId: submission.result.finalResultId,
+                                language: tutorLanguage,
+                              }
+                            : null
+                        }
+                      />
+                    }
                   />
                 ) : (
                   <div className="h-[32rem] lg:h-full">

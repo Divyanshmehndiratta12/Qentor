@@ -13,6 +13,7 @@ import { VerificationPanel } from './VerificationPanel'
 import { OptimizePanel } from './OptimizePanel'
 import { MultiInputTestPanel } from './MultiInputTestPanel'
 import { TracePanel } from './TracePanel'
+import { LabDebug } from '@/features/debug/LabDebug'
 import { AgreementPanel } from './AgreementPanel'
 import { BackendSelector } from './BackendSelector'
 import { EquivalencePanel } from './EquivalencePanel'
@@ -119,6 +120,7 @@ export function ResultsPanel() {
         )}
 
         <TracePanel />
+        <LabDebug />
         <VerificationPanel />
         <OptimizePanel />
         <MultiInputTestPanel />

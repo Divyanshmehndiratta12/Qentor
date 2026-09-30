@@ -579,6 +579,51 @@ export interface ApiClient {
    * when the circuit could not be judged; a failing circuit is a normal result with `passed: false`.
    */
   submitChallenge(challengeId: string, circuit: Circuit): Promise<ChallengeSubmission>
+
+  /**
+   * POST /api/debug — "Debug my circuit". Sends identifiers and the learner's own words only: the circuit, the id of the Lab
+   * result and/or of a challenge attempt the server judged, an optional trace step (identity only) and a goal typed by the
+   * learner. There is no field for a quantum value or a verdict. Everything in the report is grounded in facts the server holds.
+   */
+  debugCircuit(request: DebugRequestInput): Promise<DebugReport>
+}
+
+export interface DebugRequestInput {
+  circuit: Circuit
+  /** The Lab result being debugged (a provenance record id the server issued). */
+  resultId?: string | null
+  /** A challenge attempt the server judged; both are needed together. */
+  challengeId?: string | null
+  attemptId?: string | null
+  traceStep?: TutorTraceStepContext | null
+  /** What the learner says they were trying to do, in their own words (untrusted text; the server only quotes it). */
+  goal?: string | null
+  language?: TutorLanguage
+}
+
+export interface DebugSection {
+  text: string
+  /** Ids of the facts (see `DebugReport.facts`) this text rests on. */
+  factIds: string[]
+}
+
+export interface DebugReport {
+  observed: DebugSection
+  /** Concrete evidence: facts quoted verbatim, never written by a model. */
+  evidence: DebugSection[]
+  mismatch: DebugSection
+  nextExperiment: DebugSection
+  /** For a challenge, the authored hint for the failing check; `null` when there is none. */
+  hint: DebugSection | null
+  facts: TutorFactResult[]
+  /** True when the prose is the server's template (no AI wrote it). */
+  usedFallbackTemplate: boolean
+  groundedIn: 'challenge' | 'result' | 'failed_run'
+  resultId: string | null
+  circuitHash: string
+  provenanceClass: string | null
+  verificationStatus: string | null
+  attemptId: string | null
 }
 
 export interface ChallengeConstraints {
