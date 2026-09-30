@@ -15,6 +15,7 @@ import { MultiInputTestPanel } from './MultiInputTestPanel'
 import { TracePanel } from './TracePanel'
 import { LabDebug } from '@/features/debug/LabDebug'
 import { ComparePanel } from '@/features/compare/ComparePanel'
+import { ExportPanel } from '@/features/share/ExportPanel'
 import { AgreementPanel } from './AgreementPanel'
 import { BackendSelector } from './BackendSelector'
 import { EquivalencePanel } from './EquivalencePanel'
@@ -123,6 +124,7 @@ export function ResultsPanel() {
         <TracePanel />
         <LabDebug />
         <ComparePanel />
+        <ExportPanel />
         <VerificationPanel />
         <OptimizePanel />
         <MultiInputTestPanel />
@@ -155,6 +157,22 @@ function OutcomeChart({ values, yTitle, color }: { values: Record<string, number
   )
 }
 
+/** What kind of number a chart shows, in words and by colour: a sampled frequency (cyan, dashed) or a theoretical probability (violet, solid). */
+function KindBadge({ kind, shots }: { kind: 'sampled' | 'theoretical'; shots?: number }) {
+  const sampled = kind === 'sampled'
+  return (
+    <span
+      data-testid="kind-badge"
+      data-kind={kind}
+      className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-semibold tracking-wider uppercase ${
+        sampled ? 'border-dashed border-cyan-glow/60 text-cyan-glow' : 'border-violet-glow/60 bg-violet-dim/30 text-violet-glow'
+      }`}
+    >
+      {sampled ? `Sampled${shots !== undefined ? ` · ${shots} shots` : ''}` : 'Theoretical · ideal'}
+    </span>
+  )
+}
+
 function ShotsResult({
   frequencies,
   counts,
@@ -172,6 +190,9 @@ function ShotsResult({
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <span className="text-[13px] font-semibold text-slate-100">Sampled measurement outcomes</span>
+        <KindBadge kind="sampled" shots={shots} />
+      </div>
+      <div className="-mt-2 flex justify-end">
         <span className="font-mono-qasm text-[11px] text-void-200">bitstrings shown as q[n-1] … q[0]</span>
       </div>
       <p className="text-[11px] leading-snug text-void-200" data-testid="sampled-note">
@@ -240,7 +261,9 @@ function StatevectorResult({
       )}
       {theoretical && (
         <div className="flex flex-col gap-1.5" data-testid="theoretical-probabilities">
-          <span className="text-[13px] font-semibold text-slate-100">Theoretical probabilities</span>
+          <span className="flex items-center gap-2 text-[13px] font-semibold text-slate-100">
+            Theoretical probabilities <KindBadge kind="theoretical" />
+          </span>
           <p className="text-[11px] leading-snug text-void-200">
             What an ideal measurement of this state would give (|amplitude|², computed by the backend) — not a
             sampled frequency. Bitstrings q[n-1] … q[0]; outcomes with zero probability are omitted.

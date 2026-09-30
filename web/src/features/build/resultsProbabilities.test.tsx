@@ -103,6 +103,14 @@ describe('statevector run: theoretical probabilities', () => {
     expect(plotted[0]!.data[0]!.x).toEqual(['000', '011'])
   })
 
+  it('labels the theoretical numbers as THEORETICAL, never as sampled', () => {
+    show(H, STATEVECTOR, 'statevector')
+    const badge = screen.getByTestId('kind-badge')
+    expect(badge.getAttribute('data-kind')).toBe('theoretical')
+    expect(badge.textContent).toMatch(/Theoretical · ideal/)
+    expect(screen.queryByText(/Sampled/)).toBeNull()
+  })
+
   it('states the bitstring order beside the chart', () => {
     show(H, STATEVECTOR, 'statevector')
     expect(screen.getByTestId('theoretical-probabilities').textContent).toContain('q[n-1] … q[0]')
@@ -150,6 +158,14 @@ describe('shots run: sampled frequencies', () => {
   it('draws sampled outcomes on a category axis too', () => {
     show(H_MEASURED, { ...SHOTS, probabilities: { '000': 0.5, '011': 0.5 }, counts: { '000': 4, '011': 4 } }, 'shots')
     expect(plotted[0]!.layout.xaxis.type).toBe('category')
+  })
+
+  it('labels the sampled numbers as SAMPLED with the shot count, never as theoretical', () => {
+    show(H_MEASURED, SHOTS, 'shots')
+    const badge = screen.getByTestId('kind-badge')
+    expect(badge.getAttribute('data-kind')).toBe('sampled')
+    expect(badge.textContent).toMatch(/Sampled · 8 shots/)
+    expect(screen.queryByText(/Theoretical · ideal/)).toBeNull()
   })
 
   it('never calls a sampled number a probability', () => {

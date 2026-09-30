@@ -688,3 +688,17 @@ export const ExperimentCompareResponseSchema = z.object({
   provenance: TraceProvenanceSchema,
 })
 export type ExperimentCompareResponse = z.infer<typeof ExperimentCompareResponseSchema>
+
+
+// backend/qentor/api/schemas.py::ExportResponse - a portable description of a circuit; provenance METADATA only, no results.
+export const ExportResponseSchema = z.object({
+  format: z.string(),
+  circuit_hash: z.string(),
+  circuit: CircuitSchema,
+  qasm: z.string(),
+  generator: z.string(),
+  code: z.object({ qiskit: z.string(), cirq: z.string(), pennylane: z.string() }),
+  execution: TraceProvenanceSchema.nullable(),
+  note: z.string(),
+})
+export type ExportResponse = z.infer<typeof ExportResponseSchema>

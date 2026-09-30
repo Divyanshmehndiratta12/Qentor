@@ -37,6 +37,7 @@ import { NextStep } from '@/features/challenges/NextStep'
 import { ProgressScreen } from '@/features/progress/ProgressScreen'
 import { TutorPanel } from '@/features/tutor/TutorPanel'
 import { TopBar, type Screen } from '@/features/shell/TopBar'
+import { decodeShareFragment } from '@/features/share/shareLink'
 import { challengeIdFromPath, pathForChallenge, pathForScreen, screenFromPath } from '@/features/shell/routes'
 
 function App() {
@@ -52,6 +53,21 @@ function App() {
   const guideButtonRef = useRef<HTMLButtonElement>(null)
   const isFirstScreen = useRef(true)
   const loadCircuit = useBuildStore((s) => s.loadCircuit)
+  // A share link (`/#c=…`) carries a circuit and nothing else. It is validated, loaded onto the canvas WITHOUT any result, and the
+  // fragment is removed so a reload does not silently replace the learner's work again.
+  const [sharedNotice, setSharedNotice] = useState<{ ok: boolean; text: string } | null>(null)
+  useEffect(() => {
+    const decoded = decodeShareFragment(window.location.hash)
+    if (!decoded) return
+    window.history.replaceState(null, '', window.location.pathname + window.location.search)
+    if (decoded.ok) {
+      loadCircuit(decoded.circuit)
+      setSharedNotice({ ok: true, text: 'Loaded a circuit from a shared link. It came without results — run it to see what the backend computes.' })
+    } else {
+      setSharedNotice({ ok: false, text: `That share link could not be opened: ${decoded.reason} Nothing was loaded.` })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, on first load
+  }, [])
   const selectLesson = useLearnStore((s) => s.selectLesson)
 
   // The Guide is offered where there is something to be guided through.
@@ -131,6 +147,21 @@ function App() {
           ) : undefined
         }
       />
+
+      {sharedNotice && (
+        <div
+          role={sharedNotice.ok ? 'status' : 'alert'}
+          data-testid="shared-notice"
+          className={`flex items-center justify-between gap-3 border-b px-4 py-1.5 text-[12px] ${
+            sharedNotice.ok ? 'border-cyan-glow/30 bg-cyan-dim/20 text-cyan-glow' : 'border-danger-glow/40 bg-danger-dim/30 text-danger-glow'
+          }`}
+        >
+          <span>{sharedNotice.text}</span>
+          <button type="button" onClick={() => setSharedNotice(null)} className="underline underline-offset-2">
+            Dismiss
+          </button>
+        </div>
+      )}
 
       {screen === 'lab' ? (
         <>

@@ -18,6 +18,7 @@ import {
   ChallengeSubmitResponseSchema,
   DebugResponseSchema,
   ExperimentCompareResponseSchema,
+  ExportResponseSchema,
   CodeResponseSchema,
   EquivalenceResponseSchema,
   ExecuteResponseSchema,
@@ -44,6 +45,7 @@ import {
   type CodeViewsResult,
   type DebugReport,
   type DebugRequestInput,
+  type CircuitExport,
   type ExperimentComparison,
   type EquivalenceResult,
   type ExecutePayload,
@@ -472,6 +474,22 @@ export class RealApiClient implements ApiClient {
       verificationStatus: response.verification_status,
       usedFallbackTemplate: response.used_fallback_template,
       facts: response.facts.map((f) => ({ id: f.id, kind: f.kind, description: f.description, resultId: f.result_id })),
+    }
+  }
+
+  async exportCircuit(circuit: Circuit, resultId?: string | null): Promise<CircuitExport> {
+    const body: Record<string, unknown> = { circuit: CircuitSchema.parse(circuit) }
+    if (resultId) body.result_id = resultId
+    const r = await this.postParsed('/api/export/circuit', body, ExportResponseSchema)
+    return {
+      format: r.format,
+      circuitHash: r.circuit_hash,
+      circuit: r.circuit,
+      qasm: r.qasm,
+      generator: r.generator,
+      code: r.code,
+      execution: r.execution ? provenanceFromTraceStep(r.execution) : null,
+      note: r.note,
     }
   }
 

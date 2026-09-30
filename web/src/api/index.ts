@@ -28,6 +28,7 @@ export type {
   DebugReport,
   DebugRequestInput,
   DebugSection,
+  CircuitExport,
   ExperimentComparison,
   ComparisonRun,
   ComparisonValueKind,

@@ -595,6 +595,24 @@ export interface ApiClient {
 
   /** POST /api/tutor/comparison - ask the tutor about a comparison by its id. The tutor reads the server's own comparison record. */
   askComparisonTutor(comparisonId: string, question: string, language?: TutorLanguage): Promise<TutorAnswerResult>
+
+  /**
+   * POST /api/export/circuit - the server's portable description of a circuit: canonical model, OpenQASM 3, generated source and,
+   * when a run is named, that run's provenance metadata (never its numbers). Sends only the circuit and an optional result id.
+   */
+  exportCircuit(circuit: Circuit, resultId?: string | null): Promise<CircuitExport>
+}
+
+export interface CircuitExport {
+  format: string
+  circuitHash: string
+  circuit: Circuit
+  qasm: string
+  generator: string
+  code: { qiskit: string; cirq: string; pennylane: string }
+  /** Metadata of the run that was named (backend, version, class, status, ids) - no values; `null` if none was named. */
+  execution: Provenance | null
+  note: string
 }
 
 export type ComparisonValueKind = 'sampled_frequency' | 'theoretical_probability'

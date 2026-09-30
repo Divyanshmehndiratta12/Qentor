@@ -29,6 +29,7 @@ import type {
   ChallengeSubmission,
   DebugReport,
   DebugRequestInput,
+  CircuitExport,
   ExperimentComparison,
   CodeViewsResult,
   EquivalenceResult,
@@ -157,6 +158,11 @@ export class MockApiClient implements ApiClient {
 
   async askComparisonTutor(_comparisonId: string, _question: string, _language?: TutorLanguage): Promise<TutorAnswerResult> {
     throw new EndpointNotImplementedError('POST /api/tutor/comparison (the FIXTURE mock adapter has no comparisons)')
+  }
+
+  /** Deliberately NOT faked: the export bundle is written by the server. */
+  async exportCircuit(_circuit: Circuit, _resultId?: string | null): Promise<CircuitExport> {
+    throw new EndpointNotImplementedError('POST /api/export/circuit (the FIXTURE mock adapter cannot export)')
   }
 
   /** FIXTURE only: the real verifier lives server-side. This recognises the
