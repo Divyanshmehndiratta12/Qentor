@@ -630,3 +630,61 @@ export const DebugResponseSchema = z.object({
   attempt_id: z.string().nullable(),
 })
 export type DebugResponse = z.infer<typeof DebugResponseSchema>
+
+
+// ---------------------------------------------------------------------------
+// Experiment comparison - backend/qentor/api/schemas.py::ExperimentCompareResponse
+// ---------------------------------------------------------------------------
+
+const ValueKindSchema = z.enum(['sampled_frequency', 'theoretical_probability'])
+const RunSchema = z.object({
+  provenance: TraceProvenanceSchema,
+  execution_id: z.string().nullable(),
+  shots: z.number().nullable(),
+  num_qubits: z.number(),
+})
+
+export const ExperimentCompareResponseSchema = z.object({
+  comparison_id: z.string(),
+  method: z.string(),
+  a: RunSchema,
+  b: RunSchema,
+  circuit: z.object({
+    same_circuit: z.boolean(),
+    num_qubits_a: z.number(),
+    num_qubits_b: z.number(),
+    num_ops_a: z.number(),
+    num_ops_b: z.number(),
+    changes: z.array(
+      z.object({
+        tag: z.enum(['equal', 'replace', 'delete', 'insert']),
+        a_start: z.number(),
+        a_ops: z.array(z.string()),
+        b_start: z.number(),
+        b_ops: z.array(z.string()),
+      }),
+    ),
+    equivalence_status: EquivalenceStatusSchema,
+    equivalence_reason: z.string().nullable(),
+  }),
+  measurement: z.object({
+    comparable: z.boolean(),
+    reason: z.string().nullable(),
+    kind_a: ValueKindSchema.nullable(),
+    kind_b: ValueKindSchema.nullable(),
+    rows: z.array(z.object({ outcome: z.string(), a: z.number().nullable(), b: z.number().nullable(), difference: z.number().nullable() })),
+    total_variation_distance: z.number().nullable(),
+    max_difference: z.number().nullable(),
+    note: z.string().nullable(),
+  }),
+  state: z.object({
+    comparable: z.boolean(),
+    reason: z.string().nullable(),
+    fidelity: z.number().nullable(),
+    max_probability_difference: z.number().nullable(),
+    max_amplitude_difference: z.number().nullable(),
+    note: z.string().nullable(),
+  }),
+  provenance: TraceProvenanceSchema,
+})
+export type ExperimentCompareResponse = z.infer<typeof ExperimentCompareResponseSchema>

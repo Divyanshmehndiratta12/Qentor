@@ -29,6 +29,7 @@ import type {
   ChallengeSubmission,
   DebugReport,
   DebugRequestInput,
+  ExperimentComparison,
   CodeViewsResult,
   EquivalenceResult,
   ExecutePayload,
@@ -147,6 +148,15 @@ export class MockApiClient implements ApiClient {
   /** Deliberately NOT faked: a debugging report is built by the server from its own records. */
   async debugCircuit(_request: DebugRequestInput): Promise<DebugReport> {
     throw new EndpointNotImplementedError('POST /api/debug (the FIXTURE mock adapter cannot debug a circuit)')
+  }
+
+  /** Deliberately NOT faked: a comparison is computed by the server from two of its own records. */
+  async compareExperiments(_a: { resultId: string; circuit: Circuit }, _b: { resultId: string; circuit: Circuit }): Promise<ExperimentComparison> {
+    throw new EndpointNotImplementedError('POST /api/compare/experiments (the FIXTURE mock adapter cannot compare runs)')
+  }
+
+  async askComparisonTutor(_comparisonId: string, _question: string, _language?: TutorLanguage): Promise<TutorAnswerResult> {
+    throw new EndpointNotImplementedError('POST /api/tutor/comparison (the FIXTURE mock adapter has no comparisons)')
   }
 
   /** FIXTURE only: the real verifier lives server-side. This recognises the

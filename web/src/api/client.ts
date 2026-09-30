@@ -586,6 +586,62 @@ export interface ApiClient {
    * learner. There is no field for a quantum value or a verdict. Everything in the report is grounded in facts the server holds.
    */
   debugCircuit(request: DebugRequestInput): Promise<DebugReport>
+
+  /**
+   * POST /api/compare/experiments - compare two runs the server already holds. Sends only the two result ids and the two circuits;
+   * every difference in the answer is computed by the server and wrapped with the comparison's own provenance.
+   */
+  compareExperiments(a: { resultId: string; circuit: Circuit }, b: { resultId: string; circuit: Circuit }): Promise<ExperimentComparison>
+
+  /** POST /api/tutor/comparison - ask the tutor about a comparison by its id. The tutor reads the server's own comparison record. */
+  askComparisonTutor(comparisonId: string, question: string, language?: TutorLanguage): Promise<TutorAnswerResult>
+}
+
+export type ComparisonValueKind = 'sampled_frequency' | 'theoretical_probability'
+
+export interface ComparisonRun {
+  provenance: Provenance
+  executionId: string | null
+  shots: number | null
+  numQubits: number
+}
+
+export interface ExperimentComparison {
+  comparisonId: string
+  method: string
+  a: ComparisonRun
+  b: ComparisonRun
+  circuit: {
+    sameCircuit: boolean
+    numQubitsA: number
+    numQubitsB: number
+    numOpsA: number
+    numOpsB: number
+    changes: { tag: 'equal' | 'replace' | 'delete' | 'insert'; aStart: number; aOps: string[]; bStart: number; bOps: string[] }[]
+    equivalenceStatus: 'EQUIVALENT' | 'NOT_EQUIVALENT' | 'UNVERIFIABLE'
+    equivalenceReason: string | null
+  }
+  measurement: {
+    comparable: boolean
+    reason: string | null
+    kindA: ComparisonValueKind | null
+    kindB: ComparisonValueKind | null
+    /** A value is `null` when that run reported nothing for the outcome (absent, not zero). */
+    rows: { outcome: string; a: QuantumValue<number> | null; b: QuantumValue<number> | null; difference: QuantumValue<number> | null }[]
+    totalVariationDistance: QuantumValue<number> | null
+    maxDifference: QuantumValue<number> | null
+    note: string | null
+  }
+  state: {
+    comparable: boolean
+    reason: string | null
+    fidelity: QuantumValue<number> | null
+    maxProbabilityDifference: QuantumValue<number> | null
+    maxAmplitudeDifference: QuantumValue<number> | null
+    note: string | null
+  }
+  /** The comparison's own provenance record; every number above carries it. */
+  provenance: Provenance
 }
 
 export interface DebugRequestInput {

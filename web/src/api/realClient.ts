@@ -17,6 +17,7 @@ import {
   ChallengeCatalogResponseSchema,
   ChallengeSubmitResponseSchema,
   DebugResponseSchema,
+  ExperimentCompareResponseSchema,
   CodeResponseSchema,
   EquivalenceResponseSchema,
   ExecuteResponseSchema,
@@ -43,6 +44,7 @@ import {
   type CodeViewsResult,
   type DebugReport,
   type DebugRequestInput,
+  type ExperimentComparison,
   type EquivalenceResult,
   type ExecutePayload,
   type ExecutionMode,
@@ -401,6 +403,75 @@ export class RealApiClient implements ApiClient {
       provenanceClass: response.provenance_class,
       verificationStatus: response.verification_status,
       attemptId: response.attempt_id,
+    }
+  }
+
+  async compareExperiments(
+    a: { resultId: string; circuit: Circuit },
+    b: { resultId: string; circuit: Circuit },
+  ): Promise<ExperimentComparison> {
+    const response = await this.postParsed(
+      '/api/compare/experiments',
+      {
+        result_id_a: a.resultId,
+        circuit_a: CircuitSchema.parse(a.circuit),
+        result_id_b: b.resultId,
+        circuit_b: CircuitSchema.parse(b.circuit),
+      },
+      ExperimentCompareResponseSchema,
+    )
+    // Every number is wrapped with the COMPARISON's own provenance record: a difference has no meaning apart from it.
+    const prov = provenanceFromTraceStep(response.provenance)
+    const q = (v: number | null) => (v === null ? null : toQuantumValue(v, prov))
+    const m = response.measurement
+    const s = response.state
+    return {
+      comparisonId: response.comparison_id,
+      method: response.method,
+      a: { provenance: provenanceFromTraceStep(response.a.provenance), executionId: response.a.execution_id, shots: response.a.shots, numQubits: response.a.num_qubits },
+      b: { provenance: provenanceFromTraceStep(response.b.provenance), executionId: response.b.execution_id, shots: response.b.shots, numQubits: response.b.num_qubits },
+      circuit: {
+        sameCircuit: response.circuit.same_circuit,
+        numQubitsA: response.circuit.num_qubits_a,
+        numQubitsB: response.circuit.num_qubits_b,
+        numOpsA: response.circuit.num_ops_a,
+        numOpsB: response.circuit.num_ops_b,
+        changes: response.circuit.changes.map((c) => ({ tag: c.tag, aStart: c.a_start, aOps: c.a_ops, bStart: c.b_start, bOps: c.b_ops })),
+        equivalenceStatus: response.circuit.equivalence_status,
+        equivalenceReason: response.circuit.equivalence_reason,
+      },
+      measurement: {
+        comparable: m.comparable,
+        reason: m.reason,
+        kindA: m.kind_a,
+        kindB: m.kind_b,
+        rows: m.rows.map((r) => ({ outcome: r.outcome, a: q(r.a), b: q(r.b), difference: q(r.difference) })),
+        totalVariationDistance: q(m.total_variation_distance),
+        maxDifference: q(m.max_difference),
+        note: m.note,
+      },
+      state: {
+        comparable: s.comparable,
+        reason: s.reason,
+        fidelity: q(s.fidelity),
+        maxProbabilityDifference: q(s.max_probability_difference),
+        maxAmplitudeDifference: q(s.max_amplitude_difference),
+        note: s.note,
+      },
+      provenance: prov,
+    }
+  }
+
+  async askComparisonTutor(comparisonId: string, question: string, language: TutorLanguage = 'en'): Promise<TutorAnswerResult> {
+    const response = await this.postParsed('/api/tutor/comparison', { comparison_id: comparisonId, question, language }, TutorResponseSchema)
+    return {
+      answer: response.answer,
+      resultId: response.result_id,
+      circuitHash: response.circuit_hash,
+      provenanceClass: response.provenance_class,
+      verificationStatus: response.verification_status,
+      usedFallbackTemplate: response.used_fallback_template,
+      facts: response.facts.map((f) => ({ id: f.id, kind: f.kind, description: f.description, resultId: f.result_id })),
     }
   }
 
