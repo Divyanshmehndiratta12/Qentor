@@ -140,8 +140,8 @@ class TestNormalizedProvenanceFields(AdapterTestCase):
             sv_result = self.run_or_skip(adapter, BELL_NO_MEASURE, "statevector")
             shots_result = self.run_or_skip(adapter, BELL, "shots", shots=500)
             with self.subTest(adapter=name):
-                self.assertEqual(set(sv_result.to_payload().keys()), {"execution_id", "statevector"})
-                self.assertEqual(set(shots_result.to_payload().keys()), {"execution_id", "counts", "probabilities"})
+                self.assertEqual(set(sv_result.to_payload().keys()), {"execution_id", "statevector", "theoretical_probabilities"})
+                self.assertEqual(set(shots_result.to_payload().keys()), {"execution_id", "counts", "probabilities", "shots"})
 
 
 class TestCirqAdapter(AdapterTestCase):

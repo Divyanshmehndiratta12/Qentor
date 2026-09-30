@@ -124,8 +124,13 @@ export interface Lesson {
 export interface ExecutePayload {
   executionId: string
   statevector?: Array<[number, number]>
+  /** Shots runs: how many times the circuit was sampled. */
+  shots?: number
   counts?: Record<string, number>
+  /** SHOTS runs only: SAMPLED frequencies (count / shots). Not theoretical probabilities. */
   probabilities?: Record<string, number>
+  /** STATEVECTOR runs only: what an ideal measurement of the returned state would give, computed by the server. */
+  theoreticalProbabilities?: Record<string, number>
 }
 
 /**
@@ -346,6 +351,21 @@ export interface TraceStep {
   /** The backend's Bloch vector for this step's state, or `null` — always
    * `null` for a multi-qubit step (the backend never invents one). */
   blochVector: TraceBlochVector | null
+  /** What this step's operation changed relative to the step before it, computed by the server; `null` for the initial state. */
+  change: TraceStepChange | null
+}
+
+/** The server's account of what one operation changed (`qentor.execution.step_changes`). */
+export interface TraceStepChange {
+  /** `phase_only`: amplitudes moved but no outcome probability did — invisible to a measurement now. */
+  kind: 'unchanged' | 'phase_only' | 'probabilities_changed'
+  supportBefore: number
+  supportAfter: number
+  amplitudesChanged: number
+  probabilitiesChanged: number
+  /** Basis states whose amplitude moved, as bitstrings `q[n-1]…q[0]`. */
+  changedBasis: string[]
+  summary: string
 }
 
 /** Backend-derived Bloch coordinates. Rendered as received: this app never

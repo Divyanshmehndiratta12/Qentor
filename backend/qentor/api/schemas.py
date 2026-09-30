@@ -15,6 +15,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from qentor.circuit.model import Circuit, GateOp
 from qentor.execution.bloch import BlochVector
+from qentor.execution.step_changes import StepChange
 from qentor.lessons import Lesson
 from qentor.tutor.trace_context import TraceStepRef
 
@@ -110,6 +111,9 @@ class TraceStepResponse(BaseModel):
     provenance: TraceProvenanceResponse
     statevector: list[list[float]]
     bloch_vector: BlochVector | None = None
+    # What this operation changed relative to the previous step (None for the initial state): computed by the
+    # server from the two backend statevectors (``qentor.execution.step_changes``).
+    change: StepChange | None = None
 
 
 class TraceTerminalMeasurementResponse(BaseModel):

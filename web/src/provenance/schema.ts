@@ -132,13 +132,18 @@ export type ExecuteResponse = z.infer<typeof ExecuteResponseSchema>
 export const StatevectorPayloadSchema = z.object({
   execution_id: z.string(),
   statevector: z.array(z.tuple([z.number(), z.number()])),
+  // What an ideal measurement of THIS state would give, computed by the server from the amplitudes above. Absent on records
+  // written before the server supplied it; the UI then simply shows no probability chart, never one it worked out itself.
+  theoretical_probabilities: z.record(z.string(), z.number()).optional(),
 })
 export type StatevectorPayload = z.infer<typeof StatevectorPayloadSchema>
 
 export const ShotsPayloadSchema = z.object({
   execution_id: z.string(),
   counts: z.record(z.string(), z.number().int()),
+  // SAMPLED frequencies (count / shots) — not theoretical probabilities. The wire name is historical.
   probabilities: z.record(z.string(), z.number()),
+  shots: z.number().int().positive().optional(),
 })
 export type ShotsPayload = z.infer<typeof ShotsPayloadSchema>
 
@@ -191,6 +196,27 @@ export type BlochVectorResponse = z.infer<typeof BlochVectorSchema>
 // untouched. `bloch_vector` is null for a multi-qubit step (the backend never
 // invents one for an entangled register); `.nullish()` also tolerates a
 // backend that predates the field, which is treated the same as null.
+// backend/qentor/execution/step_changes.py::StepChange — what one operation changed, computed by the server from the two
+// backend statevectors. The summary is a fixed template over counts; the browser only displays it.
+export const StepChangeSchema = z.object({
+  kind: z.enum(['unchanged', 'phase_only', 'probabilities_changed']),
+  support_before: z.number().int().nonnegative(),
+  support_after: z.number().int().nonnegative(),
+  amplitudes_changed: z.number().int().nonnegative(),
+  probabilities_changed: z.number().int().nonnegative(),
+  changed_basis_states: z.array(
+    z.object({
+      basis: z.string(),
+      before: z.tuple([z.number(), z.number()]),
+      after: z.tuple([z.number(), z.number()]),
+      probability_before: z.number(),
+      probability_after: z.number(),
+    }),
+  ),
+  summary: z.string(),
+})
+export type StepChangeResponse = z.infer<typeof StepChangeSchema>
+
 export const TraceStepSchema = z.object({
   step_index: z.number().int().nonnegative(),
   operation_index: z.number().int().nonnegative().nullable(),
@@ -199,6 +225,7 @@ export const TraceStepSchema = z.object({
   provenance: TraceProvenanceSchema,
   statevector: z.array(z.tuple([z.number(), z.number()])),
   bloch_vector: BlochVectorSchema.nullish(),
+  change: StepChangeSchema.nullish(),
 })
 export type TraceStepResponse = z.infer<typeof TraceStepSchema>
 

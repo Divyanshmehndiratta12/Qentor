@@ -223,7 +223,7 @@ class TestCompatibility(BlochEndpointCase):
     PREVIOUS_STEP_KEYS = {"step_index", "operation_index", "operation", "execution_id", "provenance", "statevector"}
 
     def test_every_previous_step_field_is_still_present_and_unchanged(self) -> None:
-        self.assertEqual(set(TraceStepResponse.model_fields), self.PREVIOUS_STEP_KEYS | {"bloch_vector"})
+        self.assertEqual(set(TraceStepResponse.model_fields), self.PREVIOUS_STEP_KEYS | {"bloch_vector", "change"})
 
         dumped = json.loads(self.trace(HZH).model_dump_json())
         for step in dumped["steps"]:
@@ -240,6 +240,7 @@ class TestCompatibility(BlochEndpointCase):
         dumped = json.loads(self.trace(BELL).model_dump_json())
         for step in dumped["steps"]:
             step.pop("bloch_vector")
+            step.pop("change")  # additive since: what the operation changed, computed by the server
             self.assertEqual(set(step), self.PREVIOUS_STEP_KEYS)
 
     def test_bloch_vector_is_optional_on_the_response_model(self) -> None:

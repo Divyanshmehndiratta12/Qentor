@@ -45,7 +45,8 @@ def build_fact_sheet(circuit: Circuit, record: ProvenanceRecord) -> list[TutorFa
         counts = payload.get("counts") or {}
         for bitstring in sorted(payload["probabilities"]):
             probability = payload["probabilities"][bitstring]
-            detail = f"outcome {bitstring}: probability {probability:.6f}"
+            # A shots run measured a sample: what it reports is a frequency, never "the probability".
+            detail = f"outcome {bitstring}: sampled frequency {probability:.6f}"
             if bitstring in counts:
                 detail += f" ({counts[bitstring]} shots)"
             add("probability", detail)
@@ -56,6 +57,8 @@ def build_fact_sheet(circuit: Circuit, record: ProvenanceRecord) -> list[TutorFa
                 continue
             bitstring = format(i, f"0{width}b")
             add("amplitude", f"|{bitstring}⟩ amplitude: {re:.6f} + {im:.6f}i")
+        for bitstring, probability in sorted(payload.get("theoretical_probabilities", {}).items()):
+            add("probability", f"outcome {bitstring}: theoretical probability {probability:.6f}")
 
     return facts
 

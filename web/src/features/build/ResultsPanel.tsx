@@ -30,6 +30,7 @@ export function ResultsPanel() {
   const setMode = useBuildStore((s) => s.setMode)
   const shots = useBuildStore((s) => s.shots)
   const setShots = useBuildStore((s) => s.setShots)
+  const hasMeasurement = useBuildStore((s) => s.circuit.ops.some((op) => op.gate === 'measure'))
 
   return (
     <div className="flex h-full flex-col">
@@ -99,11 +100,21 @@ export function ResultsPanel() {
         )}
 
         {!isExecuting && result && result.value.probabilities && (
-          <ShotsResult probabilities={result.value.probabilities} counts={result.value.counts} provenance={result.provenance} />
+          <ShotsResult
+            frequencies={result.value.probabilities}
+            counts={result.value.counts}
+            shots={result.value.shots}
+            provenance={result.provenance}
+          />
         )}
 
         {!isExecuting && result && result.value.statevector && (
-          <StatevectorResult amplitudes={result.value.statevector} provenance={result.provenance} />
+          <StatevectorResult
+            amplitudes={result.value.statevector}
+            theoretical={result.value.theoreticalProbabilities}
+            hasMeasurement={hasMeasurement}
+            provenance={result.provenance}
+          />
         )}
 
         <TracePanel />
@@ -117,49 +128,57 @@ export function ResultsPanel() {
   )
 }
 
+/** One bar chart of backend-supplied values keyed by bitstring. The values are plotted as given; nothing is derived here. */
+function OutcomeChart({ values, yTitle, color }: { values: Record<string, number>; yTitle: string; color: string }) {
+  const bitstrings = Object.keys(values).sort()
+  return (
+    <Plot
+      data={[{ x: bitstrings, y: bitstrings.map((b) => values[b]), type: 'bar', marker: { color } }]}
+      layout={{
+        paper_bgcolor: 'transparent',
+        plot_bgcolor: 'transparent',
+        font: { color: '#a3abb7', size: 11, family: 'JetBrains Mono, monospace' },
+        margin: { l: 40, r: 10, t: 10, b: 40 },
+        yaxis: { title: { text: yTitle }, gridcolor: '#232830' },
+        xaxis: { gridcolor: '#232830' },
+        height: 220,
+      }}
+      config={{ displayModeBar: false, responsive: true }}
+      style={{ width: '100%' }}
+    />
+  )
+}
+
 function ShotsResult({
-  probabilities,
+  frequencies,
   counts,
+  shots,
   provenance,
 }: {
-  probabilities: Record<string, number>
+  frequencies: Record<string, number>
   counts?: Record<string, number>
+  shots?: number
   provenance: import('@/provenance/QuantumValue').Provenance
 }) {
-  const bitstrings = Object.keys(probabilities).sort()
+  const bitstrings = Object.keys(frequencies).sort()
 
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
-        <span className="text-[13px] font-semibold text-slate-100">Measurement</span>
+        <span className="text-[13px] font-semibold text-slate-100">Sampled measurement outcomes</span>
         <span className="font-mono-qasm text-[11px] text-void-200">bitstrings shown as q[n-1] … q[0]</span>
       </div>
-      <Plot
-        data={[
-          {
-            x: bitstrings,
-            y: bitstrings.map((b) => probabilities[b]),
-            type: 'bar',
-            marker: { color: 'oklch(0.8 0.12 215)' },
-          },
-        ]}
-        layout={{
-          paper_bgcolor: 'transparent',
-          plot_bgcolor: 'transparent',
-          font: { color: '#a3abb7', size: 11, family: 'JetBrains Mono, monospace' },
-          margin: { l: 40, r: 10, t: 10, b: 40 },
-          yaxis: { title: { text: 'probability' }, gridcolor: '#232830' },
-          xaxis: { gridcolor: '#232830' },
-          height: 220,
-        }}
-        config={{ displayModeBar: false, responsive: true }}
-        style={{ width: '100%' }}
-      />
+      <p className="text-[11px] leading-snug text-void-200" data-testid="sampled-note">
+        {shots !== undefined ? `Sampled from ${shots} shots. ` : ''}These are sampled frequencies (count ÷ shots), not
+        theoretical probabilities — they change from run to run. Run the statevector mode to see the ideal
+        probabilities the backend computes.
+      </p>
+      <OutcomeChart values={frequencies} yTitle="sampled frequency" color="oklch(0.8 0.12 215)" />
       <table className="w-full text-left text-xs">
         <thead>
           <tr className="text-void-200">
             <th className="pb-1.5 font-medium">bitstring</th>
-            <th className="pb-1.5 font-medium">probability</th>
+            <th className="pb-1.5 font-medium">sampled frequency</th>
             {counts && <th className="pb-1.5 font-medium">counts</th>}
           </tr>
         </thead>
@@ -169,7 +188,7 @@ function ShotsResult({
               <td className="py-1.5 font-mono-qasm text-slate-300">{b}</td>
               <td className="py-1.5">
                 <VerifiedValueInline
-                  quantum={toQuantumValue(probabilities[b], provenance)}
+                  quantum={toQuantumValue(frequencies[b], provenance)}
                   render={(v) => v.toFixed(6)}
                 />
               </td>
@@ -188,9 +207,13 @@ function ShotsResult({
 
 function StatevectorResult({
   amplitudes,
+  theoretical,
+  hasMeasurement,
   provenance,
 }: {
   amplitudes: Array<[number, number]>
+  theoretical?: Record<string, number>
+  hasMeasurement: boolean
   provenance: import('@/provenance/QuantumValue').Provenance
 }) {
   const n = Math.log2(amplitudes.length)
@@ -203,12 +226,29 @@ function StatevectorResult({
         <span className="font-mono-qasm text-[11px] text-void-200">q[n-1] … q[0]</span>
       </div>
       <p className="text-[11px] text-void-200">Amplitudes as reported by the backend (real, imaginary).</p>
+      {hasMeasurement && (
+        <p role="note" className="rounded border border-amber-glow/40 bg-amber-dim/20 p-2 text-[11px] leading-snug text-amber-glow" data-testid="collapsed-note">
+          This circuit contains measurements, so this is one collapsed post-measurement state, not the ideal
+          distribution — a different run can give a different state. Use shots mode to see sampled outcomes.
+        </p>
+      )}
+      {theoretical && (
+        <div className="flex flex-col gap-1.5" data-testid="theoretical-probabilities">
+          <span className="text-[13px] font-semibold text-slate-100">Theoretical probabilities</span>
+          <p className="text-[11px] leading-snug text-void-200">
+            What an ideal measurement of this state would give (|amplitude|², computed by the backend) — not a
+            sampled frequency. Bitstrings q[n-1] … q[0]; outcomes with zero probability are omitted.
+          </p>
+          <OutcomeChart values={theoretical} yTitle="theoretical probability" color="oklch(0.75 0.14 300)" />
+        </div>
+      )}
       <table className="w-full text-left text-xs">
         <thead>
           <tr className="text-void-200">
             <th className="pb-1.5 font-medium">basis state</th>
             <th className="pb-1.5 font-medium">Re</th>
             <th className="pb-1.5 font-medium">Im</th>
+            {theoretical && <th className="pb-1.5 font-medium">theoretical probability</th>}
           </tr>
         </thead>
         <tbody>
@@ -221,6 +261,19 @@ function StatevectorResult({
               <td className="py-1.5">
                 <VerifiedValueInline quantum={toQuantumValue(im, provenance)} render={(v) => v.toFixed(6)} />
               </td>
+              {theoretical && (
+                <td className="py-1.5">
+                  {/* Listed only where the backend gave one: an omitted outcome has no value, we do not write 0 for it. */}
+                  {theoretical[i.toString(2).padStart(width, '0')] !== undefined ? (
+                    <VerifiedValueInline
+                      quantum={toQuantumValue(theoretical[i.toString(2).padStart(width, '0')] as number, provenance)}
+                      render={(v) => v.toFixed(6)}
+                    />
+                  ) : (
+                    <span className="text-void-300">—</span>
+                  )}
+                </td>
+              )}
             </tr>
           ))}
         </tbody>

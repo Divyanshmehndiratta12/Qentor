@@ -42,6 +42,7 @@ export type {
   OptimizationResult,
   TraceBlochVector,
   TraceStep,
+  TraceStepChange,
   TraceTerminalMeasurement,
   TutorAnswerResult,
   TutorFactResult,

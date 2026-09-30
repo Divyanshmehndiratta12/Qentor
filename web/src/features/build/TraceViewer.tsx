@@ -16,6 +16,10 @@
  * only — this component never shows, and never invents, a post-measurement
  * state.
  *
+ * "What changed": the sentence, the before column and the highlighted rows all come from the backend — the summary and the list of
+ * changed basis states are the server's (`change`), the "before" amplitudes are the previous step's own backend state. Nothing is
+ * subtracted or compared in the browser.
+ *
  * Purely presentational: the connected wrapper (`TracePanel`) owns the Run
  * button and the store; this takes the trace / loading / error to show.
  */
@@ -51,6 +55,9 @@ export interface TraceViewerProps {
   selectedStep?: number
   onSelectStep?: (stepIndex: number) => void
 }
+
+const STEP_BUTTON =
+  'rounded-md border border-void-400 px-2.5 py-1 text-xs font-medium text-slate-300 hover:border-void-300 disabled:cursor-not-allowed disabled:opacity-40'
 
 export function TraceViewer({ trace, isLoading, error, selectedStep, onSelectStep }: TraceViewerProps) {
   return (
@@ -151,26 +158,46 @@ function LoadedTrace({
         <span>· {trace.steps.length} step{trace.steps.length === 1 ? '' : 's'}</span>
       </div>
 
-      <div className="flex items-center justify-between gap-2">
-        <button
-          type="button"
-          onClick={() => go(current - 1, true)}
-          disabled={current === 0}
-          className="rounded-md border border-void-400 px-2.5 py-1 text-xs font-medium text-slate-300 hover:border-void-300 disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          Previous step
-        </button>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => go(0, true)}
+            disabled={current === 0}
+            className={STEP_BUTTON}
+          >
+            First step
+          </button>
+          <button
+            type="button"
+            onClick={() => go(current - 1, true)}
+            disabled={current === 0}
+            className={STEP_BUTTON}
+          >
+            Previous step
+          </button>
+        </div>
         <span className="font-mono-qasm text-xs text-slate-200" aria-live="polite">
           Step {displayStepNumber(current)} of {trace.steps.length}
         </span>
-        <button
-          type="button"
-          onClick={() => go(current + 1, true)}
-          disabled={current === lastIndex}
-          className="rounded-md border border-void-400 px-2.5 py-1 text-xs font-medium text-slate-300 hover:border-void-300 disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          Next step
-        </button>
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => go(current + 1, true)}
+            disabled={current === lastIndex}
+            className={STEP_BUTTON}
+          >
+            Next step
+          </button>
+          <button
+            type="button"
+            onClick={() => go(lastIndex, true)}
+            disabled={current === lastIndex}
+            className={STEP_BUTTON}
+          >
+            Last step
+          </button>
+        </div>
       </div>
 
       <div
@@ -208,7 +235,7 @@ function LoadedTrace({
         })}
       </div>
 
-      <StepDetail trace={trace} step={step} />
+      <StepDetail trace={trace} step={step} previous={current > 0 ? (trace.steps[current - 1] ?? null) : null} />
 
       {/* The backend's Bloch vector for THIS step (or an explanation when it
           has none). Handed only that vector — never the statevector or gate. */}
@@ -221,9 +248,20 @@ function LoadedTrace({
   )
 }
 
-function StepDetail({ trace, step }: { trace: ExecutionTraceResult; step: TraceStep }) {
+function StepDetail({
+  trace,
+  step,
+  previous,
+}: {
+  trace: ExecutionTraceResult
+  step: TraceStep
+  previous: TraceStep | null
+}) {
   const labelled = isKnownBasisOrdering(trace.basisOrdering)
   const { provenance } = step.state
+  const changed = new Set(step.change?.changedBasis ?? [])
+  // The before column exists only where the backend gave both states AND says this step moved something.
+  const showBefore = labelled && previous !== null && step.change !== null
 
   return (
     <div className="flex flex-col gap-2 rounded-lg border border-void-500 bg-void-950/60 p-3">
@@ -238,8 +276,20 @@ function StepDetail({ trace, step }: { trace: ExecutionTraceResult; step: TraceS
         </p>
       </div>
 
+      {step.change && (
+        <div
+          className="rounded border border-cyan-glow/30 bg-cyan-dim/20 p-2 text-[11px] leading-snug text-slate-200"
+          data-testid="step-change"
+          data-change-kind={step.change.kind}
+        >
+          <span className="font-semibold text-cyan-glow">What changed: </span>
+          {step.change.summary}
+        </div>
+      )}
+
       <p className="text-[11px] text-void-200">
-        Statevector after this step — amplitudes as the backend returned them (real + imaginary).
+        Statevector after this step — amplitudes as the backend returned them (real + imaginary)
+        {showBefore ? ', beside the previous step’s. Rows whose amplitude moved are marked.' : '.'}
       </p>
 
       <div className="max-h-64 overflow-auto">
@@ -247,23 +297,41 @@ function StepDetail({ trace, step }: { trace: ExecutionTraceResult; step: TraceS
           <thead>
             <tr className="text-void-200">
               <th className="pb-1.5 font-medium">{labelled ? 'basis state' : 'index'}</th>
-              <th className="pb-1.5 font-medium">amplitude</th>
+              {showBefore && <th className="pb-1.5 font-medium">before</th>}
+              <th className="pb-1.5 font-medium">{showBefore ? 'after' : 'amplitude'}</th>
             </tr>
           </thead>
           <tbody>
-            {step.state.value.map((amplitude, index) => (
+            {step.state.value.map((amplitude, index) => {
+              const isChanged = labelled && changed.has(index.toString(2).padStart(trace.numQubits, '0'))
+              const before = previous?.state.value[index]
+              return (
               <tr
                 key={index}
-                className={`border-t border-void-600 ${displaysAsZero(amplitude) ? 'text-void-300' : 'text-slate-200'}`}
+                data-changed={isChanged ? 'true' : undefined}
+                className={`border-t border-void-600 ${
+                  isChanged ? 'bg-cyan-dim/25 text-slate-100' : displaysAsZero(amplitude) ? 'text-void-300' : 'text-slate-200'
+                }`}
               >
                 <td className="py-1.5 font-mono-qasm">
+                  {isChanged && <span className="sr-only">changed: </span>}
                   {labelled ? basisLabel(index, trace.numQubits) : index}
+                  {isChanged && <span aria-hidden="true"> ●</span>}
                 </td>
+                {showBefore && previous && before && (
+                  <td className="py-1.5 text-void-200">
+                    <VerifiedValueInline
+                      quantum={toQuantumValue(before, previous.state.provenance)}
+                      render={formatAmplitude}
+                    />
+                  </td>
+                )}
                 <td className="py-1.5">
                   <VerifiedValueInline quantum={toQuantumValue(amplitude, provenance)} render={formatAmplitude} />
                 </td>
               </tr>
-            ))}
+              )
+            })}
           </tbody>
         </table>
       </div>

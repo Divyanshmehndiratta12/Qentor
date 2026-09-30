@@ -35,6 +35,7 @@ from qentor.circuit.hashing import circuit_hash
 from qentor.circuit.model import Circuit, GateName, GateOp
 from qentor.execution.bloch import bloch_coordinates
 from qentor.execution.sanity import STATE_CHECKED_PLAIN
+from qentor.execution.step_changes import compute_step_change
 from qentor.provenance.models import ExecutionStatus, ProvenanceRecord
 
 from .facts import _describe_op
@@ -230,7 +231,11 @@ def build_trace_step_context(
             _add_state(add, "before", "trace_amplitude", "trace_note", previous_state, circuit.num_qubits, "before this step")
             _add_bloch(add, "bloch_before", previous_state, circuit.num_qubits, "before this step")
 
-    all_facts = tuple(f for group in ("step", "gate", "status", "after", "bloch_after", "before", "bloch_before", "notes") for f in groups.get(group, ()))
+    # -- what changed, computed from the two backend states (qentor.execution.step_changes) -------
+    if ref.step_index > 0 and current_state is not None and previous_state is not None:
+        add("change", "trace_change", f"what this step changed: {compute_step_change(previous_state, current_state, circuit.num_qubits).summary}")
+
+    all_facts = tuple(f for group in ("step", "gate", "status", "change", "after", "bloch_after", "before", "bloch_before", "notes") for f in groups.get(group, ()))
     # ids are assigned in call order; re-issue them in presentation order so S1.. read top to bottom
     ordered = tuple(TutorFact(id=f"S{i}", kind=f.kind, description=f.description, result_id=f.result_id) for i, f in enumerate(all_facts, start=1))
     remap = {old.id: new for old, new in zip(all_facts, ordered)}

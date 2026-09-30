@@ -35,6 +35,7 @@ FactKind = Literal[
     "trace_status",
     "trace_amplitude",
     "trace_bloch",
+    "trace_change",
     "trace_note",
 ]
 

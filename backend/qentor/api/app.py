@@ -38,6 +38,7 @@ from qentor.execution.cirq_adapter import CirqAdapter
 from qentor.execution.limits import MAX_OPERATIONS, LimitExceeded, check_equivalence_limits, check_run_limits
 from qentor.execution.pennylane_adapter import PennyLaneAdapter
 from qentor.execution.sanity import state_problems
+from qentor.execution.step_changes import compute_step_change
 from qentor.execution.trace import TraceBackendFault, TraceNotSupported, split_terminal_measurements, trace_circuit
 from qentor.lessons import LESSONS
 from qentor.provenance.models import ExecutionStatus, ProvenanceClass, ProvenanceRecord
@@ -353,6 +354,11 @@ def execute_trace(request: TraceRequest) -> TraceResponse:
                 ),
                 statevector=step.statevector,
                 bloch_vector=step.bloch_vector,
+                change=(
+                    compute_step_change(trace.steps[step.step_index - 1].statevector, step.statevector, trace.num_qubits)
+                    if step.step_index > 0
+                    else None
+                ),
             )
         )
 

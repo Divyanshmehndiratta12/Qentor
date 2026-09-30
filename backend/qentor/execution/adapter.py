@@ -14,6 +14,18 @@ from typing import Any, Literal, Protocol
 ExecutionMode = Literal["statevector", "shots"]
 
 
+def theoretical_probabilities(statevector: list[list[float]]) -> dict[str, float]:
+    """Outcome probabilities implied by a statevector: |amplitude|² of every basis state above 1e-12, keyed by the
+    bitstring ``q[n-1]…q[0]``. THEORETICAL — what an ideal measurement of this state would give — as opposed to a
+    shots run's sampled frequencies. Read off the backend's own amplitudes; nothing is rescaled."""
+    width = max(1, (len(statevector) - 1).bit_length())
+    return {
+        format(index, f"0{width}b"): re * re + im * im
+        for index, (re, im) in enumerate(statevector)
+        if re * re + im * im > 1e-12
+    }
+
+
 class AdapterUnavailable(RuntimeError):
     """The backend's runtime could not be imported or initialised in this environment."""
 
@@ -49,11 +61,14 @@ class ExecutionResult:
             "execution_id": self.execution_id,
         }
         if self.probabilities is not None:
+            # In a shots run these are SAMPLED FREQUENCIES (count / shots), not theoretical probabilities.
             payload["probabilities"] = self.probabilities
         if self.counts is not None:
             payload["counts"] = self.counts
+            payload["shots"] = sum(self.counts.values())
         if self.statevector is not None:
             payload["statevector"] = self.statevector
+            payload["theoretical_probabilities"] = theoretical_probabilities(self.statevector)
         return payload
 
 

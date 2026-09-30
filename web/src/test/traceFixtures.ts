@@ -46,6 +46,25 @@ export interface WireTraceOptions {
    * every multi-qubit step has). These are fixture values standing in for a
    * backend response — the UI must render exactly what is supplied here. */
   blochVectors?: Array<[number, number, number] | null>
+  /** One entry per step: the wire-format `change` the "backend" returned for that step (null for none — always null for step 0).
+   * Fixture values standing in for a server response; the UI must show exactly what is supplied. Omit to send no `change` key. */
+  changes?: Array<WireStepChange | null>
+}
+
+export interface WireStepChange {
+  kind: 'unchanged' | 'phase_only' | 'probabilities_changed'
+  support_before: number
+  support_after: number
+  amplitudes_changed: number
+  probabilities_changed: number
+  changed_basis_states: Array<{
+    basis: string
+    before: Amplitude
+    after: Amplitude
+    probability_before: number
+    probability_after: number
+  }>
+  summary: string
 }
 
 /** A wire-format (snake_case) trace response, as the backend would send it. */
@@ -60,6 +79,7 @@ export function wireTrace(options: WireTraceOptions): Record<string, unknown> {
     basisOrdering = BASIS_ORDERING_WIRE,
     tag = 'a',
     blochVectors,
+    changes,
   } = options
 
   if (states.length !== ops.length + 1) {
@@ -67,6 +87,10 @@ export function wireTrace(options: WireTraceOptions): Record<string, unknown> {
   }
   if (blochVectors && blochVectors.length !== states.length) {
     throw new Error(`fixture needs ${states.length} bloch entries, got ${blochVectors.length}`)
+  }
+
+  if (changes && changes.length !== states.length) {
+    throw new Error(`fixture needs ${states.length} change entries, got ${changes.length}`)
   }
 
   const steps = states.map((statevector, i) => {
@@ -87,6 +111,7 @@ export function wireTrace(options: WireTraceOptions): Record<string, unknown> {
         created_at: `2026-09-29T07:18:1${i}+00:00`,
       },
       statevector,
+      ...(changes ? { change: changes[i] ?? null } : {}),
       // Like the backend: an explicit null when there is no Bloch vector; when
       // there is one, `derived_from` names exactly this step.
       bloch_vector: bloch

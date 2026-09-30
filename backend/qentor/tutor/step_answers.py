@@ -57,6 +57,7 @@ _LABELS = {
         "before": "Before this step:",
         "after": "After this step:",
         "gate": "What this gate does in general:",
+        "change": "What changed:",
         "bloch_before": "Bloch vector before this step:",
         "bloch_after": "Bloch vector after this step:",
         "no_before": "The previous step's state was not available, so there is nothing to compare with.",
@@ -68,6 +69,7 @@ _LABELS = {
         "before": "इस चरण से पहले:",
         "after": "इस चरण के बाद:",
         "gate": "यह गेट सामान्य रूप से क्या करता है:",
+        "change": "क्या बदला:",
         "bloch_before": "इस चरण से पहले ब्लॉख सदिश:",
         "bloch_after": "इस चरण के बाद ब्लॉख सदिश:",
         "no_before": "पिछले चरण की अवस्था उपलब्ध नहीं थी, इसलिए तुलना करने के लिए कुछ नहीं है।",
@@ -79,6 +81,7 @@ _LABELS = {
         "before": "ಈ ಹಂತದ ಮೊದಲು:",
         "after": "ಈ ಹಂತದ ನಂತರ:",
         "gate": "ಈ ಗೇಟ್ ಸಾಮಾನ್ಯವಾಗಿ ಏನು ಮಾಡುತ್ತದೆ:",
+        "change": "ಏನು ಬದಲಾಯಿತು:",
         "bloch_before": "ಈ ಹಂತದ ಮೊದಲು ಬ್ಲೋಚ್ ವೆಕ್ಟರ್:",
         "bloch_after": "ಈ ಹಂತದ ನಂತರ ಬ್ಲೋಚ್ ವೆಕ್ಟರ್:",
         "no_before": "ಹಿಂದಿನ ಹಂತದ ಸ್ಥಿತಿ ಲಭ್ಯವಿರಲಿಲ್ಲ, ಆದ್ದರಿಂದ ಹೋಲಿಸಲು ಏನೂ ಇಲ್ಲ.",
@@ -128,6 +131,11 @@ def answer_step_question(intent: StepIntent, step: TraceStepContext, language: s
     parts.append(f"{head}.")
     if intent == "gate" and step.group("gate"):
         parts.append(f"{L['gate']} {_cite(step.group('gate'))}.")
+
+    change = step.group("change")
+    if change and intent in ("change", "gate"):
+        # computed on the server from the two backend states; the wrapper is localised, the sentence is quoted
+        parts.append(f"{L['change']} {_cite(change)}.")
 
     if intent == "bloch":
         if has_bloch and bloch_before:

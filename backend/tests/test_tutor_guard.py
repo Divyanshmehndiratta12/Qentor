@@ -113,7 +113,7 @@ class TestShotsFacts(GuardCase):
         self.accepts(f"Outcome 00 was observed {counts[0]} times (F3).")
 
     def test_the_same_probability_as_a_percentage_a_fraction_or_a_rounded_decimal_passes(self) -> None:
-        p = float(self.probs["00"].description.split("probability ")[1].split()[0])
+        p = float(self.probs["00"].description.split("sampled frequency ")[1].split()[0])
         self.assertAlmostEqual(p, 0.5, delta=0.1)
         rounded = round(p, 2)
         self.accepts(f"Outcome 00 has probability {rounded}.")
@@ -269,12 +269,18 @@ class TestSignedAmplitudeFacts(GuardCase):
         self.accepts("Both amplitudes have size 1/√2 (F1).")
         self.accepts("The state is (|0⟩ − |1⟩)/√2.")
 
-    def test_a_probability_is_not_derivable_from_amplitudes_by_the_model(self) -> None:
-        # The facts list amplitudes only; 0.5 = 0.707107**2 would be the MODEL calculating.
-        self.rejects("Each outcome has probability 0.5.", "dec")
+    def test_a_probability_is_supported_only_because_the_backend_supplied_it(self) -> None:
+        # The facts now carry the backend's theoretical probabilities, so 0.5 is a fact to restate ...
+        self.assertTrue(any("theoretical probability 0.500000" in f.description for f in self.facts))
+        self.accepts("Each outcome has theoretical probability 0.5.")
+        # ... while a probability the backend did not give is still the MODEL calculating.
+        self.rejects("Each outcome has probability 0.25.", "dec")
+        # and without the backend's probabilities the same claim has nothing to stand on
+        amplitudes_only = [f for f in self.facts if f.kind == "amplitude"]
+        self.assertTrue(find_violations("Each outcome has probability 0.5.", amplitudes_only))
 
     def test_the_imaginary_part_cannot_hide_a_number(self) -> None:
-        self.rejects("The amplitude is 0.707107 + 0.5i.", "dec")
+        self.rejects("The amplitude is 0.707107 + 0.3i.", "dec")
 
 
 class TestCertainFacts(GuardCase):
@@ -283,9 +289,9 @@ class TestCertainFacts(GuardCase):
         cls.facts = _facts(X_ONLY, "shots", 200)
 
     def test_a_deterministic_outcome_may_be_called_certain_when_a_fact_shows_probability_one(self) -> None:
-        self.assertTrue(any("probability 1.000000" in f.description for f in self.facts))
+        self.assertTrue(any("sampled frequency 1.000000" in f.description for f in self.facts))
         self.accepts("The measurement always gives 1.")
-        self.accepts("Outcome 1 has probability 1 in this run.")
+        self.accepts("Outcome 1 has sampled frequency 1 in this run.")
 
     def test_an_integer_one_matching_a_decimal_one_is_supported_but_two_is_not(self) -> None:
         self.rejects("Outcome 1 has probability 2.")

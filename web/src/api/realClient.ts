@@ -113,13 +113,18 @@ export class RealApiClient implements ApiClient {
     let payload: ExecutePayload
     if (response.execution_mode === 'statevector') {
       const sv = StatevectorPayloadSchema.parse(response.payload)
-      payload = { executionId: sv.execution_id, statevector: sv.statevector }
+      payload = {
+        executionId: sv.execution_id,
+        statevector: sv.statevector,
+        ...(sv.theoretical_probabilities ? { theoreticalProbabilities: sv.theoretical_probabilities } : {}),
+      }
     } else {
       const shots = ShotsPayloadSchema.parse(response.payload)
       payload = {
         executionId: shots.execution_id,
         counts: shots.counts,
         probabilities: shots.probabilities,
+        ...(shots.shots !== undefined ? { shots: shots.shots } : {}),
       }
     }
 
@@ -547,6 +552,17 @@ export function traceResultFromResponse(response: TraceResponse): ExecutionTrace
         operation: step.operation,
         executionId: step.execution_id,
         state: toQuantumValue(step.statevector, provenance),
+        change: step.change
+          ? {
+              kind: step.change.kind,
+              supportBefore: step.change.support_before,
+              supportAfter: step.change.support_after,
+              amplitudesChanged: step.change.amplitudes_changed,
+              probabilitiesChanged: step.change.probabilities_changed,
+              changedBasis: step.change.changed_basis_states.map((c) => c.basis),
+              summary: step.change.summary,
+            }
+          : null,
         blochVector: bloch
           ? {
               coordinates: toQuantumValue({ x: bloch.x, y: bloch.y, z: bloch.z }, provenance),
