@@ -33,6 +33,7 @@ import { useLearnStore } from '@/features/learn/store'
 import { GuideLauncher } from '@/features/guide/GuideLauncher'
 import { GuidePanel } from '@/features/guide/GuidePanel'
 import { ChallengesScreen } from '@/features/challenges/ChallengesScreen'
+import { NextStep } from '@/features/challenges/NextStep'
 import { ProgressScreen } from '@/features/progress/ProgressScreen'
 import { TutorPanel } from '@/features/tutor/TutorPanel'
 import { TopBar, type Screen } from '@/features/shell/TopBar'
@@ -102,6 +103,12 @@ function App() {
     else window.history.pushState(null, '', path)
   }
 
+  // Open a specific challenge (from Progress or a "what next" suggestion): the Challenges screen selects it once its catalog is here.
+  function openChallenge(challengeId: string) {
+    setChallengeRoute((r) => ({ challengeId, n: r.n + 1 }))
+    goTo('challenges')
+  }
+
   function openLesson(lessonId: string) {
     selectLesson(lessonId)
     goTo('learn')
@@ -155,10 +162,13 @@ function App() {
           onSelectionChange={syncChallengePath}
           onOpenLesson={openLesson}
           onOpenLab={() => goTo('lab')}
+          renderNextStep={() => (
+            <NextStep onOpenChallenge={openChallenge} onOpenLesson={openLesson} onOpenProgress={() => goTo('progress')} />
+          )}
         />
       ) : (
         <main id="main-content" tabIndex={-1} className="min-h-0 flex-1 overflow-auto bg-void-950 outline-none">
-          <ProgressScreen onOpenLesson={openLesson} />
+          <ProgressScreen onOpenLesson={openLesson} onOpenChallenge={openChallenge} />
         </main>
       )}
 

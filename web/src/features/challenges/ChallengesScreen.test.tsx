@@ -145,6 +145,15 @@ const FAILING = (over: Partial<ChallengeSubmission> = {}) =>
     ...over,
   })
 
+const FAILING_VERDICT = (): ChallengeSubmission =>
+  verdict({
+    passed: false,
+    successMessage: null,
+    nextHintIndex: 1,
+    nextHint: 'two',
+    checks: [{ id: 'state.x', label: 'The state is right', passed: false, evaluated: true, detail: 'no', hintIndex: 1, evidence: [], resultId: null }],
+  })
+
 const INITIAL_CHALLENGE = useChallengeStore.getState()
 const INITIAL_BUILD = useBuildStore.getState()
 const INITIAL_LEARN = useLearnStore.getState()
@@ -536,14 +545,21 @@ describe('submitting to the server', () => {
     expect(submitButton().textContent).toBe('Checking…')
   })
 
-  it('renders a solved challenge’s next step when the app supplies one', async () => {
-    client.submitChallenge.mockResolvedValueOnce(verdict())
+  it('after a solve there is always a "what next" with somewhere to go; after a failure there is none', async () => {
+    client.submitChallenge.mockResolvedValueOnce(FAILING_VERDICT())
     await ready()
     place('H')
     fireEvent.click(submitButton())
     await screen.findByTestId('verdict')
-    // The app-level recommendation is exercised in its own tests; here the slot is simply empty without one.
     expect(screen.queryByTestId('next-step')).toBeNull()
+
+    client.submitChallenge.mockResolvedValueOnce(verdict({ attemptId: 'att_solved' }))
+    place('X')
+    fireEvent.click(submitButton())
+    const next = await screen.findByTestId('next-step')
+    expect(within(next).getByRole('button', { name: 'See my progress' })).toBeInTheDocument()
+    fireEvent.click(within(next).getByRole('button', { name: 'See my progress' }))
+    expect(window.location.pathname).toBe('/progress')
   })
 })
 

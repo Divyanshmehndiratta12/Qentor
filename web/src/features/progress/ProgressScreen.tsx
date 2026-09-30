@@ -22,7 +22,6 @@ import {
   getLessonStatus,
   getMasteryBreakdown,
   getMisconceptions,
-  getNextChallenge,
   getOverallLearningProgress,
   getSectionProgress,
   type LessonStatus,
@@ -31,6 +30,9 @@ import {
 import { getActivitySummary, toLocalDateKey } from '../learn/streak'
 import { PersistenceNote } from '../learn/PersistenceNote'
 import { StateNotice } from '../shell/StateNotice'
+import { useChallengeStore } from '../challenges/store'
+import { getRecommendation } from '../learn/recommendation'
+import { ChallengeProgress } from './ChallengeProgress'
 import { StreakPanel } from './StreakPanel'
 
 const MASTERY_LABEL: Record<Mastery, string> = {
@@ -64,12 +66,23 @@ function percent(part: number, whole: number): number {
   return whole === 0 ? 0 : Math.round((part / whole) * 100)
 }
 
-export function ProgressScreen({ onOpenLesson }: { onOpenLesson: (lessonId: string) => void }) {
+export function ProgressScreen({
+  onOpenLesson,
+  onOpenChallenge,
+}: {
+  onOpenLesson: (lessonId: string) => void
+  /** Where a challenge recommendation leads. Optional: without it the challenge action is simply not offered. */
+  onOpenChallenge?: (challengeId: string) => void
+}) {
   const lessons = useLearnStore((s) => s.lessons)
   const isLoading = useLearnStore((s) => s.isLoading)
   const error = useLearnStore((s) => s.error)
   const activityHistory = useLearnStore((s) => s.activityHistory)
   const fetchLessons = useLearnStore((s) => s.fetchLessons)
+  const challengeCount = useChallengeStore((s) => s.challenges.length)
+  const challengesLoading = useChallengeStore((s) => s.isLoading)
+  const challengesError = useChallengeStore((s) => s.error)
+  const fetchChallenges = useChallengeStore((s) => s.fetchChallenges)
 
   // The learner may come straight here from Lab, before Learn ever loaded the
   // catalog. Fetch only when there is nothing yet (a real fetch of the real
@@ -79,6 +92,11 @@ export function ProgressScreen({ onOpenLesson }: { onOpenLesson: (lessonId: stri
   useEffect(() => {
     if (needsCatalog) void fetchLessons()
   }, [needsCatalog, fetchLessons])
+
+  // The challenge catalog feeds the recommendation and the challenge card. If it cannot be loaded, the lesson path still works.
+  useEffect(() => {
+    if (challengeCount === 0 && !challengesLoading && !challengesError) void fetchChallenges()
+  }, [challengeCount, challengesLoading, challengesError, fetchChallenges])
 
   const todayKey = toLocalDateKey(new Date())
   const activity = getActivitySummary(activityHistory, todayKey)
@@ -106,7 +124,7 @@ export function ProgressScreen({ onOpenLesson }: { onOpenLesson: (lessonId: stri
         <StateNotice kind="empty" compact title="No lessons are available yet." className="rounded-lg border border-void-400 bg-void-800 p-3" />
       )}
 
-      {catalogReady && <LessonDashboard onOpenLesson={onOpenLesson} />}
+      {catalogReady && <LessonDashboard onOpenLesson={onOpenLesson} onOpenChallenge={onOpenChallenge} />}
     </div>
   )
 }
@@ -114,7 +132,13 @@ export function ProgressScreen({ onOpenLesson }: { onOpenLesson: (lessonId: stri
 /** Everything that is derived from the lesson catalog + Learn progress. Split
  * out so the streak card above renders even while the catalog is loading or
  * failed — the streak doesn't depend on it. */
-function LessonDashboard({ onOpenLesson }: { onOpenLesson: (lessonId: string) => void }) {
+function LessonDashboard({
+  onOpenLesson,
+  onOpenChallenge,
+}: {
+  onOpenLesson: (lessonId: string) => void
+  onOpenChallenge?: (challengeId: string) => void
+}) {
   const lessons = useLearnStore((s) => s.lessons)
   const lessonProgress = useLearnStore((s) => s.lessonProgress)
   const startedLessonIds = useLearnStore((s) => s.startedLessonIds)
@@ -122,7 +146,9 @@ function LessonDashboard({ onOpenLesson }: { onOpenLesson: (lessonId: string) =>
   const overall = getOverallLearningProgress(lessons, lessonProgress, startedLessonIds)
   const mastery = getMasteryBreakdown(lessons, lessonProgress, startedLessonIds)
   const misconceptions = getMisconceptions(lessons, lessonProgress, startedLessonIds)
-  const nextChallenge = getNextChallenge(lessons, lessonProgress, startedLessonIds)
+  const challenges = useChallengeStore((s) => s.challenges)
+  const outcomes = useChallengeStore((s) => s.outcomes)
+  const recommendation = getRecommendation(lessons, challenges, lessonProgress, startedLessonIds, outcomes.records)
   const completionPercent = percent(overall.lessonsCompleted, overall.totalLessons)
 
   const completedLessonIds = new Set(
@@ -211,19 +237,52 @@ function LessonDashboard({ onOpenLesson }: { onOpenLesson: (lessonId: string) =>
             Next challenge
           </h2>
           <div className="mt-3 rounded-lg border border-violet-glow/30 bg-violet-dim/20 p-3">
-            <p className="font-serif-prose text-[14px] leading-relaxed text-slate-200">{nextChallenge.reason}</p>
-            {nextChallenge.lessonId && (
-              <button
-                type="button"
-                onClick={() => onOpenLesson(nextChallenge.lessonId as string)}
-                className="mt-2.5 rounded-md bg-violet-glow px-3 py-1.5 text-xs font-semibold text-void-950 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-glow"
-              >
-                Go to lesson
-              </button>
-            )}
+            <p className="font-serif-prose text-[14px] leading-relaxed text-slate-200" data-testid="recommendation-reason" data-kind={recommendation.kind}>
+              {recommendation.reason}
+            </p>
+            <div className="mt-2.5 flex flex-wrap gap-2">
+              {recommendation.challengeId && onOpenChallenge && recommendation.kind !== 'revisit_lesson' && (
+                <button
+                  type="button"
+                  onClick={() => onOpenChallenge(recommendation.challengeId as string)}
+                  className="rounded-md bg-violet-glow px-3 py-1.5 text-xs font-semibold text-void-950 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-glow"
+                >
+                  Open challenge
+                </button>
+              )}
+              {recommendation.lessonId && (
+                <button
+                  type="button"
+                  onClick={() => onOpenLesson(recommendation.lessonId as string)}
+                  className={
+                    recommendation.challengeId && recommendation.kind !== 'revisit_lesson'
+                      ? 'rounded-md border border-violet-glow/50 px-3 py-1.5 text-xs font-semibold text-violet-glow focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-glow'
+                      : 'rounded-md bg-violet-glow px-3 py-1.5 text-xs font-semibold text-void-950 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-glow'
+                  }
+                >
+                  Go to lesson
+                </button>
+              )}
+            </div>
+            <details className="mt-2.5 text-[11px] text-slate-400" data-testid="recommendation-why">
+              <summary className="cursor-pointer text-slate-300">Why this?</summary>
+              {recommendation.evidence.length > 0 && (
+                <ul className="mt-1.5 list-disc pl-4">
+                  {recommendation.evidence.map((line) => (
+                    <li key={line}>{line}</li>
+                  ))}
+                </ul>
+              )}
+              <p className="mt-1.5">
+                Chosen by fixed rules from the progress saved in this browser (unresolved misconceptions, then challenges for lessons you finished, then
+                the next lesson). No AI or machine learning is involved.
+              </p>
+            </details>
           </div>
         </section>
       </div>
+
+      <ChallengeProgress challenges={challenges} outcomes={outcomes} onOpenChallenge={onOpenChallenge} />
 
       <section aria-labelledby="attention-heading" className={CARD}>
         <h2 id="attention-heading" className={SECTION_HEADING}>
