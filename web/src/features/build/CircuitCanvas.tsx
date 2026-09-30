@@ -15,26 +15,17 @@ import type { DragEvent } from 'react'
 import { useBuildStore } from './store'
 import { GATE_DND_MIME } from './GatePalette'
 import type { GateName, GateOp } from '@/circuit/types'
-
-const GATE_LABEL: Record<string, string> = {
-  h: 'H',
-  x: 'X',
-  y: 'Y',
-  z: 'Z',
-  s: 'S',
-  t: 'T',
-  rx: 'RX',
-  ry: 'RY',
-  rz: 'RZ',
-}
+import { GATE_DISPLAY, MULTI_QUBIT_PLACEMENT, TARGET_SYMBOL } from '@/circuit/gateSpec'
+import { describeOperation } from './traceFormat'
 
 function GateBox({ op, onClick }: { op: GateOp; onClick: () => void }) {
-  const label = GATE_LABEL[op.gate]
+  // On the wire it acts ON, a controlled gate shows the operation (X, Z); a swap shows × on both wires.
+  const label = TARGET_SYMBOL[op.gate] ?? GATE_DISPLAY[op.gate]
   return (
     <button
       type="button"
       onClick={onClick}
-      title="click to remove"
+      title={`${describeOperation(op)} · click to remove`}
       className="flex h-9 w-9 items-center justify-center rounded-md border border-cyan-glow/50 bg-cyan-dim font-mono-qasm text-xs font-semibold text-cyan-glow transition-transform hover:scale-105 hover:border-danger-glow hover:bg-danger-dim hover:text-danger-glow"
     >
       {op.gate === 'rx' || op.gate === 'ry' || op.gate === 'rz'
@@ -50,7 +41,7 @@ export function CircuitCanvas() {
   const removeOpAt = useBuildStore((s) => s.removeOpAt)
   const selectedGate = useBuildStore((s) => s.selectedGate)
   const selectGate = useBuildStore((s) => s.selectGate)
-  const pendingControl = useBuildStore((s) => s.pendingControl)
+  const pendingQubits = useBuildStore((s) => s.pendingQubits)
   const setQubits = useBuildStore((s) => s.setNumQubits)
 
   const numQubits = circuit.num_qubits
@@ -113,7 +104,7 @@ export function CircuitCanvas() {
                           <button
                             type="button"
                             onClick={() => removeOpAt(col)}
-                            title="click to remove"
+                            title={`${describeOperation(op)} · click to remove`}
                             className="h-3.5 w-3.5 rounded-full border-2 border-violet-glow bg-violet-glow"
                           />
                         </div>
@@ -127,7 +118,7 @@ export function CircuitCanvas() {
                   }
 
                   // The single trailing "append" column.
-                  const isPendingControlHere = selectedGate === 'cx' && pendingControl === q
+                  const isPendingControlHere = !!selectedGate && selectedGate in MULTI_QUBIT_PLACEMENT && pendingQubits.includes(q)
                   return (
                     <div key={col} className="relative z-10 flex justify-center">
                       <button

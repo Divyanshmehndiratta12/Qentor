@@ -1,0 +1,60 @@
+{
+  "name": "phase_kickback_lab",
+  "description": "The Phase Kickback lesson's lab circuit: target prepared in |-> (X then H), CX, closing H.",
+  "circuit": {
+    "schema": "qentor.circuit/1",
+    "num_qubits": 2,
+    "num_clbits": 0,
+    "ops": [
+      {
+        "gate": "h",
+        "targets": [
+          0
+        ],
+        "controls": [],
+        "params": [],
+        "clbits": []
+      },
+      {
+        "gate": "x",
+        "targets": [
+          1
+        ],
+        "controls": [],
+        "params": [],
+        "clbits": []
+      },
+      {
+        "gate": "h",
+        "targets": [
+          1
+        ],
+        "controls": [],
+        "params": [],
+        "clbits": []
+      },
+      {
+        "gate": "cx",
+        "targets": [
+          1
+        ],
+        "controls": [
+          0
+        ],
+        "params": [],
+        "clbits": []
+      },
+      {
+        "gate": "h",
+        "targets": [
+          0
+        ],
+        "controls": [],
+        "params": [],
+        "clbits": []
+      }
+    ]
+  },
+  "qasm": "OPENQASM 3.0;\ninclude \"stdgates.inc\";\nqubit[2] q;\nh q[0];\nx q[1];\nh q[1];\ncx q[0], q[1];\nh q[0];\n",
+  "hash": "d26f35900f22d71d96449fcd1da54ef77fe8c97725d49dd1d8bbe9d1d4162794"
+}

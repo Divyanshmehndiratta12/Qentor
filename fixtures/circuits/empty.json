@@ -1,0 +1,12 @@
+{
+  "name": "empty",
+  "description": "A single qubit and no operations.",
+  "circuit": {
+    "schema": "qentor.circuit/1",
+    "num_qubits": 1,
+    "num_clbits": 0,
+    "ops": []
+  },
+  "qasm": "OPENQASM 3.0;\ninclude \"stdgates.inc\";\nqubit[1] q;\n",
+  "hash": "78ad830c6a53f4666898bd00b494d1a50e7d317b3f960055b32fb4f179c35979"
+}

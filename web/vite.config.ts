@@ -15,6 +15,11 @@ export default defineConfig({
     },
   },
   server: {
+    fs: {
+      // The shared golden circuits (../fixtures/circuits) are read by the emitter/parser tests. Allow exactly
+      // that directory besides the project itself; nothing else outside `web/` is served.
+      allow: [fileURLToPath(new URL('.', import.meta.url)), fileURLToPath(new URL('../fixtures', import.meta.url))],
+    },
     proxy: {
       // The FastAPI backend serves the API under /api. In dev, Vite proxies
       // to it directly so the browser never needs a hardcoded absolute URL.

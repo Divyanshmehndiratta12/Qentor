@@ -11,6 +11,7 @@
  * this file's source for the calculation primitives that would break this.
  */
 import type { GateOp } from '@/circuit/types'
+import { GATE_DISPLAY } from '@/circuit/gateSpec'
 
 /** The one statevector-index convention the backend states (and this file
  * knows how to label): index k is the bitstring q[n-1]...q[0] read as binary.
@@ -69,20 +70,27 @@ export function displaysAsZero(amplitude: readonly [number, number]): boolean {
   return /^0\.0+$/.test(formatComponent(amplitude[0])) && /^0\.0+$/.test(formatComponent(amplitude[1]))
 }
 
-/** Compact label for a timeline chip: `H q0`, `CX q0→q1`, `RX q0`. */
+/** Compact label for a timeline chip: `H q0`, `CX q0→q1`, `CCX q0,q1→q2`, `SWAP q0↔q1`, `S† q0`. */
 export function shortOperationLabel(op: GateOp): string {
-  const gate = op.gate.toUpperCase()
-  if (op.gate === 'cx') return `${gate} q${op.controls[0]}→q${op.targets[0]}`
+  const gate = GATE_DISPLAY[op.gate]
+  if (op.gate === 'cx' || op.gate === 'cz') return `${gate} q${op.controls[0]}→q${op.targets[0]}`
+  if (op.gate === 'ccx') return `${gate} q${op.controls[0]},q${op.controls[1]}→q${op.targets[0]}`
+  if (op.gate === 'swap') return `${gate} q${op.targets[0]}↔q${op.targets[1]}`
   return `${gate} q${op.targets[0]}`
 }
 
 /** Full sentence for the selected step. The rotation angle is the learner's
  * own circuit parameter (not a quantum result), shown to 3 decimals. */
 export function describeOperation(op: GateOp): string {
-  const gate = op.gate.toUpperCase()
+  const gate = GATE_DISPLAY[op.gate]
   switch (op.gate) {
     case 'cx':
+    case 'cz':
       return `${gate} — control q${op.controls[0]}, target q${op.targets[0]}`
+    case 'ccx':
+      return `${gate} — controls q${op.controls[0]}, q${op.controls[1]}, target q${op.targets[0]}`
+    case 'swap':
+      return `${gate} — q${op.targets[0]} and q${op.targets[1]}`
     case 'measure':
       return `Measure q${op.targets[0]} → c${op.clbits[0]}`
     case 'rx':

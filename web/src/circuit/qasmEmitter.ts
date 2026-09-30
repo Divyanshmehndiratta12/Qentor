@@ -6,9 +6,9 @@
  * every canvas edit without a network round trip; the server's own emission
  * (via `/api/execute`'s circuit_hash) remains the source of truth.
  *
- * No `fixtures/circuits/` golden-fixture directory exists in this repo yet
- * (see docs/ARCHITECTURE.md §2). When it's added, a test here must load the
- * same fixtures the Python test suite uses and assert byte-for-byte equality.
+ * `fixtures/circuits/` holds the golden circuits, QASM text and hashes that
+ * BOTH test suites check (`qasmEmitter.test.ts` here, `test_golden_fixtures.py`
+ * on the server), so a drift between the two emitters fails a test.
  */
 import type { Circuit, GateOp } from './types'
 
@@ -18,7 +18,9 @@ const SIMPLE_GATE_QASM: Record<string, string> = {
   y: 'y',
   z: 'z',
   s: 's',
+  sdg: 'sdg',
   t: 't',
+  tdg: 'tdg',
 }
 
 const ROTATION_GATE_QASM: Record<string, string> = {
@@ -28,16 +30,34 @@ const ROTATION_GATE_QASM: Record<string, string> = {
 }
 
 /**
- * Mirrors CPython's `repr(float)`: the shortest decimal string that round-trips
- * back to the same IEEE-754 double. JS's `Number.prototype.toString()` already
- * produces the shortest round-tripping representation, so the two only differ
- * in integral floats, where Python prints a trailing `.0` and JS does not.
+ * Mirrors CPython's `repr(float)` exactly: the shortest digit string that round-trips to the same
+ * double, laid out the way Python lays it out. The digits agree with JS's, but the layout does not:
+ *
+ * - an integral value keeps a `.0` (`1.0`, not `1`);
+ * - Python switches to an exponent below 1e-4 and from 1e16 (`1e-05`, `1e+16`), JavaScript at 1e-7 and
+ *   1e21 (`0.00001`, `10000000000000000`), and pads the exponent to two digits (`1e-07`, `1e-7`);
+ * - negative zero prints as `-0.0`.
+ *
+ * This text is hashed (the circuit hash is SHA-256 of the QASM), so a difference here is a different hash
+ * for the same circuit. `fixtures/circuits/angle_formatting.json` pins the awkward cases.
  */
-function formatAngle(theta: number): string {
-  if (Number.isInteger(theta) && Number.isFinite(theta)) {
-    return `${theta}.0`
+export function formatAngle(theta: number): string {
+  if (!Number.isFinite(theta)) throw new Error(`cannot emit a non-finite angle: ${theta}`)
+  if (theta === 0) return Object.is(theta, -0) ? '-0.0' : '0.0'
+  const sign = theta < 0 ? '-' : ''
+  // toExponential() with no argument yields exactly the shortest round-tripping digits.
+  const [mantissa, exponentText] = Math.abs(theta).toExponential().split('e')
+  const digits = mantissa.replace('.', '')
+  const decpt = Number(exponentText) + 1 // value = 0.DIGITS x 10^decpt, as in CPython's dtoa
+  if (decpt <= -4 || decpt > 16) {
+    const exponent = decpt - 1
+    const body = digits.length > 1 ? `${digits[0]}.${digits.slice(1)}` : digits
+    const magnitude = Math.abs(exponent)
+    return `${sign}${body}e${exponent < 0 ? '-' : '+'}${magnitude < 10 ? '0' : ''}${magnitude}`
   }
-  return String(theta)
+  if (decpt <= 0) return `${sign}0.${'0'.repeat(-decpt)}${digits}`
+  if (decpt >= digits.length) return `${sign}${digits}${'0'.repeat(decpt - digits.length)}.0`
+  return `${sign}${digits.slice(0, decpt)}.${digits.slice(decpt)}`
 }
 
 function emitOp(op: GateOp): string {
@@ -47,8 +67,14 @@ function emitOp(op: GateOp): string {
   if (op.gate in ROTATION_GATE_QASM) {
     return `${ROTATION_GATE_QASM[op.gate]}(${formatAngle(op.params[0])}) q[${op.targets[0]}];`
   }
-  if (op.gate === 'cx') {
-    return `cx q[${op.controls[0]}], q[${op.targets[0]}];`
+  if (op.gate === 'cx' || op.gate === 'cz') {
+    return `${op.gate} q[${op.controls[0]}], q[${op.targets[0]}];`
+  }
+  if (op.gate === 'swap') {
+    return `swap q[${op.targets[0]}], q[${op.targets[1]}];`
+  }
+  if (op.gate === 'ccx') {
+    return `ccx q[${op.controls[0]}], q[${op.controls[1]}], q[${op.targets[0]}];`
   }
   if (op.gate === 'measure') {
     return `c[${op.clbits[0]}] = measure q[${op.targets[0]}];`

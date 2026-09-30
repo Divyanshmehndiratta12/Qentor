@@ -1,0 +1,57 @@
+{
+  "name": "rotations",
+  "description": "The three rotations, including an integral angle (Python prints 1.0) and a negative one.",
+  "circuit": {
+    "schema": "qentor.circuit/1",
+    "num_qubits": 2,
+    "num_clbits": 0,
+    "ops": [
+      {
+        "gate": "rx",
+        "targets": [
+          0
+        ],
+        "controls": [],
+        "params": [
+          0.5
+        ],
+        "clbits": []
+      },
+      {
+        "gate": "ry",
+        "targets": [
+          1
+        ],
+        "controls": [],
+        "params": [
+          1.5707963267948966
+        ],
+        "clbits": []
+      },
+      {
+        "gate": "rz",
+        "targets": [
+          0
+        ],
+        "controls": [],
+        "params": [
+          -3.141592653589793
+        ],
+        "clbits": []
+      },
+      {
+        "gate": "rx",
+        "targets": [
+          1
+        ],
+        "controls": [],
+        "params": [
+          1.0
+        ],
+        "clbits": []
+      }
+    ]
+  },
+  "qasm": "OPENQASM 3.0;\ninclude \"stdgates.inc\";\nqubit[2] q;\nrx(0.5) q[0];\nry(1.5707963267948966) q[1];\nrz(-3.141592653589793) q[0];\nrx(1.0) q[1];\n",
+  "hash": "6fbe9b310447ac1da50bf289d87efaaae7b5726bf7238a8197d03f2661dc64aa"
+}

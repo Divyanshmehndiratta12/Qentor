@@ -1,0 +1,76 @@
+{
+  "name": "toffoli",
+  "description": "CCX with its controls in descending order, on a basis input, measured.",
+  "circuit": {
+    "schema": "qentor.circuit/1",
+    "num_qubits": 3,
+    "num_clbits": 3,
+    "ops": [
+      {
+        "gate": "x",
+        "targets": [
+          0
+        ],
+        "controls": [],
+        "params": [],
+        "clbits": []
+      },
+      {
+        "gate": "x",
+        "targets": [
+          2
+        ],
+        "controls": [],
+        "params": [],
+        "clbits": []
+      },
+      {
+        "gate": "ccx",
+        "targets": [
+          1
+        ],
+        "controls": [
+          2,
+          0
+        ],
+        "params": [],
+        "clbits": []
+      },
+      {
+        "gate": "measure",
+        "targets": [
+          0
+        ],
+        "controls": [],
+        "params": [],
+        "clbits": [
+          0
+        ]
+      },
+      {
+        "gate": "measure",
+        "targets": [
+          1
+        ],
+        "controls": [],
+        "params": [],
+        "clbits": [
+          1
+        ]
+      },
+      {
+        "gate": "measure",
+        "targets": [
+          2
+        ],
+        "controls": [],
+        "params": [],
+        "clbits": [
+          2
+        ]
+      }
+    ]
+  },
+  "qasm": "OPENQASM 3.0;\ninclude \"stdgates.inc\";\nqubit[3] q;\nbit[3] c;\nx q[0];\nx q[2];\nccx q[2], q[0], q[1];\nc[0] = measure q[0];\nc[1] = measure q[1];\nc[2] = measure q[2];\n",
+  "hash": "4f82e233ca516cbb01bb1b5647b21be84988f8814971e12656c8c36a23942ea8"
+}

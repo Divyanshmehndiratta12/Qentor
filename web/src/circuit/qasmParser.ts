@@ -13,7 +13,7 @@
  * line rather than guessing at the learner's intent.
  */
 import type { Circuit, GateName, GateOp } from './types'
-import { CircuitSchema } from './types'
+import { CircuitSchema, gateArityError } from './types'
 
 export class QasmParseError extends Error {
   readonly line: number
@@ -27,12 +27,14 @@ export class QasmParseError extends Error {
   }
 }
 
-const SIMPLE_GATES = new Set<GateName>(['h', 'x', 'y', 'z', 's', 't'])
+const SIMPLE_GATES = new Set<GateName>(['h', 'x', 'y', 'z', 's', 'sdg', 't', 'tdg'])
 const ROTATION_GATES = new Set<GateName>(['rx', 'ry', 'rz'])
 
 const RE_SIMPLE = /^([a-z]+)\s+q\[(\d+)\];$/
 const RE_ROTATION = /^([a-z]+)\(([^)]+)\)\s+q\[(\d+)\];$/
-const RE_CX = /^cx\s+q\[(\d+)\],\s*q\[(\d+)\];$/
+// cx / cz / swap / ccx: the gate name, then its qubit operands in order
+const RE_MULTI = /^(cx|cz|swap|ccx)\s+(q\[\d+\](?:\s*,\s*q\[\d+\])*);$/
+const OPERAND_COUNT: Record<string, number> = { cx: 2, cz: 2, swap: 2, ccx: 3 }
 const RE_MEASURE = /^c\[(\d+)\]\s*=\s*measure\s+q\[(\d+)\];$/
 const RE_QUBIT_DECL = /^qubit\[(\d+)\]\s+q;$/
 const RE_BIT_DECL = /^bit\[(\d+)\]\s+c;$/
@@ -66,15 +68,22 @@ export function parseQasm3(text: string): Circuit {
       return
     }
 
-    const cxMatch = RE_CX.exec(line)
-    if (cxMatch) {
-      ops.push({
-        gate: 'cx',
-        controls: [Number(cxMatch[1])],
-        targets: [Number(cxMatch[2])],
-        params: [],
-        clbits: [],
-      })
+    const multiMatch = RE_MULTI.exec(line)
+    if (multiMatch) {
+      const gate = multiMatch[1] as GateName
+      const operands = Array.from(multiMatch[2].matchAll(/q\[(\d+)\]/g), (m) => Number(m[1]))
+      if (operands.length !== OPERAND_COUNT[gate]) {
+        throw new QasmParseError(`${gate} takes ${OPERAND_COUNT[gate]} qubit operands, got ${operands.length}`, lineNo, line)
+      }
+      const op: GateOp =
+        gate === 'swap'
+          ? { gate, targets: [operands[0], operands[1]], controls: [], params: [], clbits: [] }
+          : gate === 'ccx'
+            ? { gate, controls: [operands[0], operands[1]], targets: [operands[2]], params: [], clbits: [] }
+            : { gate, controls: [operands[0]], targets: [operands[1]], params: [], clbits: [] }
+      const problem = gateArityError(op)
+      if (problem) throw new QasmParseError(problem, lineNo, line)
+      ops.push(op)
       return
     }
 

@@ -1,0 +1,979 @@
+{
+  "description": "Circuit pairs and whether they are operator-equivalent up to global phase.",
+  "pairs": [
+    {
+      "name": "hzh_is_x",
+      "note": "H Z H is X.",
+      "expected": "EQUIVALENT",
+      "a": {
+        "circuit": {
+          "schema": "qentor.circuit/1",
+          "num_qubits": 1,
+          "num_clbits": 0,
+          "ops": [
+            {
+              "gate": "h",
+              "targets": [
+                0
+              ],
+              "controls": [],
+              "params": [],
+              "clbits": []
+            },
+            {
+              "gate": "z",
+              "targets": [
+                0
+              ],
+              "controls": [],
+              "params": [],
+              "clbits": []
+            },
+            {
+              "gate": "h",
+              "targets": [
+                0
+              ],
+              "controls": [],
+              "params": [],
+              "clbits": []
+            }
+          ]
+        },
+        "qasm": "OPENQASM 3.0;\ninclude \"stdgates.inc\";\nqubit[1] q;\nh q[0];\nz q[0];\nh q[0];\n"
+      },
+      "b": {
+        "circuit": {
+          "schema": "qentor.circuit/1",
+          "num_qubits": 1,
+          "num_clbits": 0,
+          "ops": [
+            {
+              "gate": "x",
+              "targets": [
+                0
+              ],
+              "controls": [],
+              "params": [],
+              "clbits": []
+            }
+          ]
+        },
+        "qasm": "OPENQASM 3.0;\ninclude \"stdgates.inc\";\nqubit[1] q;\nx q[0];\n"
+      }
+    },
+    {
+      "name": "s_squared_is_z",
+      "note": "S S is Z.",
+      "expected": "EQUIVALENT",
+      "a": {
+        "circuit": {
+          "schema": "qentor.circuit/1",
+          "num_qubits": 1,
+          "num_clbits": 0,
+          "ops": [
+            {
+              "gate": "s",
+              "targets": [
+                0
+              ],
+              "controls": [],
+              "params": [],
+              "clbits": []
+            },
+            {
+              "gate": "s",
+              "targets": [
+                0
+              ],
+              "controls": [],
+              "params": [],
+              "clbits": []
+            }
+          ]
+        },
+        "qasm": "OPENQASM 3.0;\ninclude \"stdgates.inc\";\nqubit[1] q;\ns q[0];\ns q[0];\n"
+      },
+      "b": {
+        "circuit": {
+          "schema": "qentor.circuit/1",
+          "num_qubits": 1,
+          "num_clbits": 0,
+          "ops": [
+            {
+              "gate": "z",
+              "targets": [
+                0
+              ],
+              "controls": [],
+              "params": [],
+              "clbits": []
+            }
+          ]
+        },
+        "qasm": "OPENQASM 3.0;\ninclude \"stdgates.inc\";\nqubit[1] q;\nz q[0];\n"
+      }
+    },
+    {
+      "name": "t_squared_is_s",
+      "note": "T T is S.",
+      "expected": "EQUIVALENT",
+      "a": {
+        "circuit": {
+          "schema": "qentor.circuit/1",
+          "num_qubits": 1,
+          "num_clbits": 0,
+          "ops": [
+            {
+              "gate": "t",
+              "targets": [
+                0
+              ],
+              "controls": [],
+              "params": [],
+              "clbits": []
+            },
+            {
+              "gate": "t",
+              "targets": [
+                0
+              ],
+              "controls": [],
+              "params": [],
+              "clbits": []
+            }
+          ]
+        },
+        "qasm": "OPENQASM 3.0;\ninclude \"stdgates.inc\";\nqubit[1] q;\nt q[0];\nt q[0];\n"
+      },
+      "b": {
+        "circuit": {
+          "schema": "qentor.circuit/1",
+          "num_qubits": 1,
+          "num_clbits": 0,
+          "ops": [
+            {
+              "gate": "s",
+              "targets": [
+                0
+              ],
+              "controls": [],
+              "params": [],
+              "clbits": []
+            }
+          ]
+        },
+        "qasm": "OPENQASM 3.0;\ninclude \"stdgates.inc\";\nqubit[1] q;\ns q[0];\n"
+      }
+    },
+    {
+      "name": "s_then_sdg_cancels",
+      "note": "S then S-dagger is the identity.",
+      "expected": "EQUIVALENT",
+      "a": {
+        "circuit": {
+          "schema": "qentor.circuit/1",
+          "num_qubits": 1,
+          "num_clbits": 0,
+          "ops": [
+            {
+              "gate": "s",
+              "targets": [
+                0
+              ],
+              "controls": [],
+              "params": [],
+              "clbits": []
+            },
+            {
+              "gate": "sdg",
+              "targets": [
+                0
+              ],
+              "controls": [],
+              "params": [],
+              "clbits": []
+            }
+          ]
+        },
+        "qasm": "OPENQASM 3.0;\ninclude \"stdgates.inc\";\nqubit[1] q;\ns q[0];\nsdg q[0];\n"
+      },
+      "b": {
+        "circuit": {
+          "schema": "qentor.circuit/1",
+          "num_qubits": 1,
+          "num_clbits": 0,
+          "ops": []
+        },
+        "qasm": "OPENQASM 3.0;\ninclude \"stdgates.inc\";\nqubit[1] q;\n"
+      }
+    },
+    {
+      "name": "t_then_tdg_cancels",
+      "note": "T then T-dagger is the identity.",
+      "expected": "EQUIVALENT",
+      "a": {
+        "circuit": {
+          "schema": "qentor.circuit/1",
+          "num_qubits": 1,
+          "num_clbits": 0,
+          "ops": [
+            {
+              "gate": "t",
+              "targets": [
+                0
+              ],
+              "controls": [],
+              "params": [],
+              "clbits": []
+            },
+            {
+              "gate": "tdg",
+              "targets": [
+                0
+              ],
+              "controls": [],
+              "params": [],
+              "clbits": []
+            }
+          ]
+        },
+        "qasm": "OPENQASM 3.0;\ninclude \"stdgates.inc\";\nqubit[1] q;\nt q[0];\ntdg q[0];\n"
+      },
+      "b": {
+        "circuit": {
+          "schema": "qentor.circuit/1",
+          "num_qubits": 1,
+          "num_clbits": 0,
+          "ops": []
+        },
+        "qasm": "OPENQASM 3.0;\ninclude \"stdgates.inc\";\nqubit[1] q;\n"
+      }
+    },
+    {
+      "name": "sdg_squared_is_z",
+      "note": "S-dagger twice is Z.",
+      "expected": "EQUIVALENT",
+      "a": {
+        "circuit": {
+          "schema": "qentor.circuit/1",
+          "num_qubits": 1,
+          "num_clbits": 0,
+          "ops": [
+            {
+              "gate": "sdg",
+              "targets": [
+                0
+              ],
+              "controls": [],
+              "params": [],
+              "clbits": []
+            },
+            {
+              "gate": "sdg",
+              "targets": [
+                0
+              ],
+              "controls": [],
+              "params": [],
+              "clbits": []
+            }
+          ]
+        },
+        "qasm": "OPENQASM 3.0;\ninclude \"stdgates.inc\";\nqubit[1] q;\nsdg q[0];\nsdg q[0];\n"
+      },
+      "b": {
+        "circuit": {
+          "schema": "qentor.circuit/1",
+          "num_qubits": 1,
+          "num_clbits": 0,
+          "ops": [
+            {
+              "gate": "z",
+              "targets": [
+                0
+              ],
+              "controls": [],
+              "params": [],
+              "clbits": []
+            }
+          ]
+        },
+        "qasm": "OPENQASM 3.0;\ninclude \"stdgates.inc\";\nqubit[1] q;\nz q[0];\n"
+      }
+    },
+    {
+      "name": "cz_is_h_cx_h",
+      "note": "CZ is CX conjugated by H on the target.",
+      "expected": "EQUIVALENT",
+      "a": {
+        "circuit": {
+          "schema": "qentor.circuit/1",
+          "num_qubits": 2,
+          "num_clbits": 0,
+          "ops": [
+            {
+              "gate": "cz",
+              "targets": [
+                1
+              ],
+              "controls": [
+                0
+              ],
+              "params": [],
+              "clbits": []
+            }
+          ]
+        },
+        "qasm": "OPENQASM 3.0;\ninclude \"stdgates.inc\";\nqubit[2] q;\ncz q[0], q[1];\n"
+      },
+      "b": {
+        "circuit": {
+          "schema": "qentor.circuit/1",
+          "num_qubits": 2,
+          "num_clbits": 0,
+          "ops": [
+            {
+              "gate": "h",
+              "targets": [
+                1
+              ],
+              "controls": [],
+              "params": [],
+              "clbits": []
+            },
+            {
+              "gate": "cx",
+              "targets": [
+                1
+              ],
+              "controls": [
+                0
+              ],
+              "params": [],
+              "clbits": []
+            },
+            {
+              "gate": "h",
+              "targets": [
+                1
+              ],
+              "controls": [],
+              "params": [],
+              "clbits": []
+            }
+          ]
+        },
+        "qasm": "OPENQASM 3.0;\ninclude \"stdgates.inc\";\nqubit[2] q;\nh q[1];\ncx q[0], q[1];\nh q[1];\n"
+      }
+    },
+    {
+      "name": "cz_is_symmetric",
+      "note": "CZ(0,1) is CZ(1,0).",
+      "expected": "EQUIVALENT",
+      "a": {
+        "circuit": {
+          "schema": "qentor.circuit/1",
+          "num_qubits": 2,
+          "num_clbits": 0,
+          "ops": [
+            {
+              "gate": "cz",
+              "targets": [
+                1
+              ],
+              "controls": [
+                0
+              ],
+              "params": [],
+              "clbits": []
+            }
+          ]
+        },
+        "qasm": "OPENQASM 3.0;\ninclude \"stdgates.inc\";\nqubit[2] q;\ncz q[0], q[1];\n"
+      },
+      "b": {
+        "circuit": {
+          "schema": "qentor.circuit/1",
+          "num_qubits": 2,
+          "num_clbits": 0,
+          "ops": [
+            {
+              "gate": "cz",
+              "targets": [
+                0
+              ],
+              "controls": [
+                1
+              ],
+              "params": [],
+              "clbits": []
+            }
+          ]
+        },
+        "qasm": "OPENQASM 3.0;\ninclude \"stdgates.inc\";\nqubit[2] q;\ncz q[1], q[0];\n"
+      }
+    },
+    {
+      "name": "swap_is_three_cx",
+      "note": "SWAP is three alternating CX gates.",
+      "expected": "EQUIVALENT",
+      "a": {
+        "circuit": {
+          "schema": "qentor.circuit/1",
+          "num_qubits": 2,
+          "num_clbits": 0,
+          "ops": [
+            {
+              "gate": "swap",
+              "targets": [
+                0,
+                1
+              ],
+              "controls": [],
+              "params": [],
+              "clbits": []
+            }
+          ]
+        },
+        "qasm": "OPENQASM 3.0;\ninclude \"stdgates.inc\";\nqubit[2] q;\nswap q[0], q[1];\n"
+      },
+      "b": {
+        "circuit": {
+          "schema": "qentor.circuit/1",
+          "num_qubits": 2,
+          "num_clbits": 0,
+          "ops": [
+            {
+              "gate": "cx",
+              "targets": [
+                1
+              ],
+              "controls": [
+                0
+              ],
+              "params": [],
+              "clbits": []
+            },
+            {
+              "gate": "cx",
+              "targets": [
+                0
+              ],
+              "controls": [
+                1
+              ],
+              "params": [],
+              "clbits": []
+            },
+            {
+              "gate": "cx",
+              "targets": [
+                1
+              ],
+              "controls": [
+                0
+              ],
+              "params": [],
+              "clbits": []
+            }
+          ]
+        },
+        "qasm": "OPENQASM 3.0;\ninclude \"stdgates.inc\";\nqubit[2] q;\ncx q[0], q[1];\ncx q[1], q[0];\ncx q[0], q[1];\n"
+      }
+    },
+    {
+      "name": "swap_operand_order",
+      "note": "SWAP(0,1) is SWAP(1,0).",
+      "expected": "EQUIVALENT",
+      "a": {
+        "circuit": {
+          "schema": "qentor.circuit/1",
+          "num_qubits": 2,
+          "num_clbits": 0,
+          "ops": [
+            {
+              "gate": "swap",
+              "targets": [
+                0,
+                1
+              ],
+              "controls": [],
+              "params": [],
+              "clbits": []
+            }
+          ]
+        },
+        "qasm": "OPENQASM 3.0;\ninclude \"stdgates.inc\";\nqubit[2] q;\nswap q[0], q[1];\n"
+      },
+      "b": {
+        "circuit": {
+          "schema": "qentor.circuit/1",
+          "num_qubits": 2,
+          "num_clbits": 0,
+          "ops": [
+            {
+              "gate": "swap",
+              "targets": [
+                1,
+                0
+              ],
+              "controls": [],
+              "params": [],
+              "clbits": []
+            }
+          ]
+        },
+        "qasm": "OPENQASM 3.0;\ninclude \"stdgates.inc\";\nqubit[2] q;\nswap q[1], q[0];\n"
+      }
+    },
+    {
+      "name": "toffoli_control_order",
+      "note": "CCX with its controls in either order.",
+      "expected": "EQUIVALENT",
+      "a": {
+        "circuit": {
+          "schema": "qentor.circuit/1",
+          "num_qubits": 3,
+          "num_clbits": 0,
+          "ops": [
+            {
+              "gate": "ccx",
+              "targets": [
+                2
+              ],
+              "controls": [
+                0,
+                1
+              ],
+              "params": [],
+              "clbits": []
+            }
+          ]
+        },
+        "qasm": "OPENQASM 3.0;\ninclude \"stdgates.inc\";\nqubit[3] q;\nccx q[0], q[1], q[2];\n"
+      },
+      "b": {
+        "circuit": {
+          "schema": "qentor.circuit/1",
+          "num_qubits": 3,
+          "num_clbits": 0,
+          "ops": [
+            {
+              "gate": "ccx",
+              "targets": [
+                2
+              ],
+              "controls": [
+                1,
+                0
+              ],
+              "params": [],
+              "clbits": []
+            }
+          ]
+        },
+        "qasm": "OPENQASM 3.0;\ninclude \"stdgates.inc\";\nqubit[3] q;\nccx q[1], q[0], q[2];\n"
+      }
+    },
+    {
+      "name": "global_phase_only",
+      "note": "Z X Z X is minus the identity: equal to nothing up to global phase.",
+      "expected": "EQUIVALENT",
+      "a": {
+        "circuit": {
+          "schema": "qentor.circuit/1",
+          "num_qubits": 1,
+          "num_clbits": 0,
+          "ops": [
+            {
+              "gate": "z",
+              "targets": [
+                0
+              ],
+              "controls": [],
+              "params": [],
+              "clbits": []
+            },
+            {
+              "gate": "x",
+              "targets": [
+                0
+              ],
+              "controls": [],
+              "params": [],
+              "clbits": []
+            },
+            {
+              "gate": "z",
+              "targets": [
+                0
+              ],
+              "controls": [],
+              "params": [],
+              "clbits": []
+            },
+            {
+              "gate": "x",
+              "targets": [
+                0
+              ],
+              "controls": [],
+              "params": [],
+              "clbits": []
+            }
+          ]
+        },
+        "qasm": "OPENQASM 3.0;\ninclude \"stdgates.inc\";\nqubit[1] q;\nz q[0];\nx q[0];\nz q[0];\nx q[0];\n"
+      },
+      "b": {
+        "circuit": {
+          "schema": "qentor.circuit/1",
+          "num_qubits": 1,
+          "num_clbits": 0,
+          "ops": []
+        },
+        "qasm": "OPENQASM 3.0;\ninclude \"stdgates.inc\";\nqubit[1] q;\n"
+      }
+    },
+    {
+      "name": "relative_phase_differs",
+      "note": "Z is not the identity: a relative phase is a real difference.",
+      "expected": "NOT_EQUIVALENT",
+      "a": {
+        "circuit": {
+          "schema": "qentor.circuit/1",
+          "num_qubits": 1,
+          "num_clbits": 0,
+          "ops": [
+            {
+              "gate": "z",
+              "targets": [
+                0
+              ],
+              "controls": [],
+              "params": [],
+              "clbits": []
+            }
+          ]
+        },
+        "qasm": "OPENQASM 3.0;\ninclude \"stdgates.inc\";\nqubit[1] q;\nz q[0];\n"
+      },
+      "b": {
+        "circuit": {
+          "schema": "qentor.circuit/1",
+          "num_qubits": 1,
+          "num_clbits": 0,
+          "ops": []
+        },
+        "qasm": "OPENQASM 3.0;\ninclude \"stdgates.inc\";\nqubit[1] q;\n"
+      }
+    },
+    {
+      "name": "s_is_not_t",
+      "note": "S and T differ.",
+      "expected": "NOT_EQUIVALENT",
+      "a": {
+        "circuit": {
+          "schema": "qentor.circuit/1",
+          "num_qubits": 1,
+          "num_clbits": 0,
+          "ops": [
+            {
+              "gate": "s",
+              "targets": [
+                0
+              ],
+              "controls": [],
+              "params": [],
+              "clbits": []
+            }
+          ]
+        },
+        "qasm": "OPENQASM 3.0;\ninclude \"stdgates.inc\";\nqubit[1] q;\ns q[0];\n"
+      },
+      "b": {
+        "circuit": {
+          "schema": "qentor.circuit/1",
+          "num_qubits": 1,
+          "num_clbits": 0,
+          "ops": [
+            {
+              "gate": "t",
+              "targets": [
+                0
+              ],
+              "controls": [],
+              "params": [],
+              "clbits": []
+            }
+          ]
+        },
+        "qasm": "OPENQASM 3.0;\ninclude \"stdgates.inc\";\nqubit[1] q;\nt q[0];\n"
+      }
+    },
+    {
+      "name": "s_is_not_sdg",
+      "note": "S and S-dagger differ.",
+      "expected": "NOT_EQUIVALENT",
+      "a": {
+        "circuit": {
+          "schema": "qentor.circuit/1",
+          "num_qubits": 1,
+          "num_clbits": 0,
+          "ops": [
+            {
+              "gate": "s",
+              "targets": [
+                0
+              ],
+              "controls": [],
+              "params": [],
+              "clbits": []
+            }
+          ]
+        },
+        "qasm": "OPENQASM 3.0;\ninclude \"stdgates.inc\";\nqubit[1] q;\ns q[0];\n"
+      },
+      "b": {
+        "circuit": {
+          "schema": "qentor.circuit/1",
+          "num_qubits": 1,
+          "num_clbits": 0,
+          "ops": [
+            {
+              "gate": "sdg",
+              "targets": [
+                0
+              ],
+              "controls": [],
+              "params": [],
+              "clbits": []
+            }
+          ]
+        },
+        "qasm": "OPENQASM 3.0;\ninclude \"stdgates.inc\";\nqubit[1] q;\nsdg q[0];\n"
+      }
+    },
+    {
+      "name": "cx_direction_matters",
+      "note": "CX(0->1) is not CX(1->0).",
+      "expected": "NOT_EQUIVALENT",
+      "a": {
+        "circuit": {
+          "schema": "qentor.circuit/1",
+          "num_qubits": 2,
+          "num_clbits": 0,
+          "ops": [
+            {
+              "gate": "cx",
+              "targets": [
+                1
+              ],
+              "controls": [
+                0
+              ],
+              "params": [],
+              "clbits": []
+            }
+          ]
+        },
+        "qasm": "OPENQASM 3.0;\ninclude \"stdgates.inc\";\nqubit[2] q;\ncx q[0], q[1];\n"
+      },
+      "b": {
+        "circuit": {
+          "schema": "qentor.circuit/1",
+          "num_qubits": 2,
+          "num_clbits": 0,
+          "ops": [
+            {
+              "gate": "cx",
+              "targets": [
+                0
+              ],
+              "controls": [
+                1
+              ],
+              "params": [],
+              "clbits": []
+            }
+          ]
+        },
+        "qasm": "OPENQASM 3.0;\ninclude \"stdgates.inc\";\nqubit[2] q;\ncx q[1], q[0];\n"
+      }
+    },
+    {
+      "name": "cz_is_not_cx",
+      "note": "CZ is not CX.",
+      "expected": "NOT_EQUIVALENT",
+      "a": {
+        "circuit": {
+          "schema": "qentor.circuit/1",
+          "num_qubits": 2,
+          "num_clbits": 0,
+          "ops": [
+            {
+              "gate": "cz",
+              "targets": [
+                1
+              ],
+              "controls": [
+                0
+              ],
+              "params": [],
+              "clbits": []
+            }
+          ]
+        },
+        "qasm": "OPENQASM 3.0;\ninclude \"stdgates.inc\";\nqubit[2] q;\ncz q[0], q[1];\n"
+      },
+      "b": {
+        "circuit": {
+          "schema": "qentor.circuit/1",
+          "num_qubits": 2,
+          "num_clbits": 0,
+          "ops": [
+            {
+              "gate": "cx",
+              "targets": [
+                1
+              ],
+              "controls": [
+                0
+              ],
+              "params": [],
+              "clbits": []
+            }
+          ]
+        },
+        "qasm": "OPENQASM 3.0;\ninclude \"stdgates.inc\";\nqubit[2] q;\ncx q[0], q[1];\n"
+      }
+    },
+    {
+      "name": "swap_is_not_identity",
+      "note": "SWAP does something.",
+      "expected": "NOT_EQUIVALENT",
+      "a": {
+        "circuit": {
+          "schema": "qentor.circuit/1",
+          "num_qubits": 2,
+          "num_clbits": 0,
+          "ops": [
+            {
+              "gate": "swap",
+              "targets": [
+                0,
+                1
+              ],
+              "controls": [],
+              "params": [],
+              "clbits": []
+            }
+          ]
+        },
+        "qasm": "OPENQASM 3.0;\ninclude \"stdgates.inc\";\nqubit[2] q;\nswap q[0], q[1];\n"
+      },
+      "b": {
+        "circuit": {
+          "schema": "qentor.circuit/1",
+          "num_qubits": 2,
+          "num_clbits": 0,
+          "ops": []
+        },
+        "qasm": "OPENQASM 3.0;\ninclude \"stdgates.inc\";\nqubit[2] q;\n"
+      }
+    },
+    {
+      "name": "toffoli_target_matters",
+      "note": "CCX onto q2 is not CCX onto q0.",
+      "expected": "NOT_EQUIVALENT",
+      "a": {
+        "circuit": {
+          "schema": "qentor.circuit/1",
+          "num_qubits": 3,
+          "num_clbits": 0,
+          "ops": [
+            {
+              "gate": "ccx",
+              "targets": [
+                2
+              ],
+              "controls": [
+                0,
+                1
+              ],
+              "params": [],
+              "clbits": []
+            }
+          ]
+        },
+        "qasm": "OPENQASM 3.0;\ninclude \"stdgates.inc\";\nqubit[3] q;\nccx q[0], q[1], q[2];\n"
+      },
+      "b": {
+        "circuit": {
+          "schema": "qentor.circuit/1",
+          "num_qubits": 3,
+          "num_clbits": 0,
+          "ops": [
+            {
+              "gate": "ccx",
+              "targets": [
+                0
+              ],
+              "controls": [
+                1,
+                2
+              ],
+              "params": [],
+              "clbits": []
+            }
+          ]
+        },
+        "qasm": "OPENQASM 3.0;\ninclude \"stdgates.inc\";\nqubit[3] q;\nccx q[1], q[2], q[0];\n"
+      }
+    },
+    {
+      "name": "h_is_not_x",
+      "note": "H and X differ.",
+      "expected": "NOT_EQUIVALENT",
+      "a": {
+        "circuit": {
+          "schema": "qentor.circuit/1",
+          "num_qubits": 1,
+          "num_clbits": 0,
+          "ops": [
+            {
+              "gate": "h",
+              "targets": [
+                0
+              ],
+              "controls": [],
+              "params": [],
+              "clbits": []
+            }
+          ]
+        },
+        "qasm": "OPENQASM 3.0;\ninclude \"stdgates.inc\";\nqubit[1] q;\nh q[0];\n"
+      },
+      "b": {
+        "circuit": {
+          "schema": "qentor.circuit/1",
+          "num_qubits": 1,
+          "num_clbits": 0,
+          "ops": [
+            {
+              "gate": "x",
+              "targets": [
+                0
+              ],
+              "controls": [],
+              "params": [],
+              "clbits": []
+            }
+          ]
+        },
+        "qasm": "OPENQASM 3.0;\ninclude \"stdgates.inc\";\nqubit[1] q;\nx q[0];\n"
+      }
+    }
+  ]
+}

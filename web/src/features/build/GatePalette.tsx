@@ -1,10 +1,9 @@
 /**
- * Click-to-place (and now drag-to-place) gate palette, restyled into the
- * finalized design's floating bottom dock. Still only lists the 11 gates
- * `backend/qentor/circuit/model.py` and the `AerAdapter` actually accept
- * today (see circuit/types.ts) — the design's own palette additionally shows
- * a `cz` button, which is deliberately NOT reproduced here: extending the
- * gate set means extending the backend first, not the other way round.
+ * Click-to-place (and drag-to-place) gate palette, in the finalized design's
+ * floating bottom dock. It lists exactly the gates `backend/qentor/circuit/model.py`
+ * accepts (see circuit/types.ts): extending the gate set means extending the
+ * backend first, not the other way round. A gate on several wires (CX, CZ, CCX,
+ * SWAP) is placed with one click per wire; the hint above the dock says which.
  *
  * Drag-and-drop is additive and isolated: dragging a gate onto a wire's
  * append cell (CircuitCanvas.tsx) just calls `selectGate` then `onWireClick`
@@ -13,6 +12,7 @@
  */
 import { useBuildStore, ROTATION_DEFAULT_ANGLE } from './store'
 import type { GateName } from '@/circuit/types'
+import { GATE_DISPLAY, MULTI_QUBIT_PLACEMENT, placementPrompt } from '@/circuit/gateSpec'
 
 export const GATE_DND_MIME = 'application/x-qentor-gate'
 
@@ -22,7 +22,16 @@ const SINGLE_QUBIT: { gate: GateName; label: string; title: string }[] = [
   { gate: 'y', label: 'Y', title: 'Pauli-Y' },
   { gate: 'z', label: 'Z', title: 'Pauli-Z' },
   { gate: 's', label: 'S', title: 'Phase S' },
+  { gate: 'sdg', label: 'S†', title: 'S-dagger (undoes S)' },
   { gate: 't', label: 'T', title: 'T gate' },
+  { gate: 'tdg', label: 'T†', title: 'T-dagger (undoes T)' },
+]
+
+const MULTI_QUBIT: { gate: GateName; label: string; title: string }[] = [
+  { gate: 'cx', label: GATE_DISPLAY.cx, title: 'Controlled-X: click the control wire, then the target wire' },
+  { gate: 'cz', label: GATE_DISPLAY.cz, title: 'Controlled-Z: click the control wire, then the target wire' },
+  { gate: 'ccx', label: GATE_DISPLAY.ccx, title: 'Toffoli: click the two control wires, then the target wire' },
+  { gate: 'swap', label: GATE_DISPLAY.swap, title: 'Swap: click the two wires to exchange' },
 ]
 
 const ROTATION: { gate: GateName; label: string; title: string }[] = [
@@ -46,7 +55,7 @@ function DockButton({ gate, label, title }: { gate: GateName; label: string; tit
       }}
       onClick={() => selectGate(active ? null : gate)}
       title={title}
-      className={`flex h-[38px] w-[38px] shrink-0 cursor-grab items-center justify-center rounded-lg font-mono-qasm text-[13px] font-semibold select-none active:cursor-grabbing ${
+      className={`flex h-[38px] min-w-[38px] shrink-0 cursor-grab items-center justify-center rounded-lg px-1.5 font-mono-qasm text-[13px] font-semibold select-none active:cursor-grabbing ${
         active
           ? 'bg-cyan-glow text-void-950 shadow-[0_0_0_2px_var(--color-void-700),0_0_0_4px_var(--color-cyan-glow)]'
           : 'bg-void-500 text-slate-100 hover:bg-void-400'
@@ -61,17 +70,13 @@ export function GatePalette() {
   const pendingAngle = useBuildStore((s) => s.pendingAngle)
   const setPendingAngle = useBuildStore((s) => s.setPendingAngle)
   const selectedGate = useBuildStore((s) => s.selectedGate)
-  const pendingControl = useBuildStore((s) => s.pendingControl)
+  const pendingQubits = useBuildStore((s) => s.pendingQubits)
   const canvasError = useBuildStore((s) => s.canvasError)
   const isRotationSelected = selectedGate === 'rx' || selectedGate === 'ry' || selectedGate === 'rz'
 
   const statusText =
     canvasError ??
-    (selectedGate === 'cx'
-      ? pendingControl === null
-        ? 'click a wire to set the control qubit'
-        : `control = q${pendingControl} · click a wire to set the target`
-      : null)
+    (selectedGate && selectedGate in MULTI_QUBIT_PLACEMENT ? placementPrompt(selectedGate, pendingQubits) : null)
 
   return (
     <div className="pointer-events-none absolute inset-x-0 bottom-4 z-10 flex flex-col items-center gap-2 px-4">
@@ -105,7 +110,9 @@ export function GatePalette() {
           <DockButton key={g.gate} {...g} />
         ))}
         <span className="mx-0.5 h-6 w-px shrink-0 bg-void-400" />
-        <DockButton gate="cx" label="CX" title="Controlled-X" />
+        {MULTI_QUBIT.map((g) => (
+          <DockButton key={g.gate} {...g} />
+        ))}
         <span className="mx-0.5 h-6 w-px shrink-0 bg-void-400" />
         <DockButton gate="measure" label="M" title="Measure" />
       </div>

@@ -26,6 +26,7 @@ import type { QuantumValue } from '@/provenance/QuantumValue'
 import { emptyCircuit, gateArityError, type Circuit, type GateName, type GateOp } from '@/circuit/types'
 import { toQasm3 } from '@/circuit/qasmEmitter'
 import { selectedTraceStepContext } from './traceStepContext'
+import { MULTI_QUBIT_PLACEMENT, buildMultiQubitOp } from '@/circuit/gateSpec'
 import { parseQasm3, QasmParseError } from '@/circuit/qasmParser'
 
 export const ROTATION_DEFAULT_ANGLE = Math.PI / 2
@@ -81,7 +82,8 @@ interface BuildState {
 
   selectedGate: GateName | null
   pendingAngle: number
-  pendingControl: number | null
+  /** Wires already clicked for a multi-wire gate (cx, cz, ccx, swap), in click order; empty otherwise. */
+  pendingQubits: number[]
 
   mode: ExecutionMode
   shots: number
@@ -180,7 +182,7 @@ export const useBuildStore = create<BuildState>((set, get) => ({
 
   selectedGate: null,
   pendingAngle: ROTATION_DEFAULT_ANGLE,
-  pendingControl: null,
+  pendingQubits: [],
 
   mode: 'statevector',
   shots: 1024,
@@ -215,7 +217,7 @@ export const useBuildStore = create<BuildState>((set, get) => ({
       ...syncFromCircuit(emptyCircuit(Math.max(1, Math.min(8, n)))),
       result: null,
       canvasError: null,
-      pendingControl: null,
+      pendingQubits: [],
       verification: null,
       verificationError: null,
       tutorTurns: [],
@@ -227,25 +229,29 @@ export const useBuildStore = create<BuildState>((set, get) => ({
     })
   },
 
-  selectGate: (gate) => set({ selectedGate: gate, pendingControl: null, canvasError: null }),
+  selectGate: (gate) => set({ selectedGate: gate, pendingQubits: [], canvasError: null }),
 
   setPendingAngle: (angle) => set({ pendingAngle: angle }),
 
   onWireClick: (qubitIndex) => {
-    const { selectedGate, pendingAngle, pendingControl, circuit } = get()
+    const { selectedGate, pendingAngle, pendingQubits, circuit } = get()
     if (!selectedGate) return
 
-    if (selectedGate === 'cx') {
-      if (pendingControl === null) {
-        set({ pendingControl: qubitIndex })
+    // A gate on several wires (cx, cz, ccx, swap) takes one click per wire. Clicking a wire that is
+    // already picked cancels the half-placed gate; the last click adds it (arity is checked by `addOp`).
+    const roles = MULTI_QUBIT_PLACEMENT[selectedGate]
+    if (roles) {
+      if (pendingQubits.includes(qubitIndex)) {
+        set({ pendingQubits: [] })
         return
       }
-      if (pendingControl === qubitIndex) {
-        set({ pendingControl: null })
+      const picked = [...pendingQubits, qubitIndex]
+      if (picked.length < roles.length) {
+        set({ pendingQubits: picked })
         return
       }
-      addOp(set, get, { gate: 'cx', controls: [pendingControl], targets: [qubitIndex], params: [], clbits: [] })
-      set({ pendingControl: null })
+      addOp(set, get, buildMultiQubitOp(selectedGate, picked))
+      set({ pendingQubits: [] })
       return
     }
 
@@ -614,7 +620,7 @@ export const useBuildStore = create<BuildState>((set, get) => ({
       ...syncFromCircuit(circuit),
       canvasError: null,
       selectedGate: null,
-      pendingControl: null,
+      pendingQubits: [],
       result: null,
       executionError: null,
       verification: null,

@@ -4,7 +4,12 @@ Every other part of the backend (the QASM emitter, the circuit hash, the executi
 adapters, and later the verification layer) reads and writes this model. Nothing
 downstream invents a gate, a qubit index, or a parameter that is not in here.
 
-Milestone 1 gate set: h, x, y, z, s, t, rx, ry, rz, cx, measure.
+Gate set: h, x, y, z, s, sdg, t, tdg, rx, ry, rz, cx, cz, swap, ccx, measure.
+
+The last five of those (sdg, tdg, cz, swap, ccx) were added conservatively: sdg and tdg so the optimizer can
+cancel S/T inverse pairs (its documented gap) and the Bloch sphere can show S-dagger; cz, swap and ccx because
+phase kickback, oracle challenges and reversible logic need them. A gate is added here only together with its QASM
+emission, all three backends, the equivalence checker, the frontend model and a shared golden fixture.
 """
 
 from __future__ import annotations
@@ -24,16 +29,32 @@ class GateName(str, Enum):
     Y = "y"
     Z = "z"
     S = "s"
+    SDG = "sdg"
     T = "t"
+    TDG = "tdg"
     RX = "rx"
     RY = "ry"
     RZ = "rz"
     CX = "cx"
+    CZ = "cz"
+    SWAP = "swap"
+    CCX = "ccx"
     MEASURE = "measure"
 
 
 # Gates that take no control qubit and exactly one target.
-SINGLE_QUBIT_GATES = {GateName.H, GateName.X, GateName.Y, GateName.Z, GateName.S, GateName.T}
+SINGLE_QUBIT_GATES = {
+    GateName.H,
+    GateName.X,
+    GateName.Y,
+    GateName.Z,
+    GateName.S,
+    GateName.SDG,
+    GateName.T,
+    GateName.TDG,
+}
+# Gates with exactly one control and one target (the two differ only in the operation applied to the target).
+SINGLY_CONTROLLED_GATES = {GateName.CX, GateName.CZ}
 # Gates that take one target and exactly one real-valued parameter (a rotation angle).
 PARAMETRIC_GATES = {GateName.RX, GateName.RY, GateName.RZ}
 
@@ -82,17 +103,42 @@ class GateOp(BaseModel):
             if self.clbits:
                 raise ValueError(f"{gate.value} takes no classical bits")
 
-        elif gate is GateName.CX:
+        elif gate in SINGLY_CONTROLLED_GATES:
+            name = gate.value
             if len(self.targets) != 1:
-                raise ValueError(f"cx takes exactly 1 target qubit, got {len(self.targets)}")
+                raise ValueError(f"{name} takes exactly 1 target qubit, got {len(self.targets)}")
             if len(self.controls) != 1:
-                raise ValueError(f"cx takes exactly 1 control qubit, got {len(self.controls)}")
+                raise ValueError(f"{name} takes exactly 1 control qubit, got {len(self.controls)}")
             if self.controls[0] == self.targets[0]:
-                raise ValueError("cx control and target must be different qubits")
+                raise ValueError(f"{name} control and target must be different qubits")
             if self.params:
-                raise ValueError("cx takes no parameters")
+                raise ValueError(f"{name} takes no parameters")
             if self.clbits:
-                raise ValueError("cx takes no classical bits")
+                raise ValueError(f"{name} takes no classical bits")
+
+        elif gate is GateName.CCX:
+            if len(self.targets) != 1:
+                raise ValueError(f"ccx takes exactly 1 target qubit, got {len(self.targets)}")
+            if len(self.controls) != 2:
+                raise ValueError(f"ccx takes exactly 2 control qubits, got {len(self.controls)}")
+            if len({*self.controls, *self.targets}) != 3:
+                raise ValueError("ccx controls and target must be three different qubits")
+            if self.params:
+                raise ValueError("ccx takes no parameters")
+            if self.clbits:
+                raise ValueError("ccx takes no classical bits")
+
+        elif gate is GateName.SWAP:
+            if len(self.targets) != 2:
+                raise ValueError(f"swap takes exactly 2 target qubits, got {len(self.targets)}")
+            if self.targets[0] == self.targets[1]:
+                raise ValueError("swap targets must be two different qubits")
+            if self.controls:
+                raise ValueError("swap takes no control qubits")
+            if self.params:
+                raise ValueError("swap takes no parameters")
+            if self.clbits:
+                raise ValueError("swap takes no classical bits")
 
         elif gate is GateName.MEASURE:
             if len(self.targets) != 1:

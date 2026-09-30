@@ -1,0 +1,57 @@
+{
+  "name": "controlled_gates",
+  "description": "CX and CZ with both operand orders on three qubits (control and target are not interchangeable for CX).",
+  "circuit": {
+    "schema": "qentor.circuit/1",
+    "num_qubits": 3,
+    "num_clbits": 0,
+    "ops": [
+      {
+        "gate": "cx",
+        "targets": [
+          1
+        ],
+        "controls": [
+          0
+        ],
+        "params": [],
+        "clbits": []
+      },
+      {
+        "gate": "cz",
+        "targets": [
+          0
+        ],
+        "controls": [
+          1
+        ],
+        "params": [],
+        "clbits": []
+      },
+      {
+        "gate": "cx",
+        "targets": [
+          0
+        ],
+        "controls": [
+          2
+        ],
+        "params": [],
+        "clbits": []
+      },
+      {
+        "gate": "cz",
+        "targets": [
+          2
+        ],
+        "controls": [
+          1
+        ],
+        "params": [],
+        "clbits": []
+      }
+    ]
+  },
+  "qasm": "OPENQASM 3.0;\ninclude \"stdgates.inc\";\nqubit[3] q;\ncx q[0], q[1];\ncz q[1], q[0];\ncx q[2], q[0];\ncz q[1], q[2];\n",
+  "hash": "a4798046af4c60ee12ba06356d5425952519e87c064b806af5b77965dd88c4de"
+}

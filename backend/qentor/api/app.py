@@ -31,6 +31,7 @@ from fastapi import FastAPI, HTTPException
 from qentor.circuit.hashing import circuit_hash
 from qentor.execution.adapter import AdapterExecutionError, AdapterUnavailable, ExecutionResult
 from qentor.execution.aer import AerAdapter
+from qentor.execution.capabilities import UnsupportedGate, check_gate_support
 from qentor.execution.cirq_adapter import CirqAdapter
 from qentor.execution.limits import LimitExceeded, check_equivalence_limits, check_run_limits
 from qentor.execution.pennylane_adapter import PennyLaneAdapter
@@ -122,10 +123,15 @@ def _limit_http_error(exc: LimitExceeded) -> HTTPException:
 
 
 def _enforce_run_limits(circuit, backend: str, *, shots: int | None = None) -> None:
+    """Refuse, before any backend runs, a request over a size limit or using a gate the
+    chosen backend cannot run (422, structured)."""
     try:
         check_run_limits(circuit, backend, shots=shots)
+        check_gate_support(circuit, backend)
     except LimitExceeded as exc:
         raise _limit_http_error(exc) from exc
+    except UnsupportedGate as exc:
+        raise HTTPException(status_code=422, detail=exc.detail()) from exc
 
 
 def _record_run(

@@ -104,6 +104,11 @@ GATE_NOTES: dict[str, str] = {
     "rx": "RX rotates the state about the x-axis of the Bloch sphere by the gate's angle.",
     "ry": "RY rotates the state about the y-axis of the Bloch sphere by the gate's angle.",
     "rz": "RZ rotates the state about the z-axis of the Bloch sphere by the gate's angle.",
+    "sdg": "S† (S-dagger) leaves the |0⟩ amplitude alone and multiplies |1⟩ by −i: a quarter-turn of phase the other way, undoing S.",
+    "tdg": "T† (T-dagger) undoes T: it multiplies |1⟩ by a phase of an eighth of a turn the other way.",
+    "cz": "CZ flips the sign of the amplitude where both qubits are 1 and leaves every other amplitude alone. It is symmetric in its two qubits and can entangle them.",
+    "swap": "SWAP exchanges the states of its two qubits.",
+    "ccx": "CCX (Toffoli) flips the target qubit only when both control qubits are 1. It acts on three qubits together.",
     "cx": "CX flips the target qubit when the control qubit is 1. It acts on both qubits together and can entangle them.",
 }
 

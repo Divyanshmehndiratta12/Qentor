@@ -77,6 +77,16 @@ class CirqAdapter:
                 moments.append(getattr(cirq, _ROTATION_GATE_NAME[op.gate])(op.params[0])(qubits[op.targets[0]]))
             elif op.gate is GateName.CX:
                 moments.append(cirq.CNOT(qubits[op.controls[0]], qubits[op.targets[0]]))
+            elif op.gate is GateName.CZ:
+                moments.append(cirq.CZ(qubits[op.controls[0]], qubits[op.targets[0]]))
+            elif op.gate is GateName.SWAP:
+                moments.append(cirq.SWAP(qubits[op.targets[0]], qubits[op.targets[1]]))
+            elif op.gate is GateName.CCX:
+                moments.append(cirq.CCX(qubits[op.controls[0]], qubits[op.controls[1]], qubits[op.targets[0]]))
+            elif op.gate is GateName.SDG:
+                moments.append((cirq.S**-1)(qubits[op.targets[0]]))
+            elif op.gate is GateName.TDG:
+                moments.append((cirq.T**-1)(qubits[op.targets[0]]))
             elif op.gate is GateName.MEASURE:
                 measured_clbit_of_qubit[op.targets[0]] = op.clbits[0]
             else:  # pragma: no cover - Circuit validation already restricts gate names

@@ -1,0 +1,123 @@
+{
+  "name": "angle_formatting",
+  "description": "Angles whose text differs between Python's repr and JavaScript's toString: exponents, large and small magnitudes, negative zero, integral floats.",
+  "circuit": {
+    "schema": "qentor.circuit/1",
+    "num_qubits": 1,
+    "num_clbits": 0,
+    "ops": [
+      {
+        "gate": "rz",
+        "targets": [
+          0
+        ],
+        "controls": [],
+        "params": [
+          1e-05
+        ],
+        "clbits": []
+      },
+      {
+        "gate": "rz",
+        "targets": [
+          0
+        ],
+        "controls": [],
+        "params": [
+          1e-07
+        ],
+        "clbits": []
+      },
+      {
+        "gate": "rz",
+        "targets": [
+          0
+        ],
+        "controls": [],
+        "params": [
+          1e+16
+        ],
+        "clbits": []
+      },
+      {
+        "gate": "rz",
+        "targets": [
+          0
+        ],
+        "controls": [],
+        "params": [
+          1.5e+300
+        ],
+        "clbits": []
+      },
+      {
+        "gate": "rz",
+        "targets": [
+          0
+        ],
+        "controls": [],
+        "params": [
+          0.0001
+        ],
+        "clbits": []
+      },
+      {
+        "gate": "rz",
+        "targets": [
+          0
+        ],
+        "controls": [],
+        "params": [
+          123456789.125
+        ],
+        "clbits": []
+      },
+      {
+        "gate": "rz",
+        "targets": [
+          0
+        ],
+        "controls": [],
+        "params": [
+          -0.0
+        ],
+        "clbits": []
+      },
+      {
+        "gate": "rz",
+        "targets": [
+          0
+        ],
+        "controls": [],
+        "params": [
+          3.0
+        ],
+        "clbits": []
+      },
+      {
+        "gate": "rz",
+        "targets": [
+          0
+        ],
+        "controls": [],
+        "params": [
+          0.30000000000000004
+        ],
+        "clbits": []
+      },
+      {
+        "gate": "rz",
+        "targets": [
+          0
+        ],
+        "controls": [],
+        "params": [
+          1e+22
+        ],
+        "clbits": []
+      }
+    ]
+  },
+  "qasm": "OPENQASM 3.0;\ninclude \"stdgates.inc\";\nqubit[1] q;\nrz(1e-05) q[0];\nrz(1e-07) q[0];\nrz(1e+16) q[0];\nrz(1.5e+300) q[0];\nrz(0.0001) q[0];\nrz(123456789.125) q[0];\nrz(-0.0) q[0];\nrz(3.0) q[0];\nrz(0.30000000000000004) q[0];\nrz(1e+22) q[0];\n",
+  "hash": "190125eca8212466bceb14ecbad5680e7c32d067c9cbbb4d56b8f3eef0e08bd3"
+}

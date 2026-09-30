@@ -1,0 +1,71 @@
+{
+  "name": "deutsch_jozsa_balanced",
+  "description": "The Deutsch-Jozsa lesson's fixed balanced-oracle example.",
+  "circuit": {
+    "schema": "qentor.circuit/1",
+    "num_qubits": 2,
+    "num_clbits": 1,
+    "ops": [
+      {
+        "gate": "x",
+        "targets": [
+          1
+        ],
+        "controls": [],
+        "params": [],
+        "clbits": []
+      },
+      {
+        "gate": "h",
+        "targets": [
+          0
+        ],
+        "controls": [],
+        "params": [],
+        "clbits": []
+      },
+      {
+        "gate": "h",
+        "targets": [
+          1
+        ],
+        "controls": [],
+        "params": [],
+        "clbits": []
+      },
+      {
+        "gate": "cx",
+        "targets": [
+          1
+        ],
+        "controls": [
+          0
+        ],
+        "params": [],
+        "clbits": []
+      },
+      {
+        "gate": "h",
+        "targets": [
+          0
+        ],
+        "controls": [],
+        "params": [],
+        "clbits": []
+      },
+      {
+        "gate": "measure",
+        "targets": [
+          0
+        ],
+        "controls": [],
+        "params": [],
+        "clbits": [
+          0
+        ]
+      }
+    ]
+  },
+  "qasm": "OPENQASM 3.0;\ninclude \"stdgates.inc\";\nqubit[2] q;\nbit[1] c;\nx q[1];\nh q[0];\nh q[1];\ncx q[0], q[1];\nh q[0];\nc[0] = measure q[0];\n",
+  "hash": "6b35b92a9606c709d9597d60f790daf83a2330ccf289c19eda42c1aae2e996a6"
+}

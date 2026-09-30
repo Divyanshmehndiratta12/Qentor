@@ -34,7 +34,9 @@ _SIMPLE_GATE_METHOD = {
     GateName.Y: "y",
     GateName.Z: "z",
     GateName.S: "s",
+    GateName.SDG: "sdg",
     GateName.T: "t",
+    GateName.TDG: "tdg",
 }
 _ROTATION_GATE_METHOD = {
     GateName.RX: "rx",
@@ -204,6 +206,12 @@ def _to_qiskit_circuit_without_measurement(circuit: Circuit):
             getattr(qc, _ROTATION_GATE_METHOD[op.gate])(op.params[0], op.targets[0])
         elif op.gate is GateName.CX:
             qc.cx(op.controls[0], op.targets[0])
+        elif op.gate is GateName.CZ:
+            qc.cz(op.controls[0], op.targets[0])
+        elif op.gate is GateName.SWAP:
+            qc.swap(op.targets[0], op.targets[1])
+        elif op.gate is GateName.CCX:
+            qc.ccx(op.controls[0], op.controls[1], op.targets[0])
         elif op.gate is GateName.MEASURE:
             continue  # terminal measurement doesn't change the unitary before it
         else:  # pragma: no cover - Circuit validation already restricts gate names

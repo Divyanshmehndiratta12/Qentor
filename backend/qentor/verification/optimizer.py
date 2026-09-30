@@ -14,16 +14,17 @@ Rules implemented (all provably operator-preserving on adjacent, same-qubit
 operations — no cross-qubit commuting/reordering search is attempted, which
 is what keeps this "small" rather than a general optimiser):
 
-- adjacent self-inverse cancellation: H·H, X·X, Y·Y, Z·Z, and CX·CX with the
-  same control/target, each pair removed entirely (G·G = I for these gates).
+- adjacent self-inverse cancellation: H·H, X·X, Y·Y, Z·Z, CX·CX with the same
+  control/target, CZ·CZ (symmetric, so either qubit order), SWAP·SWAP (either order)
+  and CCX·CCX with the same controls (either order) and target, each pair removed
+  entirely (G·G = I for these gates).
+- adjacent inverse-pair cancellation: S·S†, S†·S, T·T†, T†·T on the same qubit.
 - same-axis rotation merging: adjacent RX/RY/RZ on the same qubit combine
   into one rotation with the summed angle (rotations about the same axis
   compose by adding angles).
 - zero-angle rotation removal: RX/RY/RZ with angle exactly 0 is the identity.
 
-Not implemented, deliberately: S/T inverse-pair cancellation (would need
-Sdg/Tdg, which are not in the canonical gate set — CLAUDE.md: "Do not add
-[new] gate types yet"), and commuting gates across disjoint qubits to expose
+Not implemented, deliberately: commuting gates across disjoint qubits to expose
 a cancellation that isn't already adjacent (a real optimiser feature, but a
 search problem, not a "small" rule).
 """
@@ -50,6 +51,12 @@ VERIFIER_NAME = "qentor.verification.optimizer"
 VERIFIER_VERSION = "1"
 
 _SELF_INVERSE_SINGLE = {GateName.H, GateName.X, GateName.Y, GateName.Z}
+_INVERSE_PAIRS = {
+    (GateName.S, GateName.SDG),
+    (GateName.SDG, GateName.S),
+    (GateName.T, GateName.TDG),
+    (GateName.TDG, GateName.T),
+}
 _ROTATION_GATES = {GateName.RX, GateName.RY, GateName.RZ}
 _NO_MATCH = object()
 
@@ -277,7 +284,20 @@ def _peephole_pass(
 def _combine_cancel_self_inverse(a: GateOp, b: GateOp):
     if a.gate == b.gate and a.gate in _SELF_INVERSE_SINGLE:
         return None
+    if (a.gate, b.gate) in _INVERSE_PAIRS and a.targets == b.targets:
+        return None
     if a.gate is GateName.CX and b.gate is GateName.CX and a.controls == b.controls and a.targets == b.targets:
+        return None
+    if a.gate is GateName.CZ and b.gate is GateName.CZ and {*a.controls, *a.targets} == {*b.controls, *b.targets}:
+        return None  # CZ is symmetric in its two qubits
+    if a.gate is GateName.SWAP and b.gate is GateName.SWAP and set(a.targets) == set(b.targets):
+        return None
+    if (
+        a.gate is GateName.CCX
+        and b.gate is GateName.CCX
+        and set(a.controls) == set(b.controls)
+        and a.targets == b.targets
+    ):
         return None
     return _NO_MATCH
 

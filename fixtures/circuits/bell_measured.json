@@ -1,0 +1,55 @@
+{
+  "name": "bell_measured",
+  "description": "The Bell circuit with both qubits measured.",
+  "circuit": {
+    "schema": "qentor.circuit/1",
+    "num_qubits": 2,
+    "num_clbits": 2,
+    "ops": [
+      {
+        "gate": "h",
+        "targets": [
+          0
+        ],
+        "controls": [],
+        "params": [],
+        "clbits": []
+      },
+      {
+        "gate": "cx",
+        "targets": [
+          1
+        ],
+        "controls": [
+          0
+        ],
+        "params": [],
+        "clbits": []
+      },
+      {
+        "gate": "measure",
+        "targets": [
+          0
+        ],
+        "controls": [],
+        "params": [],
+        "clbits": [
+          0
+        ]
+      },
+      {
+        "gate": "measure",
+        "targets": [
+          1
+        ],
+        "controls": [],
+        "params": [],
+        "clbits": [
+          1
+        ]
+      }
+    ]
+  },
+  "qasm": "OPENQASM 3.0;\ninclude \"stdgates.inc\";\nqubit[2] q;\nbit[2] c;\nh q[0];\ncx q[0], q[1];\nc[0] = measure q[0];\nc[1] = measure q[1];\n",
+  "hash": "52b456fd583d44c1ed379a0a72de5ce555d9d294bf66cc29ac7a43816ed34285"
+}

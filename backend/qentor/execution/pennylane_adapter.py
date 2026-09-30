@@ -77,6 +77,16 @@ class PennyLaneAdapter:
                     getattr(qml, _ROTATION_GATE_NAME[op.gate])(op.params[0], wires=wire_of(op.targets[0]))
                 elif op.gate is GateName.CX:
                     qml.CNOT(wires=[wire_of(op.controls[0]), wire_of(op.targets[0])])
+                elif op.gate is GateName.CZ:
+                    qml.CZ(wires=[wire_of(op.controls[0]), wire_of(op.targets[0])])
+                elif op.gate is GateName.SWAP:
+                    qml.SWAP(wires=[wire_of(op.targets[0]), wire_of(op.targets[1])])
+                elif op.gate is GateName.CCX:
+                    qml.Toffoli(wires=[wire_of(op.controls[0]), wire_of(op.controls[1]), wire_of(op.targets[0])])
+                elif op.gate is GateName.SDG:
+                    qml.adjoint(qml.S)(wires=wire_of(op.targets[0]))
+                elif op.gate is GateName.TDG:
+                    qml.adjoint(qml.T)(wires=wire_of(op.targets[0]))
                 elif op.gate is GateName.MEASURE:
                     pass  # measured wires are declared on the return value below, not inline
                 else:  # pragma: no cover - Circuit validation already restricts gate names

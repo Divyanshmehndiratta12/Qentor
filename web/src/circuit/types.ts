@@ -4,12 +4,11 @@
  * `extra="forbid"`: there is no field here for a probability, count, statevector
  * or verdict, because the server would reject one anyway.
  *
- * IMPORTANT: `GATE_NAMES` lists only the gates Milestone 1's `AerAdapter` and
- * `GateName` enum actually accept today. The full P0 gate set in
- * docs/ARCHITECTURE.md (`sdg tdg p cy cz swap ccx barrier oracle`) is not yet
- * implemented server-side. Adding a gate here without the backend accepting it
- * would let the UI build a circuit the server can only reject — so the palette
- * and this list must be extended together, backend first.
+ * IMPORTANT: `GATE_NAMES` is exactly the backend's `GateName` enum (h x y z s sdg t tdg
+ * rx ry rz cx cz swap ccx measure). Adding a gate here without the backend accepting it
+ * would let the UI build a circuit the server can only reject — so the palette and this
+ * list are extended together, backend first, and `fixtures/circuits/` (shared with the
+ * backend tests) pins that the two agree.
  */
 import { z } from 'zod'
 
@@ -19,17 +18,22 @@ export const GATE_NAMES = [
   'y',
   'z',
   's',
+  'sdg',
   't',
+  'tdg',
   'rx',
   'ry',
   'rz',
   'cx',
+  'cz',
+  'swap',
+  'ccx',
   'measure',
 ] as const
 
 export type GateName = (typeof GATE_NAMES)[number]
 
-export const SINGLE_QUBIT_GATES = ['h', 'x', 'y', 'z', 's', 't'] as const
+export const SINGLE_QUBIT_GATES = ['h', 'x', 'y', 'z', 's', 'sdg', 't', 'tdg'] as const
 export const PARAMETRIC_GATES = ['rx', 'ry', 'rz'] as const
 
 export const GateOpSchema = z.object({
@@ -88,12 +92,30 @@ export function gateArityError(op: GateOp): string | null {
     return null
   }
 
-  if (gate === 'cx') {
-    if (targets.length !== 1) return 'cx takes exactly 1 target qubit'
-    if (controls.length !== 1) return 'cx takes exactly 1 control qubit'
-    if (controls[0] === targets[0]) return 'cx control and target must differ'
-    if (params.length) return 'cx takes no parameters'
-    if (clbits.length) return 'cx takes no classical bits'
+  if (gate === 'cx' || gate === 'cz') {
+    if (targets.length !== 1) return `${gate} takes exactly 1 target qubit`
+    if (controls.length !== 1) return `${gate} takes exactly 1 control qubit`
+    if (controls[0] === targets[0]) return `${gate} control and target must differ`
+    if (params.length) return `${gate} takes no parameters`
+    if (clbits.length) return `${gate} takes no classical bits`
+    return null
+  }
+
+  if (gate === 'ccx') {
+    if (targets.length !== 1) return 'ccx takes exactly 1 target qubit'
+    if (controls.length !== 2) return 'ccx takes exactly 2 control qubits'
+    if (new Set([...controls, ...targets]).size !== 3) return 'ccx controls and target must be three different qubits'
+    if (params.length) return 'ccx takes no parameters'
+    if (clbits.length) return 'ccx takes no classical bits'
+    return null
+  }
+
+  if (gate === 'swap') {
+    if (targets.length !== 2) return 'swap takes exactly 2 target qubits'
+    if (targets[0] === targets[1]) return 'swap targets must be two different qubits'
+    if (controls.length) return 'swap takes no control qubits'
+    if (params.length) return 'swap takes no parameters'
+    if (clbits.length) return 'swap takes no classical bits'
     return null
   }
 

@@ -62,8 +62,13 @@ def build_fact_sheet(circuit: Circuit, record: ProvenanceRecord) -> list[TutorFa
 
 def _describe_op(op: GateOp) -> str:
     gate = op.gate.value
+    if len(op.controls) > 1:
+        controls = ", ".join(f"q{c}" for c in op.controls)
+        return f"{gate}(controls={controls}, target=q{op.targets[0]})"
     if op.controls:
         return f"{gate}(control=q{op.controls[0]}, target=q{op.targets[0]})"
+    if len(op.targets) > 1:
+        return f"{gate}({', '.join(f'q{t}' for t in op.targets)})"
     if op.params:
         return f"{gate}(q{op.targets[0]}, angle={op.params[0]:.6f})"
     if op.clbits:

@@ -25,7 +25,9 @@ _SIMPLE_GATE_QASM = {
     GateName.Y: "y",
     GateName.Z: "z",
     GateName.S: "s",
+    GateName.SDG: "sdg",
     GateName.T: "t",
+    GateName.TDG: "tdg",
 }
 _ROTATION_GATE_QASM = {
     GateName.RX: "rx",
@@ -66,6 +68,15 @@ def to_qasm3(circuit: Circuit) -> str:
 
         elif op.gate is GateName.CX:
             lines.append(f"cx q[{op.controls[0]}], q[{op.targets[0]}];")
+
+        elif op.gate is GateName.CZ:
+            lines.append(f"cz q[{op.controls[0]}], q[{op.targets[0]}];")
+
+        elif op.gate is GateName.SWAP:
+            lines.append(f"swap q[{op.targets[0]}], q[{op.targets[1]}];")
+
+        elif op.gate is GateName.CCX:
+            lines.append(f"ccx q[{op.controls[0]}], q[{op.controls[1]}], q[{op.targets[0]}];")
 
         elif op.gate is GateName.MEASURE:
             lines.append(f"c[{op.clbits[0]}] = measure q[{op.targets[0]}];")

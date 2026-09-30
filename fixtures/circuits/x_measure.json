@@ -1,0 +1,33 @@
+{
+  "name": "x_measure",
+  "description": "Flip a qubit, then measure it.",
+  "circuit": {
+    "schema": "qentor.circuit/1",
+    "num_qubits": 1,
+    "num_clbits": 1,
+    "ops": [
+      {
+        "gate": "x",
+        "targets": [
+          0
+        ],
+        "controls": [],
+        "params": [],
+        "clbits": []
+      },
+      {
+        "gate": "measure",
+        "targets": [
+          0
+        ],
+        "controls": [],
+        "params": [],
+        "clbits": [
+          0
+        ]
+      }
+    ]
+  },
+  "qasm": "OPENQASM 3.0;\ninclude \"stdgates.inc\";\nqubit[1] q;\nbit[1] c;\nx q[0];\nc[0] = measure q[0];\n",
+  "hash": "96bbfa392fd41a0b002ebca56344e51c92a901d2a79f0042980366dbf9939bc8"
+}
