@@ -82,7 +82,7 @@ verifier, the optimiser and the tutor all read and write this one shape.
 }
 ```
 
-- **Gate set (P0):** `id x y z h s sdg t tdg rx ry rz p cx cy cz swap ccx measure barrier`, plus `oracle` (a named slot the test harness fills). Nothing else is accepted.
+- **Gate set (built):** `h x y z s sdg t tdg rx ry rz cx cz cp swap ccx measure`. `cp(theta) control, target` is the controlled phase, `diag(1, 1, 1, e^{i*theta})`, theta in radians; it is the only controlled gate that takes an angle. A gate is added only together with its QASM emission, all three backends, the equivalence checker, the frontend model and a shared golden fixture. Nothing else is accepted. Planned, not built: `id`, `p`, `cy`, `barrier`, and `oracle` (a named slot the test harness fills).
 - **Limits:** 1–8 qubits interactive; hard cap 10 for equivalence checks (operator size 1024×1024).
 - **OpenQASM 3** is the canonical *text* form and the wire format between stages, as the deck promises. The server's emitter is authoritative. The frontend has its own emitter and parser for instant editor sync. Both must produce byte-identical text on the shared golden fixtures, which a test enforces.
 - **Independent parse check:** the server also parses canonical QASM with Qiskit's `qasm3` importer and checks operator equivalence against the model in tests. That catches emitter bugs with a second, independent parser.

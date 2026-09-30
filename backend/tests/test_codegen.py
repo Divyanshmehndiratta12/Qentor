@@ -34,11 +34,12 @@ FIXTURES = {
 
 ALLOWED_CALLS = {
     "QuantumCircuit", "qc.h", "qc.x", "qc.y", "qc.z", "qc.s", "qc.sdg", "qc.t", "qc.tdg", "qc.rx", "qc.ry", "qc.rz",
-    "qc.cx", "qc.cz", "qc.swap", "qc.ccx", "qc.measure",
+    "qc.cx", "qc.cz", "qc.cp", "qc.swap", "qc.ccx", "qc.measure",
     "cirq.LineQubit.range", "cirq.Circuit", "cirq.H", "cirq.X", "cirq.Y", "cirq.Z", "cirq.S", "cirq.T", "cirq.CNOT",
-    "cirq.CZ", "cirq.SWAP", "cirq.CCX", "cirq.measure", "cirq.rx", "cirq.ry", "cirq.rz",
+    "cirq.CZ", "cirq.cphase", "cirq.SWAP", "cirq.CCX", "cirq.measure", "cirq.rx", "cirq.ry", "cirq.rz",
     "qml.device", "qml.qnode", "qml.Hadamard", "qml.PauliX", "qml.PauliY", "qml.PauliZ", "qml.S", "qml.T", "qml.adjoint",
-    "qml.RX", "qml.RY", "qml.RZ", "qml.CNOT", "qml.CZ", "qml.SWAP", "qml.Toffoli", "qml.probs", "qml.state",
+    "qml.RX", "qml.RY", "qml.RZ", "qml.CNOT", "qml.CZ", "qml.ControlledPhaseShift", "qml.SWAP", "qml.Toffoli", "qml.probs",
+    "qml.state",
 }
 
 
@@ -83,6 +84,8 @@ def random_circuit(rng: random.Random) -> Circuit:
                 ops.append(GateOp(gate=gate, targets=[qubits[0]], params=[rng.choice([0.5, -1.25, 3.0, 1e-05, 2.5e-10])]))
             elif gate in (GateName.CX, GateName.CZ):
                 ops.append(GateOp(gate=gate, targets=[qubits[1]], controls=[qubits[0]]))
+            elif gate is GateName.CP:
+                ops.append(GateOp(gate=gate, targets=[qubits[1]], controls=[qubits[0]], params=[rng.choice([0.5, -1.25, 3.0, 1e-05])]))
             elif gate is GateName.SWAP:
                 ops.append(GateOp(gate=gate, targets=[qubits[0], qubits[1]]))
             elif gate is GateName.CCX:
@@ -229,6 +232,7 @@ class TestTheGeneratedProgramsMeanWhatTheCircuitMeans(_Backends):
         for c, t in itertools.permutations(range(3), 2):
             for gate in ("cx", "cz"):
                 self.assertProgramsMatchTheBackend(Circuit(num_qubits=3, num_clbits=0, ops=[*prefix(3), GateOp(gate=gate, targets=[t], controls=[c])]), f"{gate} {c}->{t}")
+            self.assertProgramsMatchTheBackend(Circuit(num_qubits=3, num_clbits=0, ops=[*prefix(3), GateOp(gate="cp", targets=[t], controls=[c], params=[0.9])]), f"cp {c}->{t}")
             self.assertProgramsMatchTheBackend(Circuit(num_qubits=3, num_clbits=0, ops=[*prefix(3), GateOp(gate="swap", targets=[c, t])]), f"swap {c},{t}")
         for c1, c2, t in itertools.permutations(range(3), 3):
             self.assertProgramsMatchTheBackend(Circuit(num_qubits=3, num_clbits=0, ops=[*prefix(3), GateOp(gate="ccx", targets=[t], controls=[c1, c2])]), f"ccx {c1},{c2}->{t}")

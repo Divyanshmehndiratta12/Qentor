@@ -796,6 +796,33 @@ export function traceResultFromResponse(response: TraceResponse): ExecutionTrace
               },
             }
           : null,
+        // Per-qubit states and the polar amplitude view are the backend's numbers, passed through untouched and
+        // wrapped with the same step provenance as the statevector they were derived from.
+        qubitStates: step.qubit_states.map((q) => ({
+          qubit: q.qubit,
+          status: q.status,
+          reason: q.reason ?? null,
+          bloch: q.bloch ? toQuantumValue({ x: q.bloch.x, y: q.bloch.y, z: q.bloch.z }, provenance) : null,
+          blochLength: q.bloch_length === null || q.bloch_length === undefined ? null : toQuantumValue(q.bloch_length, provenance),
+          purity: q.purity === null || q.purity === undefined ? null : toQuantumValue(q.purity, provenance),
+          entangledWithRest: q.entangled_with_rest ?? null,
+          method: q.method,
+          derivedFrom: {
+            stepIndex: q.derived_from.step_index,
+            resultId: q.derived_from.result_id,
+            executionId: q.derived_from.execution_id,
+            circuitHash: q.derived_from.circuit_hash,
+            backend: q.derived_from.backend,
+            backendVersion: q.derived_from.backend_version,
+          },
+        })),
+        amplitudeView:
+          step.amplitude_view.length > 0
+            ? toQuantumValue(
+                step.amplitude_view.map((a) => ({ magnitude: a.magnitude, probability: a.probability, phase: a.phase })),
+                provenance,
+              )
+            : null,
       }
     }),
     terminalMeasurements: response.terminal_measurements.map((m) => ({

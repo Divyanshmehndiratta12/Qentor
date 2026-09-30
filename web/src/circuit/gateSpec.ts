@@ -21,15 +21,24 @@ export const GATE_DISPLAY: Record<GateName, string> = {
   rz: 'RZ',
   cx: 'CX',
   cz: 'CZ',
+  cp: 'CP',
   swap: 'SWAP',
   ccx: 'CCX',
   measure: 'M',
+}
+
+/** Gates that carry one angle in radians: the three rotations, and the phase of a controlled phase. */
+export const ANGLE_GATES: readonly GateName[] = ['rx', 'ry', 'rz', 'cp']
+
+export function gateTakesAngle(gate: GateName | null | undefined): boolean {
+  return !!gate && ANGLE_GATES.includes(gate)
 }
 
 /** What a gate looks like on the qubit it acts ON (a controlled gate shows the operation, its controls show a dot). */
 export const TARGET_SYMBOL: Partial<Record<GateName, string>> = {
   cx: 'X',
   cz: 'Z',
+  cp: 'P',
   ccx: 'X',
   swap: '×',
 }
@@ -43,6 +52,7 @@ export type OperandRole = 'control' | 'target'
 export const MULTI_QUBIT_PLACEMENT: Partial<Record<GateName, readonly OperandRole[]>> = {
   cx: ['control', 'target'],
   cz: ['control', 'target'],
+  cp: ['control', 'target'],
   ccx: ['control', 'control', 'target'],
   swap: ['target', 'target'],
 }
@@ -69,14 +79,17 @@ export function placementPrompt(gate: GateName, picked: readonly number[]): stri
   return chosen ? `${chosen} · ${next}` : next
 }
 
-/** The finished operation for a fully picked multi-wire gate. */
-export function buildMultiQubitOp(gate: GateName, picked: readonly number[]): GateOp {
+/**
+ * The finished operation for a fully picked multi-wire gate. `angle` is the learner's chosen angle in
+ * radians; it is kept only by a gate that takes one (cp), so every other gate stays parameter-free.
+ */
+export function buildMultiQubitOp(gate: GateName, picked: readonly number[], angle?: number): GateOp {
   const roles = MULTI_QUBIT_PLACEMENT[gate] ?? []
   return {
     gate,
     controls: picked.filter((_, i) => roles[i] === 'control'),
     targets: picked.filter((_, i) => roles[i] === 'target'),
-    params: [],
+    params: gateTakesAngle(gate) && angle !== undefined ? [angle] : [],
     clbits: [],
   }
 }

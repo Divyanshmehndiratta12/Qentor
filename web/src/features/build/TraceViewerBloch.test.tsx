@@ -16,6 +16,7 @@ import {
   X0,
   Z0,
   bellMeasured,
+  bellWithQubitStates,
   emptyOneQubit,
   hzh,
   hzhWithBloch,
@@ -208,20 +209,32 @@ describe('the sphere follows the backend, not the gates or the statevector', () 
   })
 })
 
-describe('multi-qubit traces (Bell): no fabricated sphere', () => {
-  it('every Bell step shows an explanation, not a sphere, vector or zero coordinates', () => {
+describe('multi-qubit traces (Bell): never one fabricated sphere for the register', () => {
+  it('a backend that sent no per-qubit states gets an explanation — no sphere, vector or zero coordinates', () => {
     renderViewer(bellMeasured())
 
     for (const step of [0, 1, 2]) {
       goTo(step)
-      expect(screen.getByTestId('bloch-unavailable')).toBeInTheDocument()
-      expect(screen.getByText('Bloch sphere unavailable for this state.')).toBeInTheDocument()
-      expect(screen.getByText('Single-qubit Bloch vector unavailable for this multi-qubit state.')).toBeInTheDocument()
-      for (const id of ['bloch-svg', 'bloch-vector', 'bloch-endpoint', 'bloch-readout']) {
+      expect(screen.getByTestId('qubit-spheres-unavailable')).toBeInTheDocument()
+      expect(screen.getByText('Per-qubit spheres unavailable for this step.')).toBeInTheDocument()
+      expect(screen.getByText(/did not provide a state for each of the 2 qubits/)).toBeInTheDocument()
+      for (const id of ['bloch-section', 'bloch-svg', 'bloch-vector', 'bloch-endpoint', 'bloch-readout']) {
         expect(screen.queryByTestId(id)).not.toBeInTheDocument()
       }
     }
     expect(document.querySelector('svg')).toBeNull()
+  })
+
+  it('a backend that sent per-qubit states gets one sphere per qubit, never one for the register', () => {
+    renderViewer(bellWithQubitStates())
+
+    for (const step of [0, 1, 2]) {
+      goTo(step)
+      expect(screen.queryByTestId('bloch-section')).not.toBeInTheDocument() // the register-level card is gone
+      expect(screen.getAllByTestId('bloch-svg')).toHaveLength(2) // one per qubit
+      expect(screen.getByTestId('qubit-card-0')).toBeInTheDocument()
+      expect(screen.getByTestId('qubit-card-1')).toBeInTheDocument()
+    }
   })
 
   it('the full trace and statevector viewer stay available next to the explanation', () => {

@@ -192,7 +192,8 @@ function SphereAndReadout({ bloch }: { bloch: TraceBlochVector }) {
   )
 }
 
-function SphereSvg({
+/** The drawing itself, for a caller that already holds a backend vector (`QubitSpheres` draws one per qubit). */
+export function SphereSvg({
   x,
   y,
   z,

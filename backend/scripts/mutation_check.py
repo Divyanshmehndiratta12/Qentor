@@ -9,6 +9,7 @@ Every mutated file is restored from the text read before the change, in a ``fina
     backend/.venv/bin/python backend/scripts/mutation_check.py            # everything
     backend/.venv/bin/python backend/scripts/mutation_check.py backend    # only the backend mutants
     backend/.venv/bin/python backend/scripts/mutation_check.py web        # only the frontend mutants (needs node 22 on PATH)
+    backend/.venv/bin/python backend/scripts/mutation_check.py all cp     # only mutants whose name contains "cp"
 """
 
 from __future__ import annotations
@@ -101,6 +102,43 @@ BACKEND = [
     Mutant("packaging: the health check is registered twice", "backend/qentor/api/app.py",
            '@app.get("/api/lessons", response_model=LessonCatalogResponse)',
            '@app.get("/api/health")\ndef _health_again() -> dict[str, str]:\n    return {}\n\n\n@app.get("/api/lessons", response_model=LessonCatalogResponse)', ["test_deployment.py"]),
+    # --- cp gate ---
+    Mutant("cp: the Cirq adapter negates the angle", "backend/qentor/execution/cirq_adapter.py",
+           "cirq.cphase(op.params[0])", "cirq.cphase(-op.params[0])", ["test_cp_gate.py"]),
+    Mutant("cp: the PennyLane adapter reads the control as the angle's wire twice", "backend/qentor/execution/pennylane_adapter.py",
+           "qml.ControlledPhaseShift(op.params[0], wires=[wire_of(op.controls[0]), wire_of(op.targets[0])])",
+           "qml.ControlledPhaseShift(op.params[0], wires=[wire_of(op.controls[0]), wire_of(op.controls[0])])", ["test_cp_gate.py"]),
+    Mutant("cp: the QASM text drops the angle", "backend/qentor/circuit/qasm.py",
+           'lines.append(f"cp({_format_angle(op.params[0])}) q[{op.controls[0]}], q[{op.targets[0]}];")',
+           'lines.append(f"cp(0.0) q[{op.controls[0]}], q[{op.targets[0]}];")', ["test_cp_gate.py", "test_golden_fixtures.py"]),
+    Mutant("cp: the model accepts a cp with no angle", "backend/qentor/circuit/model.py",
+           'raise ValueError(f"cp takes exactly 1 parameter (a phase in radians), got {len(self.params)}")', "pass", ["test_cp_gate.py"]),
+    Mutant("cp: the tutor describes a cp without its angle", "backend/qentor/tutor/facts.py",
+           "if op.controls and op.params:", "if False:", ["test_cp_gate.py"]),
+    Mutant("cp: generated Qiskit code swaps control and target", "backend/qentor/circuit/codegen.py",
+           'return f"qc.cp({_format_angle(op.params[0])}, {op.controls[0]}, {op.targets[0]})"',
+           'return f"qc.cp({_format_angle(op.params[0])}, {op.targets[0]}, {op.controls[0]})"', ["test_cp_gate.py", "test_codegen.py"]),
+    # --- per-qubit reduced state and the amplitude view ---
+    Mutant("reduced state: the Bloch y component has the wrong sign", "backend/qentor/execution/reduced_state.py",
+           "y = -2.0 * rho01.imag", "y = 2.0 * rho01.imag", ["test_reduced_state.py"]),
+    Mutant("reduced state: a qubit counts as entangled only when it is maximally mixed", "backend/qentor/execution/reduced_state.py",
+           "entangled_with_rest=purity < 1.0 - ENTANGLEMENT_TOLERANCE", "entangled_with_rest=purity < 0.5", ["test_reduced_state.py"]),
+    Mutant("reduced state: an impossible qubit state is shown instead of marked unusable", "backend/qentor/execution/reduced_state.py",
+           "if not (0.5 - VALIDITY_TOLERANCE <= purity <= 1.0 + VALIDITY_TOLERANCE):", "if False:", ["test_reduced_state.py"]),
+    Mutant("reduced state: an over-long Bloch vector is shown instead of marked unusable", "backend/qentor/execution/reduced_state.py",
+           "if not length <= 1.0 + VALIDITY_TOLERANCE:", "if False:", ["test_reduced_state.py"]),
+    Mutant("reduced state: an unnormalised state is reduced anyway", "backend/qentor/execution/reduced_state.py",
+           "if not abs(norm - 1.0) <= NORM_TOLERANCE:", "if False:", ["test_reduced_state.py"]),
+    Mutant("reduced state: the qubit index reads the wrong bit", "backend/qentor/execution/reduced_state.py",
+           "mask = 1 << qubit\n    rho00", "mask = 1 << (qubit ^ 1)\n    rho00", ["test_reduced_state.py"]),
+    Mutant("trace: a qubit state points at another step's provenance", "backend/qentor/execution/trace.py",
+           "source = BlochSource(\n            step_index=step_index,", "source = BlochSource(\n            step_index=0,", ["test_reduced_state.py"]),
+    Mutant("api: the trace response drops the per-qubit states", "backend/qentor/api/app.py",
+           "qubit_states=step.qubit_states,", "qubit_states=[],", ["test_reduced_state.py"]),
+    Mutant("amplitude view: a zero amplitude is given a phase", "backend/qentor/execution/amplitude_view.py",
+           "phase=math.atan2(im, re) if probability > PHASE_DEFINED_ABOVE else None,", "phase=math.atan2(im, re),", ["test_reduced_state.py"]),
+    Mutant("amplitude view: the phase sign is flipped", "backend/qentor/execution/amplitude_view.py",
+           "math.atan2(im, re) if", "math.atan2(-im, re) if", ["test_reduced_state.py"]),
 ]
 
 WEB = [
@@ -152,6 +190,39 @@ WEB = [
            "const isPinnedRun = !!pinned && !!result && pinned.result.provenance.resultId === result.provenance.resultId", "const isPinnedRun = false", ["src/features/compare/ComparePanel.test.tsx"]),
     Mutant("web: sampled and theoretical are not distinguished", "web/src/features/build/ResultsPanel.tsx",
            "{sampled ? `Sampled${shots !== undefined ? ` · ${shots} shots` : ''}` : 'Theoretical · ideal'}", "{'Theoretical · ideal'}", ["src/features/build/resultsProbabilities.test.tsx"]),
+    # --- cp gate ---
+    Mutant("web: the emitter prints cp with the target first", "web/src/circuit/qasmEmitter.ts",
+           "return `cp(${formatAngle(op.params[0])}) q[${op.controls[0]}], q[${op.targets[0]}];`",
+           "return `cp(${formatAngle(op.params[0])}) q[${op.targets[0]}], q[${op.controls[0]}];`", ["src/circuit/qasmEmitter.test.ts"]),
+    Mutant("web: a placed cp forgets its angle", "web/src/circuit/gateSpec.ts",
+           "params: gateTakesAngle(gate) && angle !== undefined ? [angle] : [],", "params: [],", ["src/features/build/gatePlacement.test.tsx"]),
+    Mutant("web: the parser accepts a cp with an unreadable angle", "web/src/circuit/qasmParser.ts",
+           "if (!Number.isFinite(angle)) {\n        throw new QasmParseError(`unparsable angle \"${phaseMatch[1]}\"`, lineNo, line)",
+           "if (false) {\n        throw new QasmParseError(`unparsable angle \"${phaseMatch[1]}\"`, lineNo, line)", ["src/circuit/qasmEmitter.test.ts"]),
+    Mutant("web: the arity check lets a cp have a control equal to its target", "web/src/circuit/types.ts",
+           "if (controls[0] === targets[0]) return 'cp control and target must differ'", "", ["src/circuit/qasmEmitter.test.ts"]),
+    # --- per-qubit spheres and the amplitude chart: the browser must only render what the server computed ---
+    Mutant("web: the per-qubit length is worked out from x, y, z", "web/src/features/build/QubitSpheres.tsx",
+           "<VerifiedValueInline quantum={blochLength} render={formatComponent} />",
+           "<VerifiedValueInline quantum={toQuantumValue(Math.sqrt(x * x + y * y + z * z), bloch.provenance)} render={formatComponent} />",
+           ["src/features/build/QubitSpheres.test.tsx", "src/features/build/reducedStateTrust.test.ts"]),
+    Mutant("web: entanglement is decided from the length instead of the server's flag", "web/src/features/build/QubitSpheres.tsx",
+           "{describeEntanglement(state.entangledWithRest)}", "{describeEntanglement(blochLength.value < 0.5)}",
+           ["src/features/build/QubitSpheres.test.tsx", "src/features/build/reducedStateTrust.test.ts"]),
+    Mutant("web: the reason an unusable qubit is unusable is hidden", "web/src/features/build/QubitSpheres.tsx",
+           "{state.reason ?? 'The backend gave no reason.'}", "{'The backend gave no reason.'}", ["src/features/build/QubitSpheres.test.tsx"]),
+    Mutant("web: a qubit state derived from another step is accepted", "web/src/provenance/schema.ts",
+           "const mismatches = sourceMismatches(qubitState.derived_from)", "const mismatches: unknown[] = []", ["src/features/build/QubitSpheres.test.tsx"]),
+    Mutant("web: per-qubit purity loses its own step's provenance", "web/src/api/realClient.ts",
+           "toQuantumValue(q.purity, provenance)", "toQuantumValue(q.purity, provenanceFromTraceStep(response.steps[0]!.provenance))", ["src/features/build/QubitSpheres.test.tsx"]),
+    Mutant("web: a phase arrow turns the wrong way", "web/src/features/build/AmplitudeChart.tsx",
+           "{ '--phase': row.phase } as CSSProperties", "{ '--phase': -row.phase } as CSSProperties", ["src/features/build/AmplitudeChart.test.tsx", "src/features/build/reducedStateTrust.test.ts"]),
+    Mutant("web: a bar is sized by the outcome weight instead of the amplitude", "web/src/features/build/AmplitudeChart.tsx",
+           "{ '--amp': row.magnitude } as CSSProperties", "{ '--amp': row.probability } as CSSProperties", ["src/features/build/AmplitudeChart.test.tsx", "src/features/build/reducedStateTrust.test.ts"]),
+    Mutant("web: an amplitude with no phase is drawn with an arrow anyway", "web/src/features/build/AmplitudeChart.tsx",
+           "{row.phase === null ? (\n                        <span className=\"text-[10px] text-void-300\">none</span>", "{false ? (\n                        <span className=\"text-[10px] text-void-300\">none</span>", ["src/features/build/AmplitudeChart.test.tsx"]),
+    Mutant("web: the outcome weight is computed as the square of the size", "web/src/features/build/AmplitudeChart.tsx",
+           "toQuantumValue(row.probability, view.provenance)", "toQuantumValue(row.magnitude * row.magnitude, view.provenance)", ["src/features/build/AmplitudeChart.test.tsx", "src/features/build/reducedStateTrust.test.ts"]),
 ]
 
 
@@ -177,9 +248,11 @@ def try_mutant(m: Mutant, kind: str) -> str:
 
 def main() -> int:
     which = sys.argv[1] if len(sys.argv) > 1 else "all"
+    only = sys.argv[2].lower() if len(sys.argv) > 2 else ""  # optional: only mutants whose name contains this text
     groups = [("backend", BACKEND)] if which == "backend" else [("web", WEB)] if which == "web" else [("backend", BACKEND), ("web", WEB)]
     bad = 0
     for kind, mutants in groups:
+        mutants = [m for m in mutants if only in m.name.lower()]
         killed = 0
         for m in mutants:
             outcome = try_mutant(m, kind)

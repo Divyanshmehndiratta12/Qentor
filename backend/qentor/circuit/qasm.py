@@ -72,6 +72,9 @@ def to_qasm3(circuit: Circuit) -> str:
         elif op.gate is GateName.CZ:
             lines.append(f"cz q[{op.controls[0]}], q[{op.targets[0]}];")
 
+        elif op.gate is GateName.CP:
+            lines.append(f"cp({_format_angle(op.params[0])}) q[{op.controls[0]}], q[{op.targets[0]}];")
+
         elif op.gate is GateName.SWAP:
             lines.append(f"swap q[{op.targets[0]}], q[{op.targets[1]}];")
 

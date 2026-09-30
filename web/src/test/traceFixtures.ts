@@ -49,6 +49,29 @@ export interface WireTraceOptions {
   /** One entry per step: the wire-format `change` the "backend" returned for that step (null for none — always null for step 0).
    * Fixture values standing in for a server response; the UI must show exactly what is supplied. Omit to send no `change` key. */
   changes?: Array<WireStepChange | null>
+  /** One entry per step: the wire-format per-qubit states the "backend" returned for that step (omit, or null, for none — as
+   * an older backend sends). Fixture values standing in for a server response; the UI must show exactly what is supplied. */
+  qubitStates?: Array<WireQubitFields[] | null>
+  /** One entry per step: the wire-format polar amplitudes the "backend" returned (omit, or null, for none). */
+  amplitudeViews?: Array<WireAmplitudeEntry[] | null>
+}
+
+export interface WireQubitFields {
+  qubit: number
+  status?: 'OK' | 'UNUSABLE'
+  reason?: string | null
+  bloch?: [number, number, number] | null
+  blochLength?: number | null
+  purity?: number | null
+  entangledWithRest?: boolean | null
+  /** Override the source the state claims to be derived from (to test that a mislinked source is refused). */
+  derivedFrom?: Partial<{ step_index: number; result_id: string | null; execution_id: string; circuit_hash: string }>
+}
+
+export interface WireAmplitudeEntry {
+  magnitude: number
+  probability: number
+  phase: number | null
 }
 
 export interface WireStepChange {
@@ -80,6 +103,8 @@ export function wireTrace(options: WireTraceOptions): Record<string, unknown> {
     tag = 'a',
     blochVectors,
     changes,
+    qubitStates,
+    amplitudeViews,
   } = options
 
   if (states.length !== ops.length + 1) {
@@ -112,6 +137,33 @@ export function wireTrace(options: WireTraceOptions): Record<string, unknown> {
       },
       statevector,
       ...(changes ? { change: changes[i] ?? null } : {}),
+      ...(qubitStates?.[i]
+        ? {
+            qubit_states: qubitStates[i]!.map((q) => {
+              const ok = (q.status ?? 'OK') === 'OK'
+              return {
+                qubit: q.qubit,
+                status: q.status ?? 'OK',
+                reason: q.reason ?? null,
+                bloch: ok && q.bloch ? { x: q.bloch[0], y: q.bloch[1], z: q.bloch[2] } : null,
+                bloch_length: ok ? (q.blochLength ?? null) : null,
+                purity: ok ? (q.purity ?? null) : null,
+                entangled_with_rest: ok ? (q.entangledWithRest ?? null) : null,
+                method: 'reduced-qubit-state-from-statevector/1',
+                derived_from: {
+                  step_index: i,
+                  result_id: `res_${tag}${i}`,
+                  execution_id: `aer-local-${tag}${i}`,
+                  circuit_hash: `hash_prefix_${tag}${i}`,
+                  backend,
+                  backend_version: backendVersion,
+                  ...q.derivedFrom,
+                },
+              }
+            }),
+          }
+        : {}),
+      ...(amplitudeViews?.[i] ? { amplitude_view: amplitudeViews[i] } : {}),
       // Like the backend: an explicit null when there is no Bloch vector; when
       // there is one, `derived_from` names exactly this step.
       bloch_vector: bloch
@@ -214,6 +266,60 @@ export const hzhWithBloch = (tag = 'a') =>
  * just |0>; the sphere must ignore it and show the supplied vector. */
 export const singleBloch = (vector: [number, number, number], tag = 'a') =>
   traceResult({ numQubits: 1, ops: [], states: [[[1, 0], [0, 0]]], blochVectors: [vector], tag })
+
+/**
+ * H on q0, then CX q0 -> q1, with per-qubit states and polar amplitudes for each step, as labelled TEST DATA standing in
+ * for what the backend returns (they are never a result, and the UI must show exactly what is supplied here):
+ * |00>: both qubits pure, pointing +z; after H: q0 on +x, q1 still +z; after CX: both qubits length 0, purity 1/2, entangled.
+ */
+export const BELL_QUBIT_STATES: WireQubitFields[][] = [
+  [
+    { qubit: 0, bloch: [0, 0, 1], blochLength: 1, purity: 1, entangledWithRest: false },
+    { qubit: 1, bloch: [0, 0, 1], blochLength: 1, purity: 1, entangledWithRest: false },
+  ],
+  [
+    { qubit: 0, bloch: [1, 0, 2.220446049250313e-16], blochLength: 1, purity: 1, entangledWithRest: false },
+    { qubit: 1, bloch: [0, 0, 1], blochLength: 1, purity: 1, entangledWithRest: false },
+  ],
+  [
+    { qubit: 0, bloch: [0, 0, 0], blochLength: 0, purity: 0.5, entangledWithRest: true },
+    { qubit: 1, bloch: [0, 0, 0], blochLength: 1.2246467991473532e-16, purity: 0.5000000000000001, entangledWithRest: true },
+  ],
+]
+export const BELL_AMPLITUDE_VIEWS: WireAmplitudeEntry[][] = [
+  [
+    { magnitude: 1, probability: 1, phase: 0 },
+    { magnitude: 0, probability: 0, phase: null },
+    { magnitude: 0, probability: 0, phase: null },
+    { magnitude: 0, probability: 0, phase: null },
+  ],
+  [
+    { magnitude: 0.7071067811865476, probability: 0.5000000000000001, phase: 0 },
+    { magnitude: 0.7071067811865476, probability: 0.5000000000000001, phase: 0 },
+    { magnitude: 0, probability: 0, phase: null },
+    { magnitude: 0, probability: 0, phase: null },
+  ],
+  [
+    { magnitude: 0.7071067811865476, probability: 0.5000000000000001, phase: 0 },
+    { magnitude: 0, probability: 0, phase: null },
+    { magnitude: 0, probability: 0, phase: null },
+    { magnitude: 0.7071067811865476, probability: 0.5000000000000001, phase: 1.5707963267948966 },
+  ],
+]
+export const BELL_STATES: Amplitude[][] = [
+  [[1, 0], [0, 0], [0, 0], [0, 0]],
+  [[0.7071067811865476, 0], [0.7071067811865476, 0], [0, 0], [0, 0]],
+  [[0.7071067811865476, 0], [0, 0], [0, 0], [0.7071067811865476, 0]],
+]
+export const bellWithQubitStates = (tag = 'a') =>
+  traceResult({
+    numQubits: 2,
+    ops: [H0, CX01],
+    states: BELL_STATES,
+    qubitStates: BELL_QUBIT_STATES,
+    amplitudeViews: BELL_AMPLITUDE_VIEWS,
+    tag,
+  })
 
 /** Bell circuit with terminal measures: 3 steps + 2 measurements. */
 export const bellMeasured = (tag = 'a') =>

@@ -79,6 +79,8 @@ class CirqAdapter:
                 moments.append(cirq.CNOT(qubits[op.controls[0]], qubits[op.targets[0]]))
             elif op.gate is GateName.CZ:
                 moments.append(cirq.CZ(qubits[op.controls[0]], qubits[op.targets[0]]))
+            elif op.gate is GateName.CP:
+                moments.append(cirq.cphase(op.params[0])(qubits[op.controls[0]], qubits[op.targets[0]]))
             elif op.gate is GateName.SWAP:
                 moments.append(cirq.SWAP(qubits[op.targets[0]], qubits[op.targets[1]]))
             elif op.gate is GateName.CCX:

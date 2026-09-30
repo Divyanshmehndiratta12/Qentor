@@ -196,7 +196,7 @@ class TestEquivalencePairs(_Backends):
 
     def test_the_pairs_cover_the_new_gates(self) -> None:
         text = json.dumps(_load("_equivalence.json"))
-        for gate in ("sdg", "tdg", "cz", "swap", "ccx"):
+        for gate in ("sdg", "tdg", "cz", "cp", "swap", "ccx"):
             self.assertIn(f'"gate": "{gate}"', text)
 
 

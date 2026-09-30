@@ -1,4 +1,5 @@
-"""The gate set (h x y z s sdg t tdg rx ry rz cx cz swap ccx measure) across the whole backend.
+"""The gate set (h x y z s sdg t tdg rx ry rz cx cz cp swap ccx measure) across the whole backend.
+(``cp`` has its own module, ``test_cp_gate.py``.)
 
 For each new gate: the model accepts exactly the right shapes, every backend runs it and reaches the
 same state as the verifier's unitary for EVERY operand order (bit-order bugs hide in the orders a
@@ -57,7 +58,7 @@ class TestTheModelAcceptsExactlyTheRightShapes(unittest.TestCase):
     def test_the_gate_set_is_the_documented_one(self) -> None:
         self.assertEqual(
             [g.value for g in GateName],
-            ["h", "x", "y", "z", "s", "sdg", "t", "tdg", "rx", "ry", "rz", "cx", "cz", "swap", "ccx", "measure"],
+            ["h", "x", "y", "z", "s", "sdg", "t", "tdg", "rx", "ry", "rz", "cx", "cz", "cp", "swap", "ccx", "measure"],
         )
 
     def test_valid_shapes(self) -> None:

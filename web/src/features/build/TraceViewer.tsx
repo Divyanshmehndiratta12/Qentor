@@ -16,6 +16,9 @@
  * only — this component never shows, and never invents, a post-measurement
  * state.
  *
+ * Per-qubit spheres and the amplitude/phase chart: for a register, each qubit's own state and every amplitude's size and
+ * phase are the server's too (`QubitSpheres`, `AmplitudeChart`); this file hands them only those backend values.
+ *
  * "What changed": the sentence, the before column and the highlighted rows all come from the backend — the summary and the list of
  * changed basis states are the server's (`change`), the "before" amplitudes are the previous step's own backend state. Nothing is
  * subtracted or compared in the browser.
@@ -30,7 +33,9 @@ import { toQuantumValue } from '@/provenance/QuantumValue'
 import { executionStatusExplanation } from '@/provenance/executionStatus'
 import { VerifiedValueInline } from '@/provenance/VerifiedValue'
 import type { TraceFailure } from './store'
+import { AmplitudeChart } from './AmplitudeChart'
 import { BlochSphere } from './BlochSphere'
+import { QubitSpheres } from './QubitSpheres'
 import {
   basisLabel,
   describeOperation,
@@ -237,9 +242,16 @@ function LoadedTrace({
 
       <StepDetail trace={trace} step={step} previous={current > 0 ? (trace.steps[current - 1] ?? null) : null} />
 
-      {/* The backend's Bloch vector for THIS step (or an explanation when it
-          has none). Handed only that vector — never the statevector or gate. */}
-      <BlochSphere bloch={step.blochVector} numQubits={trace.numQubits} />
+      {/* One qubit: the backend's Bloch vector for THIS step (or an explanation when it has none). Several qubits: one
+          sphere per qubit, each from that qubit's own backend-computed state (or an explanation when the backend
+          sent none). Either way the component is handed only backend values — never the statevector or a gate. */}
+      {trace.numQubits === 1 ? (
+        <BlochSphere bloch={step.blochVector} numQubits={trace.numQubits} />
+      ) : (
+        <QubitSpheres qubitStates={step.qubitStates} numQubits={trace.numQubits} />
+      )}
+
+      <AmplitudeChart view={step.amplitudeView} numQubits={trace.numQubits} labelled={isKnownBasisOrdering(trace.basisOrdering)} />
 
       <ProvenanceCard trace={trace} step={step} />
 

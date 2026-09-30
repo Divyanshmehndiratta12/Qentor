@@ -5,7 +5,7 @@
  * or verdict, because the server would reject one anyway.
  *
  * IMPORTANT: `GATE_NAMES` is exactly the backend's `GateName` enum (h x y z s sdg t tdg
- * rx ry rz cx cz swap ccx measure). Adding a gate here without the backend accepting it
+ * rx ry rz cx cz cp swap ccx measure). Adding a gate here without the backend accepting it
  * would let the UI build a circuit the server can only reject — so the palette and this
  * list are extended together, backend first, and `fixtures/circuits/` (shared with the
  * backend tests) pins that the two agree.
@@ -26,6 +26,7 @@ export const GATE_NAMES = [
   'rz',
   'cx',
   'cz',
+  'cp',
   'swap',
   'ccx',
   'measure',
@@ -98,6 +99,16 @@ export function gateArityError(op: GateOp): string | null {
     if (controls[0] === targets[0]) return `${gate} control and target must differ`
     if (params.length) return `${gate} takes no parameters`
     if (clbits.length) return `${gate} takes no classical bits`
+    return null
+  }
+
+  if (gate === 'cp') {
+    if (targets.length !== 1) return 'cp takes exactly 1 target qubit'
+    if (controls.length !== 1) return 'cp takes exactly 1 control qubit'
+    if (controls[0] === targets[0]) return 'cp control and target must differ'
+    if (params.length !== 1) return 'cp takes exactly 1 parameter (a phase in radians)'
+    if (!Number.isFinite(params[0])) return 'cp parameter must be a finite number'
+    if (clbits.length) return 'cp takes no classical bits'
     return null
   }
 

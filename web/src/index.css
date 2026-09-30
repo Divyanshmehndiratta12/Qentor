@@ -67,6 +67,32 @@ body {
   background-size: 32px 32px;
 }
 
+/* Amplitude / phase chart (features/build/AmplitudeChart). The browser does no arithmetic on a quantum number: the
+   component only sets --amp (the backend's amplitude size) and --phase (the backend's phase, radians) on an element,
+   and CSS lays them out. The bar is that fraction of the track; the arrow is turned by that many radians
+   (counter-clockwise, so the SVG's downward y axis is undone here) and coloured by the matching hue. */
+.amp-track {
+  position: relative;
+  height: 0.5rem;
+  border-radius: 9999px;
+  background: rgba(148, 163, 184, 0.14);
+  overflow: hidden;
+}
+.amp-bar {
+  display: block;
+  height: 100%;
+  width: calc(var(--amp) * 100%);
+  border-radius: 9999px;
+  background: var(--color-cyan-glow);
+}
+.phase-arrow {
+  transform-origin: 12px 12px;
+  transform: rotate(calc(var(--phase) * -1rad));
+  stroke: hsl(calc(var(--phase) * 57.29578) 80% 65%);
+  stroke-width: 2.4;
+  stroke-linecap: round;
+}
+
 /* Qentor Guide (features/guide). Three restrained motions: a slow slide along
    its top-bar strip, a few-pixel idle bob, and a short slide/fade when the
    side panel opens. All three are switched off for people who ask for reduced

@@ -35,7 +35,9 @@ const RE_ROTATION = /^([a-z]+)\(([^)]+)\)\s+q\[(\d+)\];$/
 // cx / cz / swap / ccx: the gate name, then its qubit operands in order
 const RE_MULTI = /^(cx|cz|swap|ccx)\s+(q\[\d+\](?:\s*,\s*q\[\d+\])*);$/
 const OPERAND_COUNT: Record<string, number> = { cx: 2, cz: 2, swap: 2, ccx: 3 }
-const RE_MEASURE = /^c\[(\d+)\]\s*=\s*measure\s+q\[(\d+)\];$/
+// cp(angle) control, target
+const RE_CONTROLLED_PHASE = /^cp\(([^)]+)\)\s+q\[(\d+)\]\s*,\s*q\[(\d+)\];$/
+const RE_MEASURE =/^c\[(\d+)\]\s*=\s*measure\s+q\[(\d+)\];$/
 const RE_QUBIT_DECL = /^qubit\[(\d+)\]\s+q;$/
 const RE_BIT_DECL = /^bit\[(\d+)\]\s+c;$/
 
@@ -87,6 +89,26 @@ export function parseQasm3(text: string): Circuit {
       return
     }
 
+    const phaseMatch = RE_CONTROLLED_PHASE.exec(line)
+    if (phaseMatch) {
+      const angleText = phaseMatch[1].trim()
+      const angle = angleText === '' ? Number.NaN : Number(angleText)
+      if (!Number.isFinite(angle)) {
+        throw new QasmParseError(`unparsable angle "${phaseMatch[1]}"`, lineNo, line)
+      }
+      const op: GateOp = {
+        gate: 'cp',
+        controls: [Number(phaseMatch[2])],
+        targets: [Number(phaseMatch[3])],
+        params: [angle],
+        clbits: [],
+      }
+      const problem = gateArityError(op)
+      if (problem) throw new QasmParseError(problem, lineNo, line)
+      ops.push(op)
+      return
+    }
+
     const measureMatch = RE_MEASURE.exec(line)
     if (measureMatch) {
       ops.push({
@@ -102,6 +124,9 @@ export function parseQasm3(text: string): Circuit {
     const rotationMatch = RE_ROTATION.exec(line)
     if (rotationMatch) {
       const gate = rotationMatch[1]
+      if (gate === 'cp') {
+        throw new QasmParseError('cp takes 2 qubit operands, got 1', lineNo, line)
+      }
       if (!ROTATION_GATES.has(gate as GateName)) {
         throw new QasmParseError(`unknown rotation gate "${gate}"`, lineNo, line)
       }

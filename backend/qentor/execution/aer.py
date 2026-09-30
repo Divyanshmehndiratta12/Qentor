@@ -70,6 +70,8 @@ class AerAdapter:
                 qc.cx(op.controls[0], op.targets[0])
             elif op.gate is GateName.CZ:
                 qc.cz(op.controls[0], op.targets[0])
+            elif op.gate is GateName.CP:
+                qc.cp(op.params[0], op.controls[0], op.targets[0])
             elif op.gate is GateName.SWAP:
                 qc.swap(op.targets[0], op.targets[1])
             elif op.gate is GateName.CCX:

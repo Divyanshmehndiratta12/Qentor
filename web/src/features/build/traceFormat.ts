@@ -73,7 +73,7 @@ export function displaysAsZero(amplitude: readonly [number, number]): boolean {
 /** Compact label for a timeline chip: `H q0`, `CX q0→q1`, `CCX q0,q1→q2`, `SWAP q0↔q1`, `S† q0`. */
 export function shortOperationLabel(op: GateOp): string {
   const gate = GATE_DISPLAY[op.gate]
-  if (op.gate === 'cx' || op.gate === 'cz') return `${gate} q${op.controls[0]}→q${op.targets[0]}`
+  if (op.gate === 'cx' || op.gate === 'cz' || op.gate === 'cp') return `${gate} q${op.controls[0]}→q${op.targets[0]}`
   if (op.gate === 'ccx') return `${gate} q${op.controls[0]},q${op.controls[1]}→q${op.targets[0]}`
   if (op.gate === 'swap') return `${gate} q${op.targets[0]}↔q${op.targets[1]}`
   return `${gate} q${op.targets[0]}`
@@ -87,6 +87,8 @@ export function describeOperation(op: GateOp): string {
     case 'cx':
     case 'cz':
       return `${gate} — control q${op.controls[0]}, target q${op.targets[0]}`
+    case 'cp':
+      return `${gate}(${(op.params[0] ?? 0).toFixed(DECIMALS)} rad) — control q${op.controls[0]}, target q${op.targets[0]}`
     case 'ccx':
       return `${gate} — controls q${op.controls[0]}, q${op.controls[1]}, target q${op.targets[0]}`
     case 'swap':

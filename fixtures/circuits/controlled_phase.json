@@ -1,0 +1,84 @@
+{
+  "name": "controlled_phase",
+  "description": "CP in every role on three qubits: control and target swapped, a negative angle and an integral angle (Python prints 1.0), on an H-prepared state so the phase is not invisible.",
+  "circuit": {
+    "schema": "qentor.circuit/1",
+    "num_qubits": 3,
+    "num_clbits": 0,
+    "ops": [
+      {
+        "gate": "h",
+        "targets": [
+          0
+        ],
+        "controls": [],
+        "params": [],
+        "clbits": []
+      },
+      {
+        "gate": "h",
+        "targets": [
+          1
+        ],
+        "controls": [],
+        "params": [],
+        "clbits": []
+      },
+      {
+        "gate": "h",
+        "targets": [
+          2
+        ],
+        "controls": [],
+        "params": [],
+        "clbits": []
+      },
+      {
+        "gate": "cp",
+        "targets": [
+          1
+        ],
+        "controls": [
+          0
+        ],
+        "params": [
+          1.5707963267948966
+        ],
+        "clbits": []
+      },
+      {
+        "gate": "cp",
+        "targets": [
+          0
+        ],
+        "controls": [
+          2
+        ],
+        "params": [
+          -0.25
+        ],
+        "clbits": []
+      },
+      {
+        "gate": "cp",
+        "targets": [
+          2
+        ],
+        "controls": [
+          1
+        ],
+        "params": [
+          1.0
+        ],
+        "clbits": []
+      }
+    ]
+  },
+  "qasm": "OPENQASM 3.0;\ninclude \"stdgates.inc\";\nqubit[3] q;\nh q[0];\nh q[1];\nh q[2];\ncp(1.5707963267948966) q[0], q[1];\ncp(-0.25) q[2], q[0];\ncp(1.0) q[1], q[2];\n",
+  "hash": "2530f354d5519da2630c50d90d651bc15e033954bf005d00a77b67c7df1bd485",
+  "code": {
+    "qiskit": "from qiskit import QuantumCircuit\n\nqc = QuantumCircuit(3)\nqc.h(0)\nqc.h(1)\nqc.h(2)\nqc.cp(1.5707963267948966, 0, 1)\nqc.cp(-0.25, 2, 0)\nqc.cp(1.0, 1, 2)\n",
+    "cirq": "import cirq\n\nq = cirq.LineQubit.range(3)\n# Cirq lists q[0] first in a state; Qiskit lists qubit 0 last. The circuit is the same.\ncircuit = cirq.Circuit(\n    cirq.H(q[0]),\n    cirq.H(q[1]),\n    cirq.H(q[2]),\n    cirq.cphase(1.5707963267948966)(q[0], q[1]),\n    cirq.cphase(-0.25)(q[2], q[0]),\n    cirq.cphase(1.0)(q[1], q[2]),\n)\n",
+    "pennylane": "import pennylane as qml\n\ndev = qml.device(\"default.qubit\", wires=3)\n\n\n@qml.qnode(dev)\ndef circuit():\n    qml.Hadamard(wires=0)\n    qml.Hadamard(wires=1)\n    qml.Hadamard(wires=2)\n    qml.ControlledPhaseShift(1.5707963267948966, wires=[0, 1])\n    qml.ControlledPhaseShift(-0.25, wires=[2, 0])\n    qml.ControlledPhaseShift(1.0, wires=[1, 2])\n    # PennyLane lists wire 0 first in a state; Qiskit lists qubit 0 last. The circuit is the same.\n    return qml.state()\n"
+  }
+}

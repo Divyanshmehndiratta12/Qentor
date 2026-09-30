@@ -85,6 +85,20 @@ FIXTURES: dict[str, tuple[str, Circuit]] = {
         "CX and CZ with both operand orders on three qubits (control and target are not interchangeable for CX).",
         circuit(3, 0, op("cx", [1], [0]), op("cz", [0], [1]), op("cx", [0], [2]), op("cz", [2], [1])),
     ),
+    "controlled_phase": (
+        "CP in every role on three qubits: control and target swapped, a negative angle and an integral angle "
+        "(Python prints 1.0), on an H-prepared state so the phase is not invisible.",
+        circuit(
+            3,
+            0,
+            op("h", [0]),
+            op("h", [1]),
+            op("h", [2]),
+            op("cp", [1], [0], params=[1.5707963267948966]),
+            op("cp", [0], [2], params=[-0.25]),
+            op("cp", [2], [1], params=[1.0]),
+        ),
+    ),
     "swap_gate": (
         "SWAP with operands in both orders, then measured.",
         circuit(3, 3, op("x", [0]), op("swap", [0, 2]), op("swap", [2, 1]), *measure_all(3)),
@@ -139,6 +153,10 @@ pair("t_then_tdg_cancels", "T then T-dagger is the identity.", "EQUIVALENT", cir
 pair("sdg_squared_is_z", "S-dagger twice is Z.", "EQUIVALENT", circuit(1, 0, op("sdg", [0]), op("sdg", [0])), circuit(1, 0, op("z", [0])))
 pair("cz_is_h_cx_h", "CZ is CX conjugated by H on the target.", "EQUIVALENT", circuit(2, 0, op("cz", [1], [0])), circuit(2, 0, op("h", [1]), op("cx", [1], [0]), op("h", [1])))
 pair("cz_is_symmetric", "CZ(0,1) is CZ(1,0).", "EQUIVALENT", circuit(2, 0, op("cz", [1], [0])), circuit(2, 0, op("cz", [0], [1])))
+pair("cp_pi_is_cz", "CP with angle pi is CZ.", "EQUIVALENT", circuit(2, 0, op("cp", [1], [0], params=[3.141592653589793])), circuit(2, 0, op("cz", [1], [0])))
+pair("cp_is_symmetric", "CP(0,1) is CP(1,0) for the same angle.", "EQUIVALENT", circuit(2, 0, op("cp", [1], [0], params=[0.7])), circuit(2, 0, op("cp", [0], [1], params=[0.7])))
+pair("cp_then_minus_cp_cancels", "CP(theta) then CP(-theta) is the identity.", "EQUIVALENT", circuit(2, 0, op("cp", [1], [0], params=[0.7]), op("cp", [1], [0], params=[-0.7])), circuit(2, 0))
+pair("cp_half_pi_twice_is_cz", "CP(pi/2) twice is CP(pi), which is CZ.", "EQUIVALENT", circuit(2, 0, op("cp", [1], [0], params=[1.5707963267948966]), op("cp", [1], [0], params=[1.5707963267948966])), circuit(2, 0, op("cz", [1], [0])))
 pair("swap_is_three_cx", "SWAP is three alternating CX gates.", "EQUIVALENT", circuit(2, 0, op("swap", [0, 1])), circuit(2, 0, op("cx", [1], [0]), op("cx", [0], [1]), op("cx", [1], [0])))
 pair("swap_operand_order", "SWAP(0,1) is SWAP(1,0).", "EQUIVALENT", circuit(2, 0, op("swap", [0, 1])), circuit(2, 0, op("swap", [1, 0])))
 pair("toffoli_control_order", "CCX with its controls in either order.", "EQUIVALENT", circuit(3, 0, op("ccx", [2], [0, 1])), circuit(3, 0, op("ccx", [2], [1, 0])))
@@ -148,6 +166,8 @@ pair("s_is_not_t", "S and T differ.", "NOT_EQUIVALENT", circuit(1, 0, op("s", [0
 pair("s_is_not_sdg", "S and S-dagger differ.", "NOT_EQUIVALENT", circuit(1, 0, op("s", [0])), circuit(1, 0, op("sdg", [0])))
 pair("cx_direction_matters", "CX(0->1) is not CX(1->0).", "NOT_EQUIVALENT", circuit(2, 0, op("cx", [1], [0])), circuit(2, 0, op("cx", [0], [1])))
 pair("cz_is_not_cx", "CZ is not CX.", "NOT_EQUIVALENT", circuit(2, 0, op("cz", [1], [0])), circuit(2, 0, op("cx", [1], [0])))
+pair("cp_angle_matters", "CP(0.7) is not CP(0.8): the angle is part of the gate.", "NOT_EQUIVALENT", circuit(2, 0, op("cp", [1], [0], params=[0.7])), circuit(2, 0, op("cp", [1], [0], params=[0.8])))
+pair("cp_is_not_cz_away_from_pi", "CP(pi/2) is not CZ.", "NOT_EQUIVALENT", circuit(2, 0, op("cp", [1], [0], params=[1.5707963267948966])), circuit(2, 0, op("cz", [1], [0])))
 pair("swap_is_not_identity", "SWAP does something.", "NOT_EQUIVALENT", circuit(2, 0, op("swap", [0, 1])), circuit(2, 0))
 pair("toffoli_target_matters", "CCX onto q2 is not CCX onto q0.", "NOT_EQUIVALENT", circuit(3, 0, op("ccx", [2], [0, 1])), circuit(3, 0, op("ccx", [0], [1, 2])))
 pair("h_is_not_x", "H and X differ.", "NOT_EQUIVALENT", circuit(1, 0, op("h", [0])), circuit(1, 0, op("x", [0])))
@@ -157,6 +177,14 @@ pair("h_is_not_x", "H and X differ.", "NOT_EQUIVALENT", circuit(1, 0, op("h", [0
 INVALID: list[dict] = [
     {"name": "cz_two_controls", "reason": "exactly 1 control", "client_rejects": True, "circuit": {"schema": "qentor.circuit/1", "num_qubits": 3, "num_clbits": 0, "ops": [{"gate": "cz", "targets": [2], "controls": [0, 1], "params": [], "clbits": []}]}},
     {"name": "cz_same_qubit", "reason": "different qubits", "client_rejects": True, "circuit": {"schema": "qentor.circuit/1", "num_qubits": 2, "num_clbits": 0, "ops": [{"gate": "cz", "targets": [0], "controls": [0], "params": [], "clbits": []}]}},
+    {"name": "cp_without_parameter", "reason": "exactly 1 parameter", "client_rejects": True, "circuit": {"schema": "qentor.circuit/1", "num_qubits": 2, "num_clbits": 0, "ops": [{"gate": "cp", "targets": [1], "controls": [0], "params": [], "clbits": []}]}},
+    {"name": "cp_two_parameters", "reason": "exactly 1 parameter", "client_rejects": True, "circuit": {"schema": "qentor.circuit/1", "num_qubits": 2, "num_clbits": 0, "ops": [{"gate": "cp", "targets": [1], "controls": [0], "params": [0.5, 0.5], "clbits": []}]}},
+    {"name": "cp_without_control", "reason": "exactly 1 control", "client_rejects": True, "circuit": {"schema": "qentor.circuit/1", "num_qubits": 2, "num_clbits": 0, "ops": [{"gate": "cp", "targets": [1], "controls": [], "params": [0.5], "clbits": []}]}},
+    {"name": "cp_two_controls", "reason": "exactly 1 control", "client_rejects": True, "circuit": {"schema": "qentor.circuit/1", "num_qubits": 3, "num_clbits": 0, "ops": [{"gate": "cp", "targets": [2], "controls": [0, 1], "params": [0.5], "clbits": []}]}},
+    {"name": "cp_two_targets", "reason": "exactly 1 target", "client_rejects": True, "circuit": {"schema": "qentor.circuit/1", "num_qubits": 3, "num_clbits": 0, "ops": [{"gate": "cp", "targets": [1, 2], "controls": [0], "params": [0.5], "clbits": []}]}},
+    {"name": "cp_same_qubit", "reason": "different qubits", "client_rejects": True, "circuit": {"schema": "qentor.circuit/1", "num_qubits": 2, "num_clbits": 0, "ops": [{"gate": "cp", "targets": [0], "controls": [0], "params": [0.5], "clbits": []}]}},
+    {"name": "cp_with_clbit", "reason": "no classical bits", "client_rejects": True, "circuit": {"schema": "qentor.circuit/1", "num_qubits": 2, "num_clbits": 1, "ops": [{"gate": "cp", "targets": [1], "controls": [0], "params": [0.5], "clbits": [0]}]}},
+    {"name": "cp_control_out_of_range", "reason": "out of range", "client_rejects": False, "circuit": {"schema": "qentor.circuit/1", "num_qubits": 2, "num_clbits": 0, "ops": [{"gate": "cp", "targets": [1], "controls": [2], "params": [0.5], "clbits": []}]}},
     {"name": "ccx_one_control", "reason": "exactly 2 control", "client_rejects": True, "circuit": {"schema": "qentor.circuit/1", "num_qubits": 3, "num_clbits": 0, "ops": [{"gate": "ccx", "targets": [2], "controls": [0], "params": [], "clbits": []}]}},
     {"name": "ccx_repeated_qubit", "reason": "three different qubits", "client_rejects": True, "circuit": {"schema": "qentor.circuit/1", "num_qubits": 3, "num_clbits": 0, "ops": [{"gate": "ccx", "targets": [1], "controls": [0, 1], "params": [], "clbits": []}]}},
     {"name": "ccx_two_targets", "reason": "exactly 1 target", "client_rejects": True, "circuit": {"schema": "qentor.circuit/1", "num_qubits": 4, "num_clbits": 0, "ops": [{"gate": "ccx", "targets": [2, 3], "controls": [0, 1], "params": [], "clbits": []}]}},

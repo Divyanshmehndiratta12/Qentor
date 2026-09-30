@@ -25,16 +25,19 @@ Only ``statevector`` mode can be traced. Shots return sampled counts, not a
 state; there is nothing per-step to report and none is invented — a shots
 request is refused with ``TraceNotSupported``.
 
-Bloch vectors: for a SINGLE-qubit circuit each step also carries an optional
-``bloch_vector`` (``qentor.execution.bloch``) — the one quantity this module
-derives rather than forwards. It is computed from that step's own validated,
-backend-returned statevector and nothing else (no gate names, no textbook
-states), and it is tagged with the step's identity (step index, result id,
-execution id, prefix circuit hash, backend and version) so it can never be
-detached from the state it came from. A multi-qubit step has ``bloch_vector =
-None``: a Bloch vector describes one qubit, an entangled register has no pure
-state per qubit, and no reduced-state abstraction exists yet, so nothing is
-invented for the whole register. A Bloch vector is not a verdict on the circuit.
+Derived views: besides the forwarded statevector, each step carries values DERIVED from that one step's own
+validated, backend-returned statevector and nothing else (no gate names, no textbook states):
+
+* ``bloch_vector`` (``qentor.execution.bloch``) for a SINGLE-qubit circuit. A multi-qubit step has ``bloch_vector =
+  None``: one vector for a whole register would hide the correlations that make it entangled.
+* ``qubit_states`` (``qentor.execution.reduced_state``) for EVERY circuit: each qubit's own reduced state — Bloch
+  vector, purity, Bloch length, entangled-with-the-rest — or an explicit ``UNUSABLE`` with a reason.
+* ``amplitude_view`` (``qentor.execution.amplitude_view``): each amplitude's magnitude, probability and phase, so the
+  browser can draw an amplitude/phase chart without computing any of it.
+
+Each is tagged with (or sits beside) the step's identity — step index, result id, execution id, prefix circuit hash,
+backend and version — built from the same loop variables as the step itself, so it can never be detached from the
+state it came from. None of them is a verdict on the circuit.
 
 Measurement: ``measure`` is not a unitary step. Running a circuit that still
 contains one through Aer's ``save_statevector`` lets the projective
@@ -60,6 +63,8 @@ from qentor.circuit.hashing import circuit_hash
 from qentor.circuit.model import Circuit, GateName, GateOp
 
 from .adapter import ExecutionAdapter, ExecutionMode, ExecutionResult
+from .amplitude_view import BasisAmplitude, derive_amplitude_view
+from .reduced_state import QubitReducedState, derive_qubit_states
 # NORM_TOLERANCE is the tolerance the rest of Qentor uses for exact statevectors
 # (docs/VERIFICATION_ARCHITECTURE.md §4.1: a state is only accepted when its
 # norm is within 1e-9 of 1). Defined once in `bloch` (which needs the same
@@ -104,7 +109,9 @@ class TraceStep(BaseModel):
 
     ``bloch_vector`` is present only for a single-qubit circuit: derived from
     this step's own statevector, tagged with this step's identity. ``None``
-    for every multi-qubit step (see the module docstring).
+    for every multi-qubit step (see the module docstring). ``qubit_states``
+    has one entry per qubit, ``q[0]`` first, and ``amplitude_view`` one entry
+    per basis state, in statevector order.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -117,6 +124,8 @@ class TraceStep(BaseModel):
     execution_id: str
     statevector: list[list[float]]
     bloch_vector: BlochVector | None = None
+    qubit_states: list[QubitReducedState] = []
+    amplitude_view: list[BasisAmplitude] = []
 
 
 class TerminalMeasurement(BaseModel):
@@ -220,19 +229,19 @@ def trace_circuit(
         # identifiers this step is built from (same loop iteration, same
         # variables) so the two cannot drift apart. Only a single-qubit
         # register has a Bloch vector; a multi-qubit step gets None.
+        source = BlochSource(
+            step_index=step_index,
+            result_id=result_id,
+            execution_id=result.execution_id,
+            circuit_hash=prefix_hash,
+            backend=result.backend_name,
+            backend_version=result.backend_version,
+        )
         bloch_vector = None
         if circuit.num_qubits == 1:
-            bloch_vector = derive_bloch_vector(
-                result.statevector,
-                source=BlochSource(
-                    step_index=step_index,
-                    result_id=result_id,
-                    execution_id=result.execution_id,
-                    circuit_hash=prefix_hash,
-                    backend=result.backend_name,
-                    backend_version=result.backend_version,
-                ),
-            )
+            bloch_vector = derive_bloch_vector(result.statevector, source=source)
+        qubit_states = derive_qubit_states(result.statevector, circuit.num_qubits, source=source)
+        amplitude_view = derive_amplitude_view(result.statevector)
 
         steps.append(
             TraceStep(
@@ -244,6 +253,8 @@ def trace_circuit(
                 execution_id=result.execution_id,
                 statevector=result.statevector,
                 bloch_vector=bloch_vector,
+                qubit_states=qubit_states,
+                amplitude_view=amplitude_view,
             )
         )
 

@@ -351,8 +351,46 @@ export interface TraceStep {
   /** The backend's Bloch vector for this step's state, or `null` — always
    * `null` for a multi-qubit step (the backend never invents one). */
   blochVector: TraceBlochVector | null
+  /**
+   * Each qubit's OWN state at this step, `q[0]` first, computed by the server from this step's statevector — the
+   * register has no single Bloch vector, but every qubit has its own. Empty when the backend sent none (an older
+   * backend): nothing is worked out here in its place.
+   */
+  qubitStates: TraceQubitState[]
+  /**
+   * Magnitude, probability and phase of every amplitude, in statevector order, computed by the server, wrapped with this
+   * step's provenance; `null` when the backend sent none.
+   */
+  amplitudeView: QuantumValue<TraceAmplitude[]> | null
   /** What this step's operation changed relative to the step before it, computed by the server; `null` for the initial state. */
   change: TraceStepChange | null
+}
+
+/**
+ * One qubit's own state inside a register at one trace step (`qentor.execution.reduced_state`). Every number is the
+ * backend's, wrapped with the step's provenance; this app never computes, rounds or bounds one. `status: 'UNUSABLE'`
+ * carries a `reason` and no numbers — the backend could not give this qubit a valid state, and nothing is shown in place.
+ */
+export interface TraceQubitState {
+  qubit: number
+  status: 'OK' | 'UNUSABLE'
+  reason: string | null
+  bloch: QuantumValue<BlochCoordinates> | null
+  /** Length of the Bloch vector, from the backend: ~1 for a qubit in a pure state of its own, ~0 when it is maximally mixed. */
+  blochLength: QuantumValue<number> | null
+  /** Tr(rho^2) of the qubit's own state, from the backend: 1 for pure, 1/2 for maximally mixed. */
+  purity: QuantumValue<number> | null
+  /** The server's statement that this qubit is entangled with the rest of the register (a mixed qubit of a pure register). */
+  entangledWithRest: boolean | null
+  method: string
+  derivedFrom: BlochSource
+}
+
+/** One basis state's amplitude in polar form, as the backend computed it. `phase` is `null` where the amplitude is zero. */
+export interface TraceAmplitude {
+  magnitude: number
+  probability: number
+  phase: number | null
 }
 
 /** The server's account of what one operation changed (`qentor.execution.step_changes`). */

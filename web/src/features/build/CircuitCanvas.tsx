@@ -15,7 +15,7 @@ import type { DragEvent } from 'react'
 import { useBuildStore } from './store'
 import { GATE_DND_MIME } from './GatePalette'
 import type { GateName, GateOp } from '@/circuit/types'
-import { GATE_DISPLAY, MULTI_QUBIT_PLACEMENT, TARGET_SYMBOL } from '@/circuit/gateSpec'
+import { GATE_DISPLAY, MULTI_QUBIT_PLACEMENT, TARGET_SYMBOL, gateTakesAngle } from '@/circuit/gateSpec'
 import { describeOperation } from './traceFormat'
 
 function GateBox({ op, onClick }: { op: GateOp; onClick: () => void }) {
@@ -29,9 +29,7 @@ function GateBox({ op, onClick }: { op: GateOp; onClick: () => void }) {
       aria-label={`Remove: ${describeOperation(op)}`}
       className="flex h-9 w-9 items-center justify-center rounded-md border border-cyan-glow/50 bg-cyan-dim font-mono-qasm text-xs font-semibold text-cyan-glow transition-transform hover:scale-105 hover:border-danger-glow hover:bg-danger-dim hover:text-danger-glow"
     >
-      {op.gate === 'rx' || op.gate === 'ry' || op.gate === 'rz'
-        ? `${label}(${op.params[0].toFixed(2)})`
-        : label}
+      {gateTakesAngle(op.gate) ? `${label}(${op.params[0].toFixed(2)})` : label}
     </button>
   )
 }

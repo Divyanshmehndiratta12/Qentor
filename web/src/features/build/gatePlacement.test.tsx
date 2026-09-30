@@ -45,7 +45,7 @@ describe('the placement spec', () => {
   it('a finished multi-wire placement always satisfies the gate’s arity', () => {
     for (const [gate, roles] of Object.entries(MULTI_QUBIT_PLACEMENT)) {
       const picked = roles!.map((_, i) => i)
-      const op = buildMultiQubitOp(gate as never, picked)
+      const op = buildMultiQubitOp(gate as never, picked, 0.5)
       expect(gateArityError(op), gate).toBeNull()
       expect(op.controls.length + op.targets.length).toBe(roles!.length)
     }
@@ -146,7 +146,7 @@ describe('clicking wires in the store', () => {
 describe('the palette', () => {
   it('lists every gate in the model, with the multi-wire gates and the dagger gates', () => {
     render(<GatePalette />)
-    for (const label of ['H', 'X', 'Y', 'Z', 'S', 'S†', 'T', 'T†', 'RX', 'RY', 'RZ', 'CX', 'CZ', 'CCX', 'SWAP', 'M']) {
+    for (const label of ['H', 'X', 'Y', 'Z', 'S', 'S†', 'T', 'T†', 'RX', 'RY', 'RZ', 'CX', 'CZ', 'CP', 'CCX', 'SWAP', 'M']) {
       expect(screen.getByRole('button', { name: label }), label).toBeInTheDocument()
     }
   })
@@ -247,6 +247,104 @@ describe('the canvas', () => {
     fireEvent.click(appendCell(1))
     expect(appendCell(1).className).toContain('border-violet-glow')
     expect(appendCell(0).className).not.toContain('border-violet-glow')
+  })
+})
+
+describe('the controlled-phase gate (cp) takes its angle from the palette', () => {
+  function appendCell(qubit: number) {
+    const row = screen.getByText(`q[${qubit}]`).parentElement as HTMLElement
+    return within(row).getByTitle(/place .* on q\[\d\]|drag a gate here/)
+  }
+
+  it('is placed with two clicks and carries the pending angle', () => {
+    act(() => store().setPendingAngle(0.75))
+    clickWires('cp', [2, 0])
+    expect(store().circuit.ops).toHaveLength(1)
+    expect(store().circuit.ops[0]).toEqual({ gate: 'cp', controls: [2], targets: [0], params: [0.75], clbits: [] })
+    expect(store().canvasError).toBeNull()
+    expect(store().qasmText).toContain('cp(0.75) q[2], q[0];\n')
+  })
+
+  it('a later angle applies to the next cp and leaves the first one alone', () => {
+    act(() => store().setPendingAngle(0.5))
+    clickWires('cp', [0, 1])
+    act(() => store().setPendingAngle(-1.25))
+    act(() => store().onWireClick(1))
+    act(() => store().onWireClick(2))
+    expect(store().circuit.ops.map((op) => op.params)).toEqual([[0.5], [-1.25]])
+  })
+
+  it('a half-placed cp adds nothing, and re-clicking the control cancels it', () => {
+    clickWires('cp', [1])
+    expect(store().circuit.ops).toHaveLength(0)
+    expect(store().pendingQubits).toEqual([1])
+    act(() => store().onWireClick(1))
+    expect(store().pendingQubits).toEqual([])
+    expect(store().canvasError).toBeNull()
+  })
+
+  it('no other multi-wire gate picks up the pending angle', () => {
+    act(() => store().setPendingAngle(0.9))
+    clickWires('cx', [0, 1])
+    clickWires('cz', [1, 2])
+    expect(store().circuit.ops.map((op) => op.params)).toEqual([[], []])
+  })
+
+  it('the QASM editor accepts cp and refuses a cp without its angle, leaving the circuit as it was', () => {
+    const header = 'OPENQASM 3.0;\ninclude "stdgates.inc";\nqubit[3] q;\n'
+    expect(store().applyQasmEdit(header + 'cp(0.5) q[2], q[0];\n')).toEqual({ ok: true })
+    expect(store().circuit.ops[0]).toMatchObject({ gate: 'cp', controls: [2], targets: [0], params: [0.5] })
+    const before = store().circuit
+    const refused = store().applyQasmEdit(header + 'cp q[2], q[0];\n')
+    expect(refused.ok).toBe(false)
+    expect(store().circuit).toBe(before)
+  })
+
+  it('the palette offers CP, shows the angle input only while CP (or a rotation) is selected, and uses the typed angle', () => {
+    render(<GatePalette />)
+    expect(screen.queryByLabelText(/angle \(rad\)/)).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'CP' }))
+    const input = screen.getByLabelText(/angle \(rad\)/) as HTMLInputElement
+    fireEvent.change(input, { target: { value: '0.4' } })
+    act(() => store().onWireClick(0))
+    act(() => store().onWireClick(1))
+    expect(store().circuit.ops[0]).toMatchObject({ gate: 'cp', controls: [0], targets: [1], params: [0.4] })
+    fireEvent.click(screen.getByRole('button', { name: 'CP' })) // deselect
+    expect(screen.queryByLabelText(/angle \(rad\)/)).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'H' }))
+    expect(screen.queryByLabelText(/angle \(rad\)/)).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'RX' }))
+    expect(screen.getByLabelText(/angle \(rad\)/)).toBeInTheDocument()
+  })
+
+  it('the palette names how CP is placed', () => {
+    render(<GatePalette />)
+    expect(screen.getByRole('button', { name: 'CP' }).title).toContain('control wire')
+    fireEvent.click(screen.getByRole('button', { name: 'CP' }))
+    expect(screen.getByText('click a wire to set the control qubit')).toBeInTheDocument()
+  })
+
+  it('the canvas shows a dot on the control and P(angle) on the target, and removes it with one click', () => {
+    render(
+      <>
+        <GatePalette />
+        <CircuitCanvas />
+      </>,
+    )
+    act(() => store().setPendingAngle(0.5))
+    fireEvent.click(screen.getByRole('button', { name: 'CP' }))
+    fireEvent.click(appendCell(1))
+    fireEvent.click(appendCell(0))
+    const parts = screen.getAllByTitle(/CP\(0\.500 rad\) — control q1, target q0 · click to remove/)
+    expect(parts.map((b) => b.textContent).sort()).toEqual(['', 'P(0.50)'])
+    fireEvent.click(parts[0])
+    expect(store().circuit.ops).toHaveLength(0)
+  })
+
+  it('has trace labels that keep control, target and angle', () => {
+    const op = { gate: 'cp', targets: [0], controls: [1], params: [0.5], clbits: [] } as never
+    expect(shortOperationLabel(op)).toBe('CP q1→q0')
+    expect(describeOperation(op)).toBe('CP(0.500 rad) — control q1, target q0')
   })
 })
 

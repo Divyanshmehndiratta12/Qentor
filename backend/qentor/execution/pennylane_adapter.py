@@ -79,6 +79,8 @@ class PennyLaneAdapter:
                     qml.CNOT(wires=[wire_of(op.controls[0]), wire_of(op.targets[0])])
                 elif op.gate is GateName.CZ:
                     qml.CZ(wires=[wire_of(op.controls[0]), wire_of(op.targets[0])])
+                elif op.gate is GateName.CP:
+                    qml.ControlledPhaseShift(op.params[0], wires=[wire_of(op.controls[0]), wire_of(op.targets[0])])
                 elif op.gate is GateName.SWAP:
                     qml.SWAP(wires=[wire_of(op.targets[0]), wire_of(op.targets[1])])
                 elif op.gate is GateName.CCX:

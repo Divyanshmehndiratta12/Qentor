@@ -35,7 +35,7 @@ Demo importance: **Critical** (the story breaks without it) · **High** · **Med
 |---|---|---|---|---|---|---|---|
 | S1 | Statevector and probability display | Implied by Deck p3 step 2 and p3 charts | P0 | Built | Aer | Rendered only through the provenance-carrying value component | Critical |
 | S2 | Plotly charts (histograms, expected vs actual) | Deck p3 tech stack | P0 | Built | Aer / recorded hardware | Chart data comes from a result id | High |
-| S3 | Three.js 3D Bloch sphere | Deck p3 tech stack, p4 "WebGL/Three.js" | P0 (single-qubit reduced states) | Built (single-qubit) | Aer statevector, reduced density matrix on server | Bloch vector computed server-side, carries provenance | Medium |
+| S3 | Three.js 3D Bloch sphere | Deck p3 tech stack, p4 "WebGL/Three.js" | P0 (single-qubit reduced states) | Built (single-qubit sphere; one sphere per qubit, with purity, for a register) | Aer statevector, reduced density matrix on server | Bloch vector computed server-side, carries provenance | Medium |
 | S4 | Gate-by-gate state stepping ("you can't inspect a qubit mid-run") | Deck p2 problem statement | P0 | Built (trace with first/previous/next/last) | Aer with per-step statevector saves | Each step is a backend snapshot | High |
 | S5 | Lesson-scale simulation without cloud dependency | Deck p4 "Simulation" | P0 | Built (web fonts are the only third-party request) | Local Aer | Demo rehearsed with the network off | High |
 | S6 | Stabilizer simulation for larger Clifford circuits | Deck p4 ("can use") | P2 | Not built | Aer `stabilizer` method | — | Low |

@@ -378,6 +378,8 @@ def execute_trace(request: TraceRequest) -> TraceResponse:
                 ),
                 statevector=step.statevector,
                 bloch_vector=step.bloch_vector,
+                qubit_states=step.qubit_states,
+                amplitude_view=step.amplitude_view,
                 change=(
                     compute_step_change(trace.steps[step.step_index - 1].statevector, step.statevector, trace.num_qubits)
                     if step.step_index > 0

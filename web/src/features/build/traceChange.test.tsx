@@ -214,11 +214,11 @@ describe('the browser works nothing out', () => {
 })
 
 describe('multi-qubit states', () => {
-  it('still explain why there is no Bloch sphere, next to the change card', () => {
+  it('still explain why there is no per-qubit sphere when the backend sent none, next to the change card', () => {
     show()
     fireEvent.click(btn('Next step'))
-    const unavailable = screen.getByTestId('bloch-unavailable')
-    expect(within(unavailable).getByText(/unavailable for this multi-qubit state/)).toBeTruthy()
+    const unavailable = screen.getByTestId('qubit-spheres-unavailable')
+    expect(within(unavailable).getByText(/did not provide a state for each of the 2 qubits/)).toBeTruthy()
     expect(screen.getByTestId('step-change')).toBeTruthy()
   })
 

@@ -2,7 +2,7 @@
  * Click-to-place (and drag-to-place) gate palette, in the finalized design's
  * floating bottom dock. It lists exactly the gates `backend/qentor/circuit/model.py`
  * accepts (see circuit/types.ts): extending the gate set means extending the
- * backend first, not the other way round. A gate on several wires (CX, CZ, CCX,
+ * backend first, not the other way round. A gate on several wires (CX, CZ, CP, CCX,
  * SWAP) is placed with one click per wire; the hint above the dock says which.
  *
  * Drag-and-drop is additive and isolated: dragging a gate onto a wire's
@@ -12,7 +12,7 @@
  */
 import { useBuildStore, ROTATION_DEFAULT_ANGLE } from './store'
 import type { GateName } from '@/circuit/types'
-import { GATE_DISPLAY, MULTI_QUBIT_PLACEMENT, placementPrompt } from '@/circuit/gateSpec'
+import { GATE_DISPLAY, MULTI_QUBIT_PLACEMENT, gateTakesAngle, placementPrompt } from '@/circuit/gateSpec'
 
 export const GATE_DND_MIME = 'application/x-qentor-gate'
 
@@ -30,6 +30,7 @@ const SINGLE_QUBIT: { gate: GateName; label: string; title: string }[] = [
 const MULTI_QUBIT: { gate: GateName; label: string; title: string }[] = [
   { gate: 'cx', label: GATE_DISPLAY.cx, title: 'Controlled-X: click the control wire, then the target wire' },
   { gate: 'cz', label: GATE_DISPLAY.cz, title: 'Controlled-Z: click the control wire, then the target wire' },
+  { gate: 'cp', label: GATE_DISPLAY.cp, title: 'Controlled-phase: click the control wire, then the target wire; the angle (rad) is set above' },
   { gate: 'ccx', label: GATE_DISPLAY.ccx, title: 'Toffoli: click the two control wires, then the target wire' },
   { gate: 'swap', label: GATE_DISPLAY.swap, title: 'Swap: click the two wires to exchange' },
 ]
@@ -89,7 +90,7 @@ export function GatePalette({ allowedGates }: { allowedGates?: readonly GateName
   const selectedGate = useBuildStore((s) => s.selectedGate)
   const pendingQubits = useBuildStore((s) => s.pendingQubits)
   const canvasError = useBuildStore((s) => s.canvasError)
-  const isRotationSelected = selectedGate === 'rx' || selectedGate === 'ry' || selectedGate === 'rz'
+  const isRotationSelected = gateTakesAngle(selectedGate)
 
   const statusText =
     canvasError ??

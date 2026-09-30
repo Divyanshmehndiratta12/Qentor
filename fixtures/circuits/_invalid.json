@@ -49,6 +49,207 @@
       }
     },
     {
+      "name": "cp_without_parameter",
+      "reason": "exactly 1 parameter",
+      "client_rejects": true,
+      "circuit": {
+        "schema": "qentor.circuit/1",
+        "num_qubits": 2,
+        "num_clbits": 0,
+        "ops": [
+          {
+            "gate": "cp",
+            "targets": [
+              1
+            ],
+            "controls": [
+              0
+            ],
+            "params": [],
+            "clbits": []
+          }
+        ]
+      }
+    },
+    {
+      "name": "cp_two_parameters",
+      "reason": "exactly 1 parameter",
+      "client_rejects": true,
+      "circuit": {
+        "schema": "qentor.circuit/1",
+        "num_qubits": 2,
+        "num_clbits": 0,
+        "ops": [
+          {
+            "gate": "cp",
+            "targets": [
+              1
+            ],
+            "controls": [
+              0
+            ],
+            "params": [
+              0.5,
+              0.5
+            ],
+            "clbits": []
+          }
+        ]
+      }
+    },
+    {
+      "name": "cp_without_control",
+      "reason": "exactly 1 control",
+      "client_rejects": true,
+      "circuit": {
+        "schema": "qentor.circuit/1",
+        "num_qubits": 2,
+        "num_clbits": 0,
+        "ops": [
+          {
+            "gate": "cp",
+            "targets": [
+              1
+            ],
+            "controls": [],
+            "params": [
+              0.5
+            ],
+            "clbits": []
+          }
+        ]
+      }
+    },
+    {
+      "name": "cp_two_controls",
+      "reason": "exactly 1 control",
+      "client_rejects": true,
+      "circuit": {
+        "schema": "qentor.circuit/1",
+        "num_qubits": 3,
+        "num_clbits": 0,
+        "ops": [
+          {
+            "gate": "cp",
+            "targets": [
+              2
+            ],
+            "controls": [
+              0,
+              1
+            ],
+            "params": [
+              0.5
+            ],
+            "clbits": []
+          }
+        ]
+      }
+    },
+    {
+      "name": "cp_two_targets",
+      "reason": "exactly 1 target",
+      "client_rejects": true,
+      "circuit": {
+        "schema": "qentor.circuit/1",
+        "num_qubits": 3,
+        "num_clbits": 0,
+        "ops": [
+          {
+            "gate": "cp",
+            "targets": [
+              1,
+              2
+            ],
+            "controls": [
+              0
+            ],
+            "params": [
+              0.5
+            ],
+            "clbits": []
+          }
+        ]
+      }
+    },
+    {
+      "name": "cp_same_qubit",
+      "reason": "different qubits",
+      "client_rejects": true,
+      "circuit": {
+        "schema": "qentor.circuit/1",
+        "num_qubits": 2,
+        "num_clbits": 0,
+        "ops": [
+          {
+            "gate": "cp",
+            "targets": [
+              0
+            ],
+            "controls": [
+              0
+            ],
+            "params": [
+              0.5
+            ],
+            "clbits": []
+          }
+        ]
+      }
+    },
+    {
+      "name": "cp_with_clbit",
+      "reason": "no classical bits",
+      "client_rejects": true,
+      "circuit": {
+        "schema": "qentor.circuit/1",
+        "num_qubits": 2,
+        "num_clbits": 1,
+        "ops": [
+          {
+            "gate": "cp",
+            "targets": [
+              1
+            ],
+            "controls": [
+              0
+            ],
+            "params": [
+              0.5
+            ],
+            "clbits": [
+              0
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "cp_control_out_of_range",
+      "reason": "out of range",
+      "client_rejects": false,
+      "circuit": {
+        "schema": "qentor.circuit/1",
+        "num_qubits": 2,
+        "num_clbits": 0,
+        "ops": [
+          {
+            "gate": "cp",
+            "targets": [
+              1
+            ],
+            "controls": [
+              2
+            ],
+            "params": [
+              0.5
+            ],
+            "clbits": []
+          }
+        ]
+      }
+    },
+    {
       "name": "ccx_one_control",
       "reason": "exactly 2 control",
       "client_rejects": true,

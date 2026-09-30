@@ -146,8 +146,28 @@ returned.
   - A multi-qubit step has `bloch_vector = null`. A Bloch vector describes a single qubit; an
     entangled register (e.g. a Bell state) has no pure state per qubit — each qubit alone is
     maximally mixed — so one 3-vector for the whole register would hide the correlations that make
-    it entangled. There is no per-qubit reduced-state abstraction yet, so nothing is invented, not
-    even for unentangled multi-qubit states.
+    it entangled. What a register does have is a reduced state per qubit, below.
+- **Per-qubit reduced states (`qubit_states` on a trace step, `qentor/execution/reduced_state.py`).**
+  Every step, of every circuit, carries one entry per qubit (`q[0]` first): the 2×2 density matrix
+  left after tracing out every other qubit, `ρ[a][b] = Σ_rest ψ[a,rest]·conj(ψ[b,rest])`, reported as
+  its Bloch vector `x = 2 Re ρ01`, `y = −2 Im ρ01`, `z = ρ00 − ρ11`, its `bloch_length`, its
+  `purity = Tr ρ²` (1 pure, ½ maximally mixed) and `entangled_with_rest = purity < 1 − 1e-9`.
+  The last is meaningful because every traced state is globally pure: then a mixed qubit is exactly
+  one that is entangled with the others. It does not say with which, and it is not a circuit verdict.
+  - Each entry carries `derived_from` (step index, `result_id`, `execution_id`, the step's prefix
+    `circuit_hash`, backend and version), so a number cannot be detached from its state. Only the
+    statevector is read — no gate names, no textbook answers — and values are not rounded.
+  - `status = "UNUSABLE"` is explicit, with a `reason` and no number: a malformed or unnormalised
+    state, a qubit outside the register, or a derived qubit state that is not a valid density matrix
+    (purity outside [½, 1] or a Bloch vector longer than 1, beyond 1e-9). Nothing is shown in its place.
+  - Tests check it against Qiskit's own Pauli expectation values and partial-trace purity on random
+    circuits (including `cp`), against hand-known states (Bell, GHZ, product), and across all three backends.
+- **Amplitude / phase view (`amplitude_view` on a trace step, `qentor/execution/amplitude_view.py`).**
+  Per basis state, in statevector order: `magnitude`, `probability` and `phase = atan2(im, re)`
+  (radians). `phase` is `null` where the amplitude is numerically zero (probability ≤ 1e-9), because the
+  angle of zero is undefined. The phase is the simulator's own, relative to an unobservable global phase,
+  so only differences between basis states are physical. The frontend draws bars and arrows by setting a
+  CSS variable to each number; it computes none of them.
 
 ### 4.2 Multi-input test harness
 A challenge declares a spec. All checks use exact Aer statevector probabilities (no sampling),

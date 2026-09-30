@@ -280,7 +280,7 @@ export const useBuildStore = create<BuildState>((set, get) => ({
     const { selectedGate, pendingAngle, pendingQubits, circuit } = get()
     if (!selectedGate) return
 
-    // A gate on several wires (cx, cz, ccx, swap) takes one click per wire. Clicking a wire that is
+    // A gate on several wires (cx, cz, cp, ccx, swap) takes one click per wire. Clicking a wire that is
     // already picked cancels the half-placed gate; the last click adds it (arity is checked by `addOp`).
     const roles = MULTI_QUBIT_PLACEMENT[selectedGate]
     if (roles) {
@@ -293,7 +293,7 @@ export const useBuildStore = create<BuildState>((set, get) => ({
         set({ pendingQubits: picked })
         return
       }
-      addOp(set, get, buildMultiQubitOp(selectedGate, picked))
+      addOp(set, get, buildMultiQubitOp(selectedGate, picked, pendingAngle))
       set({ pendingQubits: [] })
       return
     }

@@ -217,6 +217,45 @@ export const StepChangeSchema = z.object({
 })
 export type StepChangeResponse = z.infer<typeof StepChangeSchema>
 
+// backend/qentor/execution/reduced_state.py::QubitReducedState — ONE qubit's own state inside a register, computed by
+// the server from that step's statevector. `OK` carries the Bloch vector, its length, the purity and the
+// entangled-with-the-rest flag; `UNUSABLE` carries a reason and none of them. The refinement checks only that
+// structure (which fields accompany which status); it never looks at, recomputes or bounds a value.
+export const QubitStateSchema = z
+  .object({
+    qubit: z.number().int().nonnegative(),
+    status: z.enum(['OK', 'UNUSABLE']),
+    reason: z.string().nullish(),
+    bloch: z.object({ x: z.number(), y: z.number(), z: z.number() }).nullish(),
+    bloch_length: z.number().nullish(),
+    purity: z.number().nullish(),
+    entangled_with_rest: z.boolean().nullish(),
+    method: z.string(),
+    derived_from: BlochSourceSchema,
+  })
+  .superRefine((state, ctx) => {
+    const numbers = [state.bloch, state.bloch_length, state.purity, state.entangled_with_rest]
+    if (state.status === 'OK' && numbers.some((v) => v === null || v === undefined)) {
+      ctx.addIssue({ code: 'custom', message: 'an OK qubit state must carry its Bloch vector, length, purity and entanglement flag' })
+    }
+    if (state.status === 'UNUSABLE') {
+      if (numbers.some((v) => v !== null && v !== undefined)) {
+        ctx.addIssue({ code: 'custom', message: 'an UNUSABLE qubit state must not carry a value' })
+      }
+      if (!state.reason) ctx.addIssue({ code: 'custom', message: 'an UNUSABLE qubit state must say why' })
+    }
+  })
+export type QubitStateResponse = z.infer<typeof QubitStateSchema>
+
+// backend/qentor/execution/amplitude_view.py::BasisAmplitude — one basis state's amplitude in polar form. Its position in
+// the list is the statevector index. `phase` is null where the amplitude is numerically zero (no angle to report).
+export const AmplitudeViewEntrySchema = z.object({
+  magnitude: z.number(),
+  probability: z.number(),
+  phase: z.number().nullable(),
+})
+export type AmplitudeViewEntryResponse = z.infer<typeof AmplitudeViewEntrySchema>
+
 export const TraceStepSchema = z.object({
   step_index: z.number().int().nonnegative(),
   operation_index: z.number().int().nonnegative().nullable(),
@@ -225,6 +264,9 @@ export const TraceStepSchema = z.object({
   provenance: TraceProvenanceSchema,
   statevector: z.array(z.tuple([z.number(), z.number()])),
   bloch_vector: BlochVectorSchema.nullish(),
+  // Additive: a backend that predates them sends neither, which parses as "none provided" (an empty list).
+  qubit_states: z.array(QubitStateSchema).default([]),
+  amplitude_view: z.array(AmplitudeViewEntrySchema).default([]),
   change: StepChangeSchema.nullish(),
 })
 export type TraceStepResponse = z.infer<typeof TraceStepSchema>
@@ -288,10 +330,8 @@ export const TraceResponseSchema = z
       // vector to the wrong state's provenance, so it is rejected outright
       // rather than shown with a mislinked source. (Identity check only —
       // nothing here looks at, or recomputes, a coordinate.)
-      const bloch = step.bloch_vector
-      if (bloch) {
-        const source = bloch.derived_from
-        const mismatches = [
+      const sourceMismatches = (source: z.infer<typeof BlochSourceSchema>) =>
+        [
           source.step_index !== step.step_index && 'step_index',
           source.result_id !== step.provenance.result_id && 'result_id',
           source.execution_id !== step.execution_id && 'execution_id',
@@ -300,6 +340,9 @@ export const TraceResponseSchema = z
             source.backend_version !== step.provenance.backend_version) &&
             'backend',
         ].filter(Boolean)
+      const bloch = step.bloch_vector
+      if (bloch) {
+        const mismatches = sourceMismatches(bloch.derived_from)
         if (mismatches.length > 0) {
           ctx.addIssue({
             code: 'custom',
@@ -307,6 +350,43 @@ export const TraceResponseSchema = z
             message: `bloch_vector.derived_from does not match its own step (${mismatches.join(', ')})`,
           })
         }
+      }
+
+      // Per-qubit states: either none (an older backend) or exactly one per qubit in order, each naming THIS step.
+      // A qubit state pointing at another step would put one state's numbers under another state's provenance.
+      if (step.qubit_states.length > 0) {
+        if (step.qubit_states.length !== trace.num_qubits) {
+          ctx.addIssue({
+            code: 'custom',
+            path: ['steps', position, 'qubit_states'],
+            message: `${step.qubit_states.length} qubit states for ${trace.num_qubits} qubits`,
+          })
+        }
+        step.qubit_states.forEach((qubitState, qubitPosition) => {
+          if (qubitState.qubit !== qubitPosition) {
+            ctx.addIssue({
+              code: 'custom',
+              path: ['steps', position, 'qubit_states', qubitPosition, 'qubit'],
+              message: `qubit ${qubitState.qubit} is out of order (expected ${qubitPosition})`,
+            })
+          }
+          const mismatches = sourceMismatches(qubitState.derived_from)
+          if (mismatches.length > 0) {
+            ctx.addIssue({
+              code: 'custom',
+              path: ['steps', position, 'qubit_states', qubitPosition, 'derived_from'],
+              message: `qubit_states.derived_from does not match its own step (${mismatches.join(', ')})`,
+            })
+          }
+        })
+      }
+
+      if (step.amplitude_view.length > 0 && step.amplitude_view.length !== dimension) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['steps', position, 'amplitude_view'],
+          message: `amplitude_view has ${step.amplitude_view.length} entries, expected ${dimension} for ${trace.num_qubits} qubits`,
+        })
       }
     })
   })

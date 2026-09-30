@@ -106,6 +106,8 @@ def _qiskit_op(op: GateOp) -> str:
         return f"qc.cx({op.controls[0]}, {op.targets[0]})"
     if g is GateName.CZ:
         return f"qc.cz({op.controls[0]}, {op.targets[0]})"
+    if g is GateName.CP:
+        return f"qc.cp({_format_angle(op.params[0])}, {op.controls[0]}, {op.targets[0]})"
     if g is GateName.SWAP:
         return f"qc.swap({op.targets[0]}, {op.targets[1]})"
     if g is GateName.CCX:
@@ -141,6 +143,8 @@ def _cirq_op(op: GateOp) -> str:
         return f"cirq.CNOT(q[{op.controls[0]}], q[{op.targets[0]}])"
     if g is GateName.CZ:
         return f"cirq.CZ(q[{op.controls[0]}], q[{op.targets[0]}])"
+    if g is GateName.CP:
+        return f"cirq.cphase({_format_angle(op.params[0])})(q[{op.controls[0]}], q[{op.targets[0]}])"
     if g is GateName.SWAP:
         return f"cirq.SWAP(q[{op.targets[0]}], q[{op.targets[1]}])"
     if g is GateName.CCX:
@@ -184,6 +188,8 @@ def _pennylane_op(op: GateOp) -> str:
         return f"qml.CNOT(wires=[{op.controls[0]}, {op.targets[0]}])"
     if g is GateName.CZ:
         return f"qml.CZ(wires=[{op.controls[0]}, {op.targets[0]}])"
+    if g is GateName.CP:
+        return f"qml.ControlledPhaseShift({_format_angle(op.params[0])}, wires=[{op.controls[0]}, {op.targets[0]}])"
     if g is GateName.SWAP:
         return f"qml.SWAP(wires=[{op.targets[0]}, {op.targets[1]}])"
     if g is GateName.CCX:

@@ -70,6 +70,9 @@ function emitOp(op: GateOp): string {
   if (op.gate === 'cx' || op.gate === 'cz') {
     return `${op.gate} q[${op.controls[0]}], q[${op.targets[0]}];`
   }
+  if (op.gate === 'cp') {
+    return `cp(${formatAngle(op.params[0])}) q[${op.controls[0]}], q[${op.targets[0]}];`
+  }
   if (op.gate === 'swap') {
     return `swap q[${op.targets[0]}], q[${op.targets[1]}];`
   }

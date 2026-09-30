@@ -15,7 +15,9 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from qentor.challenges import CheckOutcome, PublicChallenge
 from qentor.circuit.model import Circuit, GateOp
+from qentor.execution.amplitude_view import BasisAmplitude
 from qentor.execution.bloch import BlochVector
+from qentor.execution.reduced_state import QubitReducedState
 from qentor.execution.step_changes import StepChange
 from qentor.verification.experiment_compare import CircuitDifference, MeasurementDifference, StateDifference
 from qentor.lessons import Lesson
@@ -101,7 +103,9 @@ class TraceStepResponse(BaseModel):
     Im(conj(a)b), z = |a|^2 - |b|^2), with ``derived_from`` naming the exact
     step, record, execution and prefix circuit it came from. It is not a
     correctness verdict, and a multi-qubit (e.g. entangled) state is never
-    given one "global" vector. Clients that don't know this field can ignore it.
+    given one "global" vector. For a register, ``qubit_states`` gives each qubit
+    its OWN reduced state instead. Clients that don't know these fields can
+    ignore them.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -113,6 +117,13 @@ class TraceStepResponse(BaseModel):
     provenance: TraceProvenanceResponse
     statevector: list[list[float]]
     bloch_vector: BlochVector | None = None
+    # Each qubit's own reduced state at this step — Bloch vector, purity, Bloch length, entangled-with-the-rest — or an
+    # explicit UNUSABLE with a reason. One entry per qubit, q[0] first. Derived by the server from THIS step's
+    # statevector (``qentor.execution.reduced_state``); ``derived_from`` names the step, record and prefix circuit.
+    qubit_states: list[QubitReducedState] = []
+    # Magnitude, probability and phase of every amplitude, in statevector order (``qentor.execution.amplitude_view``),
+    # so the browser can draw an amplitude/phase chart without computing any of it.
+    amplitude_view: list[BasisAmplitude] = []
     # What this operation changed relative to the previous step (None for the initial state): computed by the
     # server from the two backend statevectors (``qentor.execution.step_changes``).
     change: StepChange | None = None

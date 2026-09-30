@@ -415,6 +415,218 @@
       }
     },
     {
+      "name": "cp_pi_is_cz",
+      "note": "CP with angle pi is CZ.",
+      "expected": "EQUIVALENT",
+      "a": {
+        "circuit": {
+          "schema": "qentor.circuit/1",
+          "num_qubits": 2,
+          "num_clbits": 0,
+          "ops": [
+            {
+              "gate": "cp",
+              "targets": [
+                1
+              ],
+              "controls": [
+                0
+              ],
+              "params": [
+                3.141592653589793
+              ],
+              "clbits": []
+            }
+          ]
+        },
+        "qasm": "OPENQASM 3.0;\ninclude \"stdgates.inc\";\nqubit[2] q;\ncp(3.141592653589793) q[0], q[1];\n"
+      },
+      "b": {
+        "circuit": {
+          "schema": "qentor.circuit/1",
+          "num_qubits": 2,
+          "num_clbits": 0,
+          "ops": [
+            {
+              "gate": "cz",
+              "targets": [
+                1
+              ],
+              "controls": [
+                0
+              ],
+              "params": [],
+              "clbits": []
+            }
+          ]
+        },
+        "qasm": "OPENQASM 3.0;\ninclude \"stdgates.inc\";\nqubit[2] q;\ncz q[0], q[1];\n"
+      }
+    },
+    {
+      "name": "cp_is_symmetric",
+      "note": "CP(0,1) is CP(1,0) for the same angle.",
+      "expected": "EQUIVALENT",
+      "a": {
+        "circuit": {
+          "schema": "qentor.circuit/1",
+          "num_qubits": 2,
+          "num_clbits": 0,
+          "ops": [
+            {
+              "gate": "cp",
+              "targets": [
+                1
+              ],
+              "controls": [
+                0
+              ],
+              "params": [
+                0.7
+              ],
+              "clbits": []
+            }
+          ]
+        },
+        "qasm": "OPENQASM 3.0;\ninclude \"stdgates.inc\";\nqubit[2] q;\ncp(0.7) q[0], q[1];\n"
+      },
+      "b": {
+        "circuit": {
+          "schema": "qentor.circuit/1",
+          "num_qubits": 2,
+          "num_clbits": 0,
+          "ops": [
+            {
+              "gate": "cp",
+              "targets": [
+                0
+              ],
+              "controls": [
+                1
+              ],
+              "params": [
+                0.7
+              ],
+              "clbits": []
+            }
+          ]
+        },
+        "qasm": "OPENQASM 3.0;\ninclude \"stdgates.inc\";\nqubit[2] q;\ncp(0.7) q[1], q[0];\n"
+      }
+    },
+    {
+      "name": "cp_then_minus_cp_cancels",
+      "note": "CP(theta) then CP(-theta) is the identity.",
+      "expected": "EQUIVALENT",
+      "a": {
+        "circuit": {
+          "schema": "qentor.circuit/1",
+          "num_qubits": 2,
+          "num_clbits": 0,
+          "ops": [
+            {
+              "gate": "cp",
+              "targets": [
+                1
+              ],
+              "controls": [
+                0
+              ],
+              "params": [
+                0.7
+              ],
+              "clbits": []
+            },
+            {
+              "gate": "cp",
+              "targets": [
+                1
+              ],
+              "controls": [
+                0
+              ],
+              "params": [
+                -0.7
+              ],
+              "clbits": []
+            }
+          ]
+        },
+        "qasm": "OPENQASM 3.0;\ninclude \"stdgates.inc\";\nqubit[2] q;\ncp(0.7) q[0], q[1];\ncp(-0.7) q[0], q[1];\n"
+      },
+      "b": {
+        "circuit": {
+          "schema": "qentor.circuit/1",
+          "num_qubits": 2,
+          "num_clbits": 0,
+          "ops": []
+        },
+        "qasm": "OPENQASM 3.0;\ninclude \"stdgates.inc\";\nqubit[2] q;\n"
+      }
+    },
+    {
+      "name": "cp_half_pi_twice_is_cz",
+      "note": "CP(pi/2) twice is CP(pi), which is CZ.",
+      "expected": "EQUIVALENT",
+      "a": {
+        "circuit": {
+          "schema": "qentor.circuit/1",
+          "num_qubits": 2,
+          "num_clbits": 0,
+          "ops": [
+            {
+              "gate": "cp",
+              "targets": [
+                1
+              ],
+              "controls": [
+                0
+              ],
+              "params": [
+                1.5707963267948966
+              ],
+              "clbits": []
+            },
+            {
+              "gate": "cp",
+              "targets": [
+                1
+              ],
+              "controls": [
+                0
+              ],
+              "params": [
+                1.5707963267948966
+              ],
+              "clbits": []
+            }
+          ]
+        },
+        "qasm": "OPENQASM 3.0;\ninclude \"stdgates.inc\";\nqubit[2] q;\ncp(1.5707963267948966) q[0], q[1];\ncp(1.5707963267948966) q[0], q[1];\n"
+      },
+      "b": {
+        "circuit": {
+          "schema": "qentor.circuit/1",
+          "num_qubits": 2,
+          "num_clbits": 0,
+          "ops": [
+            {
+              "gate": "cz",
+              "targets": [
+                1
+              ],
+              "controls": [
+                0
+              ],
+              "params": [],
+              "clbits": []
+            }
+          ]
+        },
+        "qasm": "OPENQASM 3.0;\ninclude \"stdgates.inc\";\nqubit[2] q;\ncz q[0], q[1];\n"
+      }
+    },
+    {
       "name": "swap_is_three_cx",
       "note": "SWAP is three alternating CX gates.",
       "expected": "EQUIVALENT",
@@ -847,6 +1059,106 @@
           ]
         },
         "qasm": "OPENQASM 3.0;\ninclude \"stdgates.inc\";\nqubit[2] q;\ncx q[0], q[1];\n"
+      }
+    },
+    {
+      "name": "cp_angle_matters",
+      "note": "CP(0.7) is not CP(0.8): the angle is part of the gate.",
+      "expected": "NOT_EQUIVALENT",
+      "a": {
+        "circuit": {
+          "schema": "qentor.circuit/1",
+          "num_qubits": 2,
+          "num_clbits": 0,
+          "ops": [
+            {
+              "gate": "cp",
+              "targets": [
+                1
+              ],
+              "controls": [
+                0
+              ],
+              "params": [
+                0.7
+              ],
+              "clbits": []
+            }
+          ]
+        },
+        "qasm": "OPENQASM 3.0;\ninclude \"stdgates.inc\";\nqubit[2] q;\ncp(0.7) q[0], q[1];\n"
+      },
+      "b": {
+        "circuit": {
+          "schema": "qentor.circuit/1",
+          "num_qubits": 2,
+          "num_clbits": 0,
+          "ops": [
+            {
+              "gate": "cp",
+              "targets": [
+                1
+              ],
+              "controls": [
+                0
+              ],
+              "params": [
+                0.8
+              ],
+              "clbits": []
+            }
+          ]
+        },
+        "qasm": "OPENQASM 3.0;\ninclude \"stdgates.inc\";\nqubit[2] q;\ncp(0.8) q[0], q[1];\n"
+      }
+    },
+    {
+      "name": "cp_is_not_cz_away_from_pi",
+      "note": "CP(pi/2) is not CZ.",
+      "expected": "NOT_EQUIVALENT",
+      "a": {
+        "circuit": {
+          "schema": "qentor.circuit/1",
+          "num_qubits": 2,
+          "num_clbits": 0,
+          "ops": [
+            {
+              "gate": "cp",
+              "targets": [
+                1
+              ],
+              "controls": [
+                0
+              ],
+              "params": [
+                1.5707963267948966
+              ],
+              "clbits": []
+            }
+          ]
+        },
+        "qasm": "OPENQASM 3.0;\ninclude \"stdgates.inc\";\nqubit[2] q;\ncp(1.5707963267948966) q[0], q[1];\n"
+      },
+      "b": {
+        "circuit": {
+          "schema": "qentor.circuit/1",
+          "num_qubits": 2,
+          "num_clbits": 0,
+          "ops": [
+            {
+              "gate": "cz",
+              "targets": [
+                1
+              ],
+              "controls": [
+                0
+              ],
+              "params": [],
+              "clbits": []
+            }
+          ]
+        },
+        "qasm": "OPENQASM 3.0;\ninclude \"stdgates.inc\";\nqubit[2] q;\ncz q[0], q[1];\n"
       }
     },
     {

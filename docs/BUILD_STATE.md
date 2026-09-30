@@ -7,8 +7,8 @@ verification (see "Verification" for the commands). If this file and the code di
 
 | Area | State |
 |---|---|
-| Canonical circuit model, OpenQASM 3 emitter, SHA-256 hash | Built. Gates: h x y z s sdg t tdg rx ry rz cx cz swap ccx measure. Golden fixtures in `fixtures/circuits/` are shared by backend and web tests. |
-| Execution | Qiskit Aer, Cirq, PennyLane; statevector and shots; per-step trace; single-qubit Bloch vectors; size/gate limits; state sanity check before a result is stored |
+| Canonical circuit model, OpenQASM 3 emitter, SHA-256 hash | Built. Gates: h x y z s sdg t tdg rx ry rz cx cz cp swap ccx measure (`cp` is the controlled phase; the optimizer has no rule for it, so it leaves `cp` alone). Golden fixtures in `fixtures/circuits/` are shared by backend and web tests. |
+| Execution | Qiskit Aer, Cirq, PennyLane; statevector and shots; per-step trace; single-qubit Bloch vectors; per-qubit reduced states (Bloch vector, purity, entangled-with-the-rest) and a polar amplitude/phase view for every trace step, computed on the server; size/gate limits; state sanity check before a result is stored |
 | Verification | Equivalence (operator, up to global phase), cross-backend agreement (threshold 1e-6), Bell-state verifier, multi-input basis sweep, optimiser (each proposal equivalence-checked), experiment comparison |
 | Challenges | Nine backend-owned challenges, deterministic server verdicts, authored hints and coaching, attempt log. DJ and BV use one fixed oracle each. |
 | Tutor and debugger | Result-, lesson-, trace-step-, comparison-grounded answers; "Debug my circuit"; one claim guard; LLM off unless configured |

@@ -4,11 +4,13 @@ Every other part of the backend (the QASM emitter, the circuit hash, the executi
 adapters, and later the verification layer) reads and writes this model. Nothing
 downstream invents a gate, a qubit index, or a parameter that is not in here.
 
-Gate set: h, x, y, z, s, sdg, t, tdg, rx, ry, rz, cx, cz, swap, ccx, measure.
+Gate set: h, x, y, z, s, sdg, t, tdg, rx, ry, rz, cx, cz, cp, swap, ccx, measure.
 
-The last five of those (sdg, tdg, cz, swap, ccx) were added conservatively: sdg and tdg so the optimizer can
+The last six of those (sdg, tdg, cz, cp, swap, ccx) were added conservatively: sdg and tdg so the optimizer can
 cancel S/T inverse pairs (its documented gap) and the Bloch sphere can show S-dagger; cz, swap and ccx because
-phase kickback, oracle challenges and reversible logic need them. A gate is added here only together with its QASM
+phase kickback, oracle challenges and reversible logic need them; cp (controlled phase, diag(1, 1, 1, e^{i*theta})
+with theta in radians) because it is the two-qubit building block of phase-estimation and Fourier circuits and is
+the one controlled gate here that takes an angle. A gate is added here only together with its QASM
 emission, all three backends, the equivalence checker, the frontend model and a shared golden fixture.
 """
 
@@ -37,6 +39,7 @@ class GateName(str, Enum):
     RZ = "rz"
     CX = "cx"
     CZ = "cz"
+    CP = "cp"
     SWAP = "swap"
     CCX = "ccx"
     MEASURE = "measure"
@@ -62,10 +65,9 @@ PARAMETRIC_GATES = {GateName.RX, GateName.RY, GateName.RZ}
 class GateOp(BaseModel):
     """One operation in a circuit.
 
-    - targets: qubit indices the gate acts on (always length 1 in this gate set,
-      except CX which has one target and one control).
-    - controls: control qubit indices (only CX uses this, exactly one).
-    - params: rotation angle in radians (only rx/ry/rz use this, exactly one).
+    - targets: qubit indices the gate acts on (length 1 in this gate set, except swap, which has two).
+    - controls: control qubit indices (one for cx/cz/cp, two for ccx).
+    - params: one angle in radians (rx/ry/rz, and the phase of cp).
     - clbits: classical bit index written to (only measure uses this, exactly one).
     """
 
@@ -115,6 +117,20 @@ class GateOp(BaseModel):
                 raise ValueError(f"{name} takes no parameters")
             if self.clbits:
                 raise ValueError(f"{name} takes no classical bits")
+
+        elif gate is GateName.CP:
+            if len(self.targets) != 1:
+                raise ValueError(f"cp takes exactly 1 target qubit, got {len(self.targets)}")
+            if len(self.controls) != 1:
+                raise ValueError(f"cp takes exactly 1 control qubit, got {len(self.controls)}")
+            if self.controls[0] == self.targets[0]:
+                raise ValueError("cp control and target must be different qubits")
+            if len(self.params) != 1:
+                raise ValueError(f"cp takes exactly 1 parameter (a phase in radians), got {len(self.params)}")
+            if not _is_finite(self.params[0]):
+                raise ValueError(f"cp parameter must be a finite number, got {self.params[0]!r}")
+            if self.clbits:
+                raise ValueError("cp takes no classical bits")
 
         elif gate is GateName.CCX:
             if len(self.targets) != 1:

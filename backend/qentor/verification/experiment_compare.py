@@ -109,6 +109,8 @@ def describe_op(op: GateOp) -> str:
     gate = op.gate.value
     if len(op.controls) > 1:
         return f"{gate}(controls={', '.join(f'q{c}' for c in op.controls)}, target=q{op.targets[0]})"
+    if op.controls and op.params:
+        return f"{gate}(control=q{op.controls[0]}, target=q{op.targets[0]}, angle={op.params[0]:.6f})"
     if op.controls:
         return f"{gate}(control=q{op.controls[0]}, target=q{op.targets[0]})"
     if len(op.targets) > 1:

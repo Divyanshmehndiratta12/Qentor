@@ -124,7 +124,11 @@ describe('circuits the model must refuse', () => {
   )
 
   it('the rules only the server checks are marked so (qubit and classical-bit index range)', () => {
-    expect(INVALID.filter((c) => !c.client_rejects).map((c) => c.name).sort()).toEqual(['clbit_out_of_range', 'qubit_out_of_range'])
+    expect(INVALID.filter((c) => !c.client_rejects).map((c) => c.name).sort()).toEqual([
+      'clbit_out_of_range',
+      'cp_control_out_of_range',
+      'qubit_out_of_range',
+    ])
   })
 
   it('the arity messages name the problem', () => {
@@ -143,6 +147,70 @@ describe('circuits the model must refuse', () => {
     expect(ok({ gate: 'cz', controls: [0], targets: [1] })).toBeNull()
     expect(ok({ gate: 'swap', targets: [2, 0] })).toBeNull()
     expect(ok({ gate: 'ccx', controls: [2, 0], targets: [1] })).toBeNull()
+  })
+})
+
+describe('the controlled-phase gate (cp) in the web model', () => {
+  const arity = (op: Partial<Circuit['ops'][number]>) =>
+    gateArityError({ targets: [], controls: [], params: [], clbits: [], ...op } as Circuit['ops'][number])
+  const HEADER = 'OPENQASM 3.0;\ninclude "stdgates.inc";\nqubit[3] q;\n'
+
+  it('accepts exactly one control, one target and one angle', () => {
+    expect(arity({ gate: 'cp', controls: [0], targets: [1], params: [0.5] })).toBeNull()
+    expect(arity({ gate: 'cp', controls: [2], targets: [0], params: [-3] })).toBeNull()
+  })
+
+  it.each([
+    [{ gate: 'cp', controls: [0], targets: [1] }, '1 parameter'],
+    [{ gate: 'cp', controls: [0], targets: [1], params: [1, 2] }, '1 parameter'],
+    [{ gate: 'cp', targets: [1], params: [1] }, '1 control'],
+    [{ gate: 'cp', controls: [0, 2], targets: [1], params: [1] }, '1 control'],
+    [{ gate: 'cp', controls: [0], targets: [1, 2], params: [1] }, '1 target'],
+    [{ gate: 'cp', controls: [1], targets: [1], params: [1] }, 'must differ'],
+    [{ gate: 'cp', controls: [0], targets: [1], params: [Number.NaN] }, 'finite'],
+    [{ gate: 'cp', controls: [0], targets: [1], params: [Number.POSITIVE_INFINITY] }, 'finite'],
+    [{ gate: 'cp', controls: [0], targets: [1], params: [1], clbits: [0] }, 'no classical bits'],
+  ])('refuses %j (%s)', (op, fragment) => {
+    expect(arity(op as never)).toContain(fragment)
+  })
+
+  it('emits cp(angle) control, target — the text the server emits', () => {
+    const circuit = CircuitSchema.parse({
+      num_qubits: 3,
+      num_clbits: 0,
+      ops: [
+        { gate: 'cp', controls: [2], targets: [0], params: [0.5] },
+        { gate: 'cp', controls: [0], targets: [1], params: [1] },
+        { gate: 'cp', controls: [1], targets: [2], params: [-0.25] },
+      ],
+    })
+    expect(toQasm3(circuit)).toBe(HEADER + 'cp(0.5) q[2], q[0];\ncp(1.0) q[0], q[1];\ncp(-0.25) q[1], q[2];\n')
+  })
+
+  it('parses cp back with the control first and the angle kept exactly', () => {
+    const circuit = parseQasm3(HEADER + 'cp(0.1234567890123) q[2], q[0];\n')
+    expect(circuit.ops[0]).toEqual({ gate: 'cp', controls: [2], targets: [0], params: [0.1234567890123], clbits: [] })
+    expect(toQasm3(circuit)).toBe(HEADER + 'cp(0.1234567890123) q[2], q[0];\n')
+  })
+
+  it('parses whitespace variations and exponent angles', () => {
+    expect(parseQasm3(HEADER + 'cp(1e-05) q[0],q[1];\n').ops[0].params).toEqual([1e-5])
+    expect(parseQasm3(HEADER + 'cp(-2.5)   q[1] ,  q[0];\n').ops[0]).toMatchObject({ controls: [1], targets: [0], params: [-2.5] })
+  })
+
+  it.each([
+    ['cp(0.5) q[0];', 'cp takes 2 qubit operands'],
+    ['cp q[0], q[1];', 'unrecognised statement'],
+    ['cp() q[0], q[1];', 'unrecognised statement'],
+    ['cp( ) q[0], q[1];', 'unparsable angle'],
+    ['cp(pi) q[0], q[1];', 'unparsable angle'],
+    ['cp(Infinity) q[0], q[1];', 'unparsable angle'],
+    ['cp(0.5) q[1], q[1];', 'must differ'],
+    ['cp(0.5) q[0], q[1], q[2];', 'unrecognised statement'],
+    ['cp(0.5, 0.5) q[0], q[1];', 'unparsable angle'],
+  ])('refuses %s', (line, message) => {
+    expect(() => parseQasm3(HEADER + line + '\n')).toThrow(QasmParseError)
+    expect(() => parseQasm3(HEADER + line + '\n')).toThrow(message)
   })
 })
 
