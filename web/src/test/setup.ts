@@ -14,3 +14,10 @@ if (typeof Range !== 'undefined') {
   if (!Range.prototype.getClientRects) Range.prototype.getClientRects = emptyRects
   if (!Range.prototype.getBoundingClientRect) Range.prototype.getBoundingClientRect = emptyRect
 }
+
+// The address bar is real state in jsdom too (the app shows the screen its path names), so it must not leak from one test to
+// the next: every test starts at "/".
+import { afterEach, beforeEach } from 'vitest'
+const resetLocation = () => window.history.replaceState(null, '', '/')
+beforeEach(resetLocation)
+afterEach(resetLocation)

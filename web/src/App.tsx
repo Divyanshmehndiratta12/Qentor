@@ -35,9 +35,11 @@ import { GuidePanel } from '@/features/guide/GuidePanel'
 import { ProgressScreen } from '@/features/progress/ProgressScreen'
 import { TutorPanel } from '@/features/tutor/TutorPanel'
 import { TopBar, type Screen } from '@/features/shell/TopBar'
+import { pathForScreen, screenFromPath } from '@/features/shell/routes'
 
 function App() {
-  const [screen, setScreen] = useState<Screen>('lab')
+  // The address bar decides the first screen (a direct visit to /learn opens Learn), and is kept in step afterwards.
+  const [screen, setScreen] = useState<Screen>(() => screenFromPath(window.location.pathname))
   // Whether the Qentor Guide's side panel is open. Pure UI state: it lives
   // here, not in any store, and opening/closing it touches nothing else — the
   // tutor conversation and language stay in `useBuildStore`.
@@ -49,6 +51,19 @@ function App() {
 
   // The Guide is offered where there is something to be guided through.
   const guideScreen = screen === 'lab' || screen === 'learn' ? screen : null
+
+  // Back/Forward: the address changed under us, so follow it.
+  useEffect(() => {
+    const onPop = () => setScreen(screenFromPath(window.location.pathname))
+    window.addEventListener('popstate', onPop)
+    return () => window.removeEventListener('popstate', onPop)
+  }, [])
+
+  function goTo(next: Screen) {
+    const path = pathForScreen(next)
+    if (window.location.pathname !== path) window.history.pushState(null, '', path)
+    setScreen(next)
+  }
 
   // Moving to another screen puts keyboard and screen-reader focus on that screen's content (not left on the nav button that
   // no longer describes where you are). Not on first load, where the page should start at its top.
@@ -67,12 +82,12 @@ function App() {
 
   function openInLab(circuit: Circuit) {
     loadCircuit(circuit)
-    setScreen('lab')
+    goTo('lab')
   }
 
   function openLesson(lessonId: string) {
     selectLesson(lessonId)
-    setScreen('learn')
+    goTo('learn')
   }
 
   return (
@@ -85,7 +100,7 @@ function App() {
       </a>
       <TopBar
         screen={screen}
-        onNavigate={setScreen}
+        onNavigate={goTo}
         guideSlot={
           guideScreen ? (
             <GuideLauncher open={guideOpen} onToggle={() => setGuideOpen((open) => !open)} buttonRef={guideButtonRef} />

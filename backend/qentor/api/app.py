@@ -69,6 +69,7 @@ from qentor.verification.multi_input_harness import (
 )
 from qentor.verification.optimizer import optimize_circuit
 
+from .static_site import frontend_dist, mount_frontend
 from .schemas import (
     AgreementBackendResponse,
     AgreementPairResponse,
@@ -898,3 +899,8 @@ def list_lessons() -> LessonCatalogResponse:
     ``/api/execute`` itself accepts, not a result.
     """
     return LessonCatalogResponse(lessons=LESSONS)
+
+
+# Last, so every /api route above wins: serve the production web build (web/dist) from this same process, with the
+# single-page-app fallback. See qentor.api.static_site.
+mount_frontend(app, frontend_dist())
