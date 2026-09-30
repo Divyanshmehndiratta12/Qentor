@@ -17,6 +17,7 @@ from qentor.challenges import CheckOutcome, PublicChallenge
 from qentor.circuit.model import Circuit, GateOp
 from qentor.execution.bloch import BlochVector
 from qentor.execution.step_changes import StepChange
+from qentor.verification.experiment_compare import CircuitDifference, MeasurementDifference, StateDifference
 from qentor.lessons import Lesson
 from qentor.tutor.trace_context import TraceStepRef
 
@@ -636,3 +637,52 @@ class DebugResponse(BaseModel):
     provenance_class: str | None
     verification_status: str | None
     attempt_id: str | None
+
+
+# --------------------------------------------------------------------------- #
+# Experiment comparison                                                       #
+# --------------------------------------------------------------------------- #
+
+
+class ExperimentCompareRequest(BaseModel):
+    """Two runs the server already holds, each named by its result id and the circuit it ran. No number, state or verdict."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    result_id_a: str = Field(min_length=1)
+    circuit_a: Circuit
+    result_id_b: str = Field(min_length=1)
+    circuit_b: Circuit
+
+
+class RunIdentityResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    provenance: TraceProvenanceResponse
+    execution_id: str | None
+    shots: int | None
+    num_qubits: int
+
+
+class ExperimentCompareResponse(BaseModel):
+    """The server's comparison of two executions. ``provenance`` is the comparison's own record (its ``result_id`` is the
+    ``comparison_id`` the tutor is asked about); each run carries its own."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    comparison_id: str
+    method: str
+    a: RunIdentityResponse
+    b: RunIdentityResponse
+    circuit: CircuitDifference
+    measurement: MeasurementDifference
+    state: StateDifference
+    provenance: TraceProvenanceResponse
+
+
+class ComparisonTutorRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    comparison_id: str = Field(min_length=1)
+    question: str = Field(min_length=1, max_length=500)
+    language: Literal["en", "hi", "kn"] = "en"

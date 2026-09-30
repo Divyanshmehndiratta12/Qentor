@@ -26,6 +26,8 @@ LLM layer existed.
 
 from __future__ import annotations
 
+import hashlib
+
 from fastapi import FastAPI, HTTPException
 
 from qentor.challenges import CHALLENGES, evaluate_challenge, get_challenge, public_view
@@ -45,6 +47,8 @@ from qentor.lessons import LESSONS
 from qentor.provenance.models import ExecutionStatus, ProvenanceClass, ProvenanceRecord
 from qentor.provenance.attempts import AttemptRecord, AttemptStore
 from qentor.provenance.store import ProvenanceStore
+from qentor.tutor.comparison import answer_comparison, build_comparison_facts
+from qentor.verification.experiment_compare import METHOD as COMPARISON_METHOD, compare_experiments
 from qentor.tutor import (
     AttemptView,
     DebugInputs,
@@ -85,6 +89,10 @@ from .schemas import (
     ChallengeSubmitResponse,
     CodeRequest,
     CodeResponse,
+    ComparisonTutorRequest,
+    ExperimentCompareRequest,
+    ExperimentCompareResponse,
+    RunIdentityResponse,
     DebugRequest,
     DebugResponse,
     DebugSectionResponse,
@@ -585,6 +593,105 @@ def tutor_endpoint(request: TutorRequest) -> TutorResponse:
             if trace_context
             else None
         ),
+    )
+
+
+def _load_comparable_run(label: str, result_id: str, circuit) -> ProvenanceRecord:
+    """A run to compare: it exists, is of THIS circuit, passed its state check and is a simulation (hardware is not built)."""
+    record = _store.get(result_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail=f"no provenance record found for run {label} (result_id '{result_id}')")
+    got = circuit_hash(circuit)
+    if got != record.circuit_hash:
+        raise HTTPException(
+            status_code=422,
+            detail={"code": "COMPARISON_CIRCUIT_MISMATCH", "message": f"circuit {label} does not match provenance record '{result_id}'"},
+        )
+    if record.verification_status != ExecutionStatus.STATE_CHECKED:
+        raise HTTPException(
+            status_code=422,
+            detail={"code": "COMPARISON_RESULT_UNUSABLE", "message": f"run {label} did not produce a usable result ({record.verification_status.value})"},
+        )
+    if record.provenance_class != ProvenanceClass.SIMULATION:
+        raise HTTPException(
+            status_code=422,
+            detail={"code": "COMPARISON_CLASS_UNSUPPORTED", "message": f"run {label} is {record.provenance_class.value}; only simulations can be compared"},
+        )
+    return record
+
+
+def _run_identity(record: ProvenanceRecord, circuit) -> dict:
+    return {
+        "result_id": record.result_id,
+        "circuit_hash": record.circuit_hash,
+        "backend": record.backend,
+        "backend_version": record.backend_version,
+        "execution_mode": record.execution_mode,
+        "provenance_class": record.provenance_class.value,
+        "verification_status": record.verification_status.value,
+        "created_at": record.created_at,
+        "execution_id": record.payload.get("execution_id"),
+        "shots": record.payload.get("shots"),
+        "num_qubits": circuit.num_qubits,
+    }
+
+
+@app.post("/api/compare/experiments", response_model=ExperimentCompareResponse)
+def compare_experiments_endpoint(request: ExperimentCompareRequest) -> ExperimentCompareResponse:
+    """Compare two real executions on the server (``qentor.verification.experiment_compare``): circuit difference, measurement
+    difference, state difference where meaningful. Both runs are looked up here and checked against their circuits; nothing is
+    re-run. The comparison is stored as one more provenance record whose id the tutor can be asked about."""
+    rec_a = _load_comparable_run("A", request.result_id_a, request.circuit_a)
+    rec_b = _load_comparable_run("B", request.result_id_b, request.circuit_b)
+    comparison = compare_experiments(request.circuit_a, rec_a.payload, request.circuit_b, rec_b.payload)
+    ident_a, ident_b = _run_identity(rec_a, request.circuit_a), _run_identity(rec_b, request.circuit_b)
+    combined = hashlib.sha256(f"{rec_a.circuit_hash}|{rec_b.circuit_hash}".encode()).hexdigest()
+    record = ProvenanceRecord.new(
+        circuit_hash=f"cmp_{combined}",
+        backend="experiment-comparison",
+        backend_version=COMPARISON_METHOD,
+        execution_mode="comparison",
+        provenance_class=ProvenanceClass.SIMULATION,
+        verification_status=ExecutionStatus.STATE_CHECKED,
+        payload={
+            "method": COMPARISON_METHOD,
+            "a": ident_a,
+            "b": ident_b,
+            "circuit": comparison.circuit.model_dump(mode="json"),
+            "measurement": comparison.measurement.model_dump(mode="json"),
+            "state": comparison.state.model_dump(mode="json"),
+        },
+    )
+    _store.insert(record)
+    return ExperimentCompareResponse(
+        comparison_id=record.result_id,
+        method=COMPARISON_METHOD,
+        a=RunIdentityResponse(provenance=_provenance_response(rec_a), execution_id=ident_a["execution_id"], shots=ident_a["shots"], num_qubits=ident_a["num_qubits"]),
+        b=RunIdentityResponse(provenance=_provenance_response(rec_b), execution_id=ident_b["execution_id"], shots=ident_b["shots"], num_qubits=ident_b["num_qubits"]),
+        circuit=comparison.circuit,
+        measurement=comparison.measurement,
+        state=comparison.state,
+        provenance=_provenance_response(record),
+    )
+
+
+@app.post("/api/tutor/comparison", response_model=TutorResponse)
+def tutor_comparison_endpoint(request: ComparisonTutorRequest) -> TutorResponse:
+    """"Ask Tutor about this difference": the tutor gets ``X#`` facts read from the comparison record the server wrote, never
+    numbers from the client. The LLM (if configured) is guarded exactly as elsewhere; otherwise the answer is deterministic."""
+    record = _store.get(request.comparison_id)
+    if record is None or record.backend != "experiment-comparison":
+        raise HTTPException(status_code=404, detail=f"no experiment comparison '{request.comparison_id}'")
+    facts = build_comparison_facts(record)
+    answer, used_fallback = answer_comparison(request.question, facts, _llm_adapter, request.language)
+    return TutorResponse(
+        answer=answer,
+        result_id=record.result_id,
+        circuit_hash=record.circuit_hash,
+        provenance_class=record.provenance_class.value,
+        verification_status=record.verification_status.value,
+        used_fallback_template=used_fallback,
+        facts=[TutorFactResponse(id=f.id, kind=f.kind, description=f.description, result_id=f.result_id) for f in facts],
     )
 
 

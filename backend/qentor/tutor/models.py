@@ -42,6 +42,11 @@ FactKind = Literal[
     "challenge_goal",
     "challenge_check",
     "challenge_coaching",
+    # Experiment comparison (``X#``): read from a comparison record the server wrote (``qentor.verification.experiment_compare``).
+    "comparison_identity",
+    "comparison_circuit",
+    "comparison_measurement",
+    "comparison_state",
 ]
 
 
