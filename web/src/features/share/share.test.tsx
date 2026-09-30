@@ -5,7 +5,7 @@ import type { CircuitExport } from '@/api'
 import { BackendUnavailableError } from '@/api'
 import { emptyCircuit, type Circuit } from '@/circuit/types'
 import { toQuantumValue, type Provenance } from '@/provenance/QuantumValue'
-import { decodeShareFragment, encodeShareFragment, MAX_ENCODED_LENGTH, MAX_SHARED_OPS, shareUrl, SHARE_PREFIX } from './shareLink'
+import { decodeShareFragment, encodeShareFragment, MAX_ENCODED_LENGTH, shareUrl, SHARE_PREFIX } from './shareLink'
 
 const client = vi.hoisted(() => ({
   exportCircuit: vi.fn(),
@@ -77,11 +77,12 @@ describe('the share fragment', () => {
     expect((r as { reason: string }).reason.length).toBeGreaterThan(5)
   })
 
-  it('refuses more operations than the cap', () => {
-    const many = { ...emptyCircuit(1, 0), ops: Array.from({ length: MAX_SHARED_OPS + 1 }, () => op('x', 0)) }
-    const frag = '#c=' + btoa(JSON.stringify(many)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
-    const r = decodeShareFragment(frag)
-    expect(r).toMatchObject({ ok: false })
+  it('refuses an oversized link BECAUSE of its size (before decoding it at all)', () => {
+    expect(decodeShareFragment('#c=' + 'A'.repeat(MAX_ENCODED_LENGTH + 1))).toEqual({ ok: false, reason: 'The link is too large to be a circuit.' })
+    // and a link exactly at the limit is not refused for size
+    const atLimit = decodeShareFragment('#c=' + 'A'.repeat(MAX_ENCODED_LENGTH))
+    expect(atLimit).toMatchObject({ ok: false })
+    expect((atLimit as { reason: string }).reason).not.toMatch(/too large/)
   })
 
   it('reads non-ASCII safely (UTF-8) and never throws on garbage bytes', () => {

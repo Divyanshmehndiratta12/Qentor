@@ -4,14 +4,13 @@
  * The fragment never reaches a server and a link carries no result, provenance or state: whoever opens it gets the circuit on the
  * canvas and runs it themselves, so every number they see is computed for them by the backend. A link is untrusted input, exactly
  * like any stored or network data: it is size-bounded, decoded defensively and validated with the canonical circuit schema, and
- * anything that fails is refused rather than partly loaded.
+ * anything that fails is refused rather than partly loaded. (The size bound also caps the operation count: about a hundred gates.)
  */
 import { CircuitSchema, type Circuit } from '@/circuit/types'
 
 export const SHARE_PREFIX = '#c='
 /** Longest encoded payload accepted (well under any browser limit, far more than any lesson or challenge circuit needs). */
 export const MAX_ENCODED_LENGTH = 8000
-export const MAX_SHARED_OPS = 200
 
 function toBase64Url(text: string): string {
   const bytes = new TextEncoder().encode(text)
@@ -51,7 +50,6 @@ export function decodeShareFragment(fragment: string): ShareDecode | null {
   }
   const result = CircuitSchema.strict().safeParse(json)
   if (!result.success) return { ok: false, reason: 'The link does not contain a valid Qentor circuit.' }
-  if (result.data.ops.length > MAX_SHARED_OPS) return { ok: false, reason: `The circuit has more than ${MAX_SHARED_OPS} operations.` }
   return { ok: true, circuit: result.data }
 }
 

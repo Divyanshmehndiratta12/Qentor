@@ -102,6 +102,13 @@ class TestMeasurementDiff(unittest.TestCase):
         self.assertAlmostEqual(d.total_variation_distance, 0.04)
         self.assertAlmostEqual(d.rows[0].difference, 0.04)
 
+    def test_a_difference_is_never_negative_whichever_run_is_larger(self) -> None:
+        for a, b in ((PLUS, self.SHOTS), (self.SHOTS, PLUS)):
+            d = compare_measurements(a, b)
+            for row in d.rows:
+                self.assertGreaterEqual(row.difference, 0.0)
+                self.assertAlmostEqual(row.difference, 0.04)
+
     def test_an_outcome_only_one_run_reported_is_absent_not_zero(self) -> None:
         d = compare_measurements({"theoretical_probabilities": {"0": 1.0}}, PLUS)
         row = next(r for r in d.rows if r.outcome == "1")
