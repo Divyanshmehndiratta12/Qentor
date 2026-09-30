@@ -15,7 +15,7 @@
  * only this interface and `getApiClient()` from `index.ts`. That is what
  * makes the mock swappable without touching a single screen.
  */
-import type { Circuit, GateOp } from '@/circuit/types'
+import type { Circuit, GateName, GateOp } from '@/circuit/types'
 import type { Provenance, QuantumValue } from '@/provenance/QuantumValue'
 
 export type ExecutionMode = 'statevector' | 'shots'
@@ -568,6 +568,81 @@ export interface ApiClient {
    * Sends only the circuit (and, optionally, which backends). The browser never compares two quantum values.
    */
   compareBackends(circuit: Circuit, backends?: Backend[]): Promise<AgreementResult>
+
+  /** GET /api/challenges — the challenge catalog: goals, constraints, hints. No reference solution and no target circuit. */
+  listChallenges(): Promise<Challenge[]>
+
+  /**
+   * POST /api/challenges/{id}/submit — the SERVER judges the circuit. Sends only the canonical circuit; the request has no
+   * field for a verdict, a state or a number. Pass/fail is the backend's, computed from its own statevectors — never from a
+   * language model and never from anything the browser says. Rejects with `BackendUnavailableError` (with the HTTP status)
+   * when the circuit could not be judged; a failing circuit is a normal result with `passed: false`.
+   */
+  submitChallenge(challengeId: string, circuit: Circuit): Promise<ChallengeSubmission>
+}
+
+export interface ChallengeConstraints {
+  numQubits: number
+  numClbits: number
+  allowedGates: GateName[]
+  maxOps: number
+  minGateCounts: Record<string, number>
+  /** The fixed oracle (or other locked gates) the circuit must contain exactly once, in order. Empty when none. */
+  anchor: GateOp[]
+  mustMeasure: number[]
+}
+
+export interface Challenge {
+  id: string
+  lessonId: string
+  title: string
+  goal: string
+  difficulty: LessonDifficulty
+  successCondition: string
+  /** True for the two oracle challenges: ONE fixed oracle, chosen by the platform. */
+  fixedOracle: boolean
+  constraints: ChallengeConstraints
+  starterCircuit: Circuit
+  checks: { id: string; label: string }[]
+  hints: string[]
+}
+
+/** One number a check computed on the server. It exists only together with the provenance record it came from. */
+export interface ChallengeEvidence {
+  name: string
+  value: QuantumValue<number>
+}
+
+export interface ChallengeCheckOutcome {
+  id: string
+  label: string
+  passed: boolean
+  /** False when the check could not be judged yet (the circuit's structure failed first). */
+  evaluated: boolean
+  detail: string
+  hintIndex: number
+  evidence: ChallengeEvidence[]
+  /** The learner's own provenance record this check examined; `null` for structure checks. */
+  resultId: string | null
+}
+
+export interface ChallengeSubmission {
+  attemptId: string
+  challengeId: string
+  circuitHash: string
+  passed: boolean
+  verifier: string
+  checks: ChallengeCheckOutcome[]
+  backend: string | null
+  backendVersion: string | null
+  /** The record of the submitted circuit's final state, or `null` when nothing ran. */
+  finalResultId: string | null
+  /** The provenance of the final-state record above (backend, version, class, status); `null` when nothing ran. */
+  finalProvenance: Provenance | null
+  nextHintIndex: number | null
+  nextHint: string | null
+  successMessage: string | null
+  createdAt: string
 }
 
 /** Read-only source for the circuit in three SDKs (`POST /api/circuit/code`). Text only: never run, here or on the server. */

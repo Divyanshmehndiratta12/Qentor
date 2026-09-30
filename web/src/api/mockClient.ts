@@ -25,6 +25,8 @@ import type {
   AgreementResult,
   ApiClient,
   Backend,
+  Challenge,
+  ChallengeSubmission,
   CodeViewsResult,
   EquivalenceResult,
   ExecutePayload,
@@ -129,6 +131,15 @@ export class MockApiClient implements ApiClient {
 
   async compareBackends(_circuit: Circuit, _backends?: Backend[]): Promise<AgreementResult> {
     throw new EndpointNotImplementedError('POST /api/compare/backends (the FIXTURE mock adapter cannot compare backends)')
+  }
+
+  /** Deliberately NOT faked: a challenge verdict is the server's to compute from its own statevectors. */
+  async listChallenges(): Promise<Challenge[]> {
+    throw new EndpointNotImplementedError('GET /api/challenges (the FIXTURE mock adapter has no challenges)')
+  }
+
+  async submitChallenge(_challengeId: string, _circuit: Circuit): Promise<ChallengeSubmission> {
+    throw new EndpointNotImplementedError('POST /api/challenges/{id}/submit (the FIXTURE mock adapter cannot judge a circuit)')
   }
 
   /** FIXTURE only: the real verifier lives server-side. This recognises the

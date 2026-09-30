@@ -32,10 +32,11 @@ import { LearnScreen } from '@/features/learn/LearnScreen'
 import { useLearnStore } from '@/features/learn/store'
 import { GuideLauncher } from '@/features/guide/GuideLauncher'
 import { GuidePanel } from '@/features/guide/GuidePanel'
+import { ChallengesScreen } from '@/features/challenges/ChallengesScreen'
 import { ProgressScreen } from '@/features/progress/ProgressScreen'
 import { TutorPanel } from '@/features/tutor/TutorPanel'
 import { TopBar, type Screen } from '@/features/shell/TopBar'
-import { pathForScreen, screenFromPath } from '@/features/shell/routes'
+import { challengeIdFromPath, pathForChallenge, pathForScreen, screenFromPath } from '@/features/shell/routes'
 
 function App() {
   // The address bar decides the first screen (a direct visit to /learn opens Learn), and is kept in step afterwards.
@@ -43,6 +44,9 @@ function App() {
   // Whether the Qentor Guide's side panel is open. Pure UI state: it lives
   // here, not in any store, and opening/closing it touches nothing else — the
   // tutor conversation and language stay in `useBuildStore`.
+  // The challenge the address bar names (/challenges/<id>). `n` counts address changes from Back/Forward so the Challenges screen
+  // follows them even when the id is the same as before.
+  const [challengeRoute, setChallengeRoute] = useState(() => ({ challengeId: challengeIdFromPath(window.location.pathname), n: 0 }))
   const [guideOpen, setGuideOpen] = useState(false)
   const guideButtonRef = useRef<HTMLButtonElement>(null)
   const isFirstScreen = useRef(true)
@@ -54,7 +58,10 @@ function App() {
 
   // Back/Forward: the address changed under us, so follow it.
   useEffect(() => {
-    const onPop = () => setScreen(screenFromPath(window.location.pathname))
+    const onPop = () => {
+      setScreen(screenFromPath(window.location.pathname))
+      setChallengeRoute((r) => ({ challengeId: challengeIdFromPath(window.location.pathname), n: r.n + 1 }))
+    }
     window.addEventListener('popstate', onPop)
     return () => window.removeEventListener('popstate', onPop)
   }, [])
@@ -83,6 +90,16 @@ function App() {
   function openInLab(circuit: Circuit) {
     loadCircuit(circuit)
     goTo('lab')
+  }
+
+  // The Challenges screen keeps the address bar on the selected challenge (a shareable, reloadable link). Selecting one while
+  // already on Challenges adds a history entry; the initial selection replaces the bare /challenges entry instead.
+  function syncChallengePath(challengeId: string | null) {
+    const path = pathForChallenge(challengeId)
+    if (window.location.pathname === path) return
+    const onBare = window.location.pathname.replace(/\/+$/, '') === pathForScreen('challenges')
+    if (onBare) window.history.replaceState(null, '', path)
+    else window.history.pushState(null, '', path)
   }
 
   function openLesson(lessonId: string) {
@@ -132,6 +149,13 @@ function App() {
         <main id="main-content" tabIndex={-1} className="min-h-0 flex-1 outline-none">
           <LearnScreen onOpenLab={openInLab} />
         </main>
+      ) : screen === 'challenges' ? (
+        <ChallengesScreen
+          route={challengeRoute}
+          onSelectionChange={syncChallengePath}
+          onOpenLesson={openLesson}
+          onOpenLab={() => goTo('lab')}
+        />
       ) : (
         <main id="main-content" tabIndex={-1} className="min-h-0 flex-1 overflow-auto bg-void-950 outline-none">
           <ProgressScreen onOpenLesson={openLesson} />

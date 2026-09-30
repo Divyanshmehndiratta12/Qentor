@@ -26,7 +26,7 @@
 import type { ReactNode } from 'react'
 import { useBuildStore } from '@/features/build/store'
 
-export type Screen = 'lab' | 'learn' | 'progress'
+export type Screen = 'lab' | 'learn' | 'challenges' | 'progress'
 
 const isMock = import.meta.env.VITE_USE_MOCK_API === 'true'
 
@@ -109,6 +109,7 @@ export function TopBar({
         <nav aria-label="Primary" className="flex gap-0.5 text-[13px]">
           <NavItem label="Lab" active={screen === 'lab'} onClick={() => onNavigate('lab')} />
           <NavItem label="Learn" active={screen === 'learn'} onClick={() => onNavigate('learn')} />
+          <NavItem label="Challenges" active={screen === 'challenges'} onClick={() => onNavigate('challenges')} />
           <NavItem label="Progress" active={screen === 'progress'} onClick={() => onNavigate('progress')} />
         </nav>
         {screen === 'lab' && (

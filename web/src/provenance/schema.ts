@@ -6,7 +6,7 @@
  * `QuantumValue.ts`.
  */
 import { z } from 'zod'
-import { CircuitSchema, GateOpSchema } from '@/circuit/types'
+import { CircuitSchema, GATE_NAMES, GateOpSchema } from '@/circuit/types'
 
 // backend/qentor/lessons/models.py::Difficulty
 export const LessonDifficultySchema = z.enum(['beginner', 'intermediate', 'advanced'])
@@ -542,3 +542,67 @@ export const AgreementResponseSchema = z.object({
   provenance: TraceProvenanceSchema,
 })
 export type AgreementResponse = z.infer<typeof AgreementResponseSchema>
+
+
+// ---------------------------------------------------------------------------
+// Challenges — backend/qentor/api/schemas.py::ChallengeCatalogResponse / ChallengeSubmitResponse
+// ---------------------------------------------------------------------------
+
+// backend/qentor/challenges/models.py::Constraints
+export const ChallengeConstraintsSchema = z.object({
+  num_qubits: z.number().int().positive(),
+  num_clbits: z.number().int().nonnegative(),
+  allowed_gates: z.array(z.enum(GATE_NAMES)),
+  max_ops: z.number().int().positive(),
+  min_gate_counts: z.record(z.string(), z.number().int().positive()),
+  anchor: z.array(GateOpSchema),
+  must_measure: z.array(z.number().int().nonnegative()),
+})
+
+// backend/qentor/challenges/models.py::PublicChallenge — deliberately has no reference solution and no target circuit.
+export const PublicChallengeSchema = z.object({
+  id: z.string(),
+  lesson_id: z.string(),
+  title: z.string(),
+  goal: z.string(),
+  difficulty: LessonDifficultySchema,
+  success_condition: z.string(),
+  fixed_oracle: z.boolean(),
+  constraints: ChallengeConstraintsSchema,
+  starter_circuit: CircuitSchema,
+  checks: z.array(z.object({ id: z.string(), label: z.string() })),
+  hints: z.array(z.string()),
+})
+export type PublicChallengeResponse = z.infer<typeof PublicChallengeSchema>
+
+export const ChallengeCatalogResponseSchema = z.object({ challenges: z.array(PublicChallengeSchema) })
+
+// backend/qentor/challenges/evaluate.py::CheckOutcome
+export const ChallengeCheckOutcomeSchema = z.object({
+  id: z.string(),
+  label: z.string(),
+  passed: z.boolean(),
+  evaluated: z.boolean(),
+  detail: z.string(),
+  hint_index: z.number().int().nonnegative(),
+  evidence: z.array(z.object({ name: z.string(), value: z.number() })),
+  result_id: z.string().nullable(),
+})
+
+export const ChallengeSubmitResponseSchema = z.object({
+  attempt_id: z.string(),
+  challenge_id: z.string(),
+  circuit_hash: z.string(),
+  passed: z.boolean(),
+  verifier: z.string(),
+  checks: z.array(ChallengeCheckOutcomeSchema),
+  backend: z.string().nullable(),
+  backend_version: z.string().nullable(),
+  final_result_id: z.string().nullable(),
+  provenance: z.record(z.string(), TraceProvenanceSchema),
+  next_hint_index: z.number().int().nonnegative().nullable(),
+  next_hint: z.string().nullable(),
+  success_message: z.string().nullable(),
+  created_at: z.string(),
+})
+export type ChallengeSubmitResponse = z.infer<typeof ChallengeSubmitResponseSchema>

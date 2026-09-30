@@ -14,6 +14,8 @@ import {
 } from '@/provenance/QuantumValue'
 import {
   AgreementResponseSchema,
+  ChallengeCatalogResponseSchema,
+  ChallengeSubmitResponseSchema,
   CodeResponseSchema,
   EquivalenceResponseSchema,
   ExecuteResponseSchema,
@@ -35,6 +37,8 @@ import {
   type ApiClient,
   type AgreementResult,
   type Backend,
+  type Challenge,
+  type ChallengeSubmission,
   type CodeViewsResult,
   type EquivalenceResult,
   type ExecutePayload,
@@ -271,6 +275,86 @@ export class RealApiClient implements ApiClient {
         agrees: p.agrees,
       })),
       provenance: provenanceFromTraceStep(response.provenance),
+    }
+  }
+
+  async listChallenges(): Promise<Challenge[]> {
+    let res: Response
+    try {
+      res = await fetch(`${this.baseUrl}/api/challenges`)
+    } catch (err) {
+      throw new BackendUnavailableError(
+        `could not reach the Qentor backend: ${err instanceof Error ? err.message : String(err)}`,
+      )
+    }
+    if (!res.ok) throw new BackendUnavailableError(await safeErrorDetail(res), res.status)
+
+    const response = ChallengeCatalogResponseSchema.parse(await res.json())
+    return response.challenges.map((c) => ({
+      id: c.id,
+      lessonId: c.lesson_id,
+      title: c.title,
+      goal: c.goal,
+      difficulty: c.difficulty,
+      successCondition: c.success_condition,
+      fixedOracle: c.fixed_oracle,
+      constraints: {
+        numQubits: c.constraints.num_qubits,
+        numClbits: c.constraints.num_clbits,
+        allowedGates: c.constraints.allowed_gates,
+        maxOps: c.constraints.max_ops,
+        minGateCounts: c.constraints.min_gate_counts,
+        anchor: c.constraints.anchor,
+        mustMeasure: c.constraints.must_measure,
+      },
+      starterCircuit: c.starter_circuit,
+      checks: c.checks,
+      hints: c.hints,
+    }))
+  }
+
+  async submitChallenge(challengeId: string, circuit: Circuit): Promise<ChallengeSubmission> {
+    // The body is the circuit and nothing else: there is no field through which a verdict could be suggested.
+    const response = await this.postParsed(
+      `/api/challenges/${encodeURIComponent(challengeId)}/submit`,
+      { circuit: CircuitSchema.parse(circuit) },
+      ChallengeSubmitResponseSchema,
+    )
+    return {
+      attemptId: response.attempt_id,
+      challengeId: response.challenge_id,
+      circuitHash: response.circuit_hash,
+      passed: response.passed,
+      verifier: response.verifier,
+      checks: response.checks.map((c) => {
+        // A number is only ever shown with the record it came from: if the server names no record for a number, or the
+        // record is missing, the response is malformed and is refused rather than shown bare.
+        const record = c.result_id !== null ? response.provenance[c.result_id] : undefined
+        if (c.evidence.length > 0 && !record) {
+          throw new BackendUnavailableError(`challenge check ${c.id} returned numbers without a provenance record`)
+        }
+        return {
+          id: c.id,
+          label: c.label,
+          passed: c.passed,
+          evaluated: c.evaluated,
+          detail: c.detail,
+          hintIndex: c.hint_index,
+          evidence: c.evidence.map((e) => ({ name: e.name, value: toQuantumValue(e.value, provenanceFromTraceStep(record!)) })),
+          resultId: c.result_id,
+        }
+      }),
+      backend: response.backend,
+      backendVersion: response.backend_version,
+      finalResultId: response.final_result_id,
+      finalProvenance:
+        response.final_result_id !== null && response.provenance[response.final_result_id]
+          ? provenanceFromTraceStep(response.provenance[response.final_result_id]!)
+          : null,
+      nextHintIndex: response.next_hint_index,
+      nextHint: response.next_hint,
+      successMessage: response.success_message,
+      createdAt: response.created_at,
     }
   }
 

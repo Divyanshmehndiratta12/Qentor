@@ -228,6 +228,12 @@ function reconcileWithCatalog(): void {
   persistProgress()
 }
 
+/** Counts a solved challenge as activity for today (same rule as finishing a lesson). Called only by the challenge store, only when
+ * the server said an attempt passed. */
+export function recordChallengeActivity(): void {
+  recordActivityToday()
+}
+
 /** Records today's (browser-local) date as an activity day and persists it.
  * Deliberately module-private and only called from the two actions above —
  * rendering, selecting a lesson, Back/Continue on an incomplete lesson and

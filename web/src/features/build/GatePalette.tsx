@@ -40,7 +40,18 @@ const ROTATION: { gate: GateName; label: string; title: string }[] = [
   { gate: 'rz', label: 'RZ', title: 'Rotation-Z' },
 ]
 
-function DockButton({ gate, label, title }: { gate: GateName; label: string; title: string }) {
+function DockButton({
+  gate,
+  label,
+  title,
+  allowed,
+}: {
+  gate: GateName
+  label: string
+  title: string
+  /** False when the current challenge does not allow this gate: the button is shown but cannot be used. */
+  allowed: boolean
+}) {
   const selectedGate = useBuildStore((s) => s.selectedGate)
   const selectGate = useBuildStore((s) => s.selectGate)
   const active = selectedGate === gate
@@ -48,18 +59,21 @@ function DockButton({ gate, label, title }: { gate: GateName; label: string; tit
   return (
     <button
       type="button"
-      draggable
+      draggable={allowed}
+      disabled={!allowed}
       onDragStart={(e) => {
         e.dataTransfer.setData(GATE_DND_MIME, gate)
         e.dataTransfer.effectAllowed = 'copy'
       }}
       onClick={() => selectGate(active ? null : gate)}
-      title={title}
+      title={allowed ? title : `${title} — not allowed in this challenge`}
       aria-pressed={active}
-      className={`flex h-[38px] min-w-[38px] shrink-0 cursor-grab items-center justify-center rounded-lg px-1.5 font-mono-qasm text-[13px] font-semibold select-none active:cursor-grabbing ${
-        active
-          ? 'bg-cyan-glow text-void-950 shadow-[0_0_0_2px_var(--color-void-700),0_0_0_4px_var(--color-cyan-glow)]'
-          : 'bg-void-500 text-slate-100 hover:bg-void-400'
+      className={`flex h-[38px] min-w-[38px] shrink-0 items-center justify-center rounded-lg px-1.5 font-mono-qasm text-[13px] font-semibold select-none ${
+        !allowed
+          ? 'cursor-not-allowed bg-void-700 text-void-300 opacity-40'
+          : active
+          ? 'cursor-grab bg-cyan-glow text-void-950 shadow-[0_0_0_2px_var(--color-void-700),0_0_0_4px_var(--color-cyan-glow)] active:cursor-grabbing'
+          : 'cursor-grab bg-void-500 text-slate-100 hover:bg-void-400 active:cursor-grabbing'
       }`}
     >
       {label}
@@ -67,7 +81,9 @@ function DockButton({ gate, label, title }: { gate: GateName; label: string; tit
   )
 }
 
-export function GatePalette() {
+/** `allowedGates`: when given, only those gates can be used (a challenge's constraint); the rest are shown disabled. */
+export function GatePalette({ allowedGates }: { allowedGates?: readonly GateName[] } = {}) {
+  const isAllowed = (gate: GateName) => !allowedGates || allowedGates.includes(gate)
   const pendingAngle = useBuildStore((s) => s.pendingAngle)
   const setPendingAngle = useBuildStore((s) => s.setPendingAngle)
   const selectedGate = useBuildStore((s) => s.selectedGate)
@@ -113,18 +129,18 @@ export function GatePalette() {
       >
         <span className="px-2 font-mono-qasm text-[11px] whitespace-nowrap text-void-200">drag or click</span>
         {SINGLE_QUBIT.map((g) => (
-          <DockButton key={g.gate} {...g} />
+          <DockButton key={g.gate} {...g} allowed={isAllowed(g.gate)} />
         ))}
         <span className="mx-0.5 h-6 w-px shrink-0 bg-void-400" />
         {ROTATION.map((g) => (
-          <DockButton key={g.gate} {...g} />
+          <DockButton key={g.gate} {...g} allowed={isAllowed(g.gate)} />
         ))}
         <span className="mx-0.5 h-6 w-px shrink-0 bg-void-400" />
         {MULTI_QUBIT.map((g) => (
-          <DockButton key={g.gate} {...g} />
+          <DockButton key={g.gate} {...g} allowed={isAllowed(g.gate)} />
         ))}
         <span className="mx-0.5 h-6 w-px shrink-0 bg-void-400" />
-        <DockButton gate="measure" label="M" title="Measure" />
+        <DockButton gate="measure" label="M" title="Measure" allowed={isAllowed('measure')} />
       </div>
     </div>
   )

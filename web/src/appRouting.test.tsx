@@ -4,7 +4,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import { pathForScreen, screenFromPath } from '@/features/shell/routes'
+import { challengeIdFromPath, pathForChallenge, pathForScreen, screenFromPath } from '@/features/shell/routes'
 
 const client = vi.hoisted(() => ({
   listLessons: vi.fn(),
@@ -58,6 +58,9 @@ describe('paths and screens', () => {
     ['/', 'lab'],
     ['/learn', 'learn'],
     ['/progress', 'progress'],
+    ['/challenges', 'challenges'],
+    ['/challenges/', 'challenges'],
+    ['/challenges/create-bell', 'challenges'],
     ['/learn/', 'learn'],
     ['/progress//', 'progress'],
     ['/unknown', 'lab'],
@@ -69,10 +72,29 @@ describe('paths and screens', () => {
   })
 
   it('every screen has exactly one path, and it maps back', () => {
-    for (const screenName of ['lab', 'learn', 'progress'] as const) {
+    for (const screenName of ['lab', 'learn', 'challenges', 'progress'] as const) {
       expect(screenFromPath(pathForScreen(screenName))).toBe(screenName)
     }
-    expect(new Set(['lab', 'learn', 'progress'].map((s) => pathForScreen(s as 'lab'))).size).toBe(3)
+    expect(new Set(['lab', 'learn', 'challenges', 'progress'].map((s) => pathForScreen(s as 'lab'))).size).toBe(4)
+  })
+
+  it.each([
+    ['/challenges/create-bell', 'create-bell'],
+    ['/challenges/create-bell/', 'create-bell'],
+    ['/challenges', null],
+    ['/challenges/', null],
+    ['/learn/create-bell', null],
+    ['/challenges/Create-Bell', null],
+    ['/challenges/a/b', null],
+    ['/challenges/%3Cscript%3E', null],
+    ['/challenges/' + 'x'.repeat(81), null],
+  ])('the challenge id in %j is %j', (path, id) => {
+    expect(challengeIdFromPath(path)).toBe(id)
+  })
+
+  it('a challenge path maps back to its id', () => {
+    expect(challengeIdFromPath(pathForChallenge('create-one'))).toBe('create-one')
+    expect(pathForChallenge(null)).toBe('/challenges')
   })
 })
 

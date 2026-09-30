@@ -36,7 +36,8 @@ function GateBox({ op, onClick }: { op: GateOp; onClick: () => void }) {
   )
 }
 
-export function CircuitCanvas() {
+/** `lockQubits`: a challenge fixes the number of qubits, so the add/remove controls are not offered. */
+export function CircuitCanvas({ lockQubits = false }: { lockQubits?: boolean } = {}) {
   const circuit = useBuildStore((s) => s.circuit)
   const onWireClick = useBuildStore((s) => s.onWireClick)
   const removeOpAt = useBuildStore((s) => s.removeOpAt)
@@ -63,6 +64,7 @@ export function CircuitCanvas() {
           Circuit · {numQubits} qubit{numQubits === 1 ? '' : 's'} · {circuit.ops.length} op
           {circuit.ops.length === 1 ? '' : 's'}
         </span>
+        {!lockQubits && (
         <div className="flex items-center gap-1">
           <button
             type="button"
@@ -83,6 +85,7 @@ export function CircuitCanvas() {
             +
           </button>
         </div>
+        )}
       </div>
 
       <div className="circuit-grid-bg flex-1 overflow-auto p-6 pb-28">

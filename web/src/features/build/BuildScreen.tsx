@@ -7,30 +7,13 @@
  * result (it belonged to the old choice), so the new one is asked for at once. `ResultsPanel`
  * lives in the right pane in `App.tsx` and reads the same `useBuildStore`.
  */
-import { useEffect } from 'react'
 import { GatePalette } from './GatePalette'
 import { CircuitCanvas } from './CircuitCanvas'
 import { CodePane } from './CodePane'
-import { useBuildStore } from './store'
-
-const DEBOUNCE_MS = 250
+import { useAutoRun } from './useAutoRun'
 
 export function BuildScreen() {
-  const qasmText = useBuildStore((s) => s.qasmText)
-  const runExecution = useBuildStore((s) => s.runExecution)
-  const backend = useBuildStore((s) => s.backend)
-  // The shot count only matters to a shots run, so it is `null` in statevector mode: typing in it there re-runs nothing, and
-  // switching mode (which flips it between `null` and a number) re-runs.
-  const shots = useBuildStore((s) => (s.mode === 'shots' ? s.shots : null))
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      void runExecution()
-    }, DEBOUNCE_MS)
-    return () => clearTimeout(timer)
-    // `qasmText` changes iff the canonical circuit changes, so it's a stable
-    // trigger for both canvas and editor edits.
-  }, [qasmText, backend, shots, runExecution])
+  useAutoRun()
 
   return (
     <div className="flex h-full flex-col">

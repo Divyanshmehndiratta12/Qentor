@@ -7,13 +7,13 @@
 import type { Lesson, LessonDifficulty } from '@/api'
 import { getLessonState, type LessonState } from './lessonState'
 
-const DIFFICULTY_LABEL: Record<LessonDifficulty, string> = {
+export const DIFFICULTY_LABEL: Record<LessonDifficulty, string> = {
   beginner: 'Beginner',
   intermediate: 'Intermediate',
   advanced: 'Advanced',
 }
 
-const DIFFICULTY_STYLE: Record<LessonDifficulty, string> = {
+export const DIFFICULTY_STYLE: Record<LessonDifficulty, string> = {
   beginner: 'border-cyan-glow/40 bg-cyan-dim/30 text-cyan-glow',
   intermediate: 'border-violet-glow/40 bg-violet-dim/30 text-violet-glow',
   advanced: 'border-amber-glow/40 bg-amber-dim/30 text-amber-glow',
