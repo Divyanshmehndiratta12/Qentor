@@ -52,7 +52,7 @@ function fixtureProvenance(executionMode: string): Provenance {
     backendVersion: '0.0.0-dev',
     executionMode,
     provenanceClass: FIXTURE,
-    verificationStatus: 'VERIFIED',
+    verificationStatus: 'STATE_CHECKED',
     createdAt: new Date().toISOString(),
   }
 }
@@ -267,7 +267,7 @@ export class MockApiClient implements ApiClient {
       resultId,
       circuitHash: 'qc_mockmockmock',
       provenanceClass: FIXTURE,
-      verificationStatus: 'VERIFIED',
+      verificationStatus: 'STATE_CHECKED',
       usedFallbackTemplate: true,
       facts: [circuitFact],
     }

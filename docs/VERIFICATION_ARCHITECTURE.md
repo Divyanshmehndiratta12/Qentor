@@ -76,8 +76,42 @@ A noise-model run (P1) is SIMULATION with mode detail "noise model". It is never
 ## 4. Verification kinds
 
 ### 4.1 Execution
-Statevector, probabilities, counts and per-step states from an adapter. Status is VERIFIED when
-the adapter ran without error and the state norm is within 1e-9 of 1.
+Statevector, probabilities, counts and per-step states from an adapter.
+
+**What an execution's status means (as built).** Three different things used to share the word
+"verified", and only the last says anything about a circuit:
+
+| | Meaning | Recorded as |
+|---|---|---|
+| 1 | the backend ran | (a run that raised is `ERROR`, HTTP 400/503) |
+| 2 | what it returned is a well-formed result | `STATE_CHECKED` (`qentor/execution/sanity.py`) |
+| 3 | the circuit has a property, or two circuits agree | a **verifier's** verdict: `VERIFIED` / `FAILED` / `UNVERIFIABLE` (Bell check, multi-input test, equivalence check, `VERIFIED_SHORTER`) |
+
+`STATE_CHECKED` requires: a statevector of length 2**n with finite entries and squared norm 1 within
+1e-9; probabilities in [0, 1] summing to 1 within 1e-9; counts that are non-negative integers adding up
+to the requested shots. A result that fails is stored as `FAILED` with the reasons and none of its
+numbers, and the request is refused with `502 EXECUTION_STATE_INVALID`: a malformed state is never shown,
+explained or built on. `SUCCEEDED` exists only to read rows written before state checks existed (they
+were stored as `VERIFIED`); nothing writes it and it is not treated as usable.
+
+The word "verified" is reserved for (3). A successful simulation is described everywhere (API facts, the
+tutor, the UI tooltip and trace row) as "state checked: the backend ran and returned a well-formed result;
+this does not show the circuit does what you intend". The wire field is still called `verification_status`.
+
+**Request limits (as built; `qentor/execution/limits.py`).** Checked before any backend allocates memory;
+an over-limit request is `422` with `{code, message, limit, requested, backend}` and no partial run.
+
+| Limit | Value |
+|---|---|
+| qubits, Qiskit Aer | 16 |
+| qubits, Cirq | 14 |
+| qubits, PennyLane | 14 |
+| operations per request | 500 |
+| shots per request | 100000 |
+| qubits, equivalence check (optimizer) | 10 (also enforced inside `check_equivalence`, which returns `UNVERIFIABLE`) |
+| qubits, trace / multi-input inputs | 8 (`MAX_SWEEP_QUBITS`, unchanged; the backend limits above also apply) |
+
+Execute, trace, multi-input test and optimize all enforce them.
 
 **Per-step trace (`POST /api/execute/trace`, `qentor/execution/trace.py`).** The state after
 operation *k* is the backend's own statevector for the circuit truncated after operation *k*, so a

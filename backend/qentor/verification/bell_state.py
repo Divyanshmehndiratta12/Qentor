@@ -23,7 +23,7 @@ from __future__ import annotations
 from qentor.circuit.hashing import circuit_hash
 from qentor.circuit.model import Circuit, GateName, GateOp
 from qentor.provenance.models import ProvenanceRecord
-from qentor.provenance.models import VerificationStatus as ExecutionStatus
+from qentor.provenance.models import ExecutionStatus
 
 from .models import CheckStatus, VerificationCheck, VerificationReport, VerificationStatus
 
@@ -64,7 +64,7 @@ def verify_bell_state(circuit: Circuit, record: ProvenanceRecord) -> Verificatio
     if not hash_matches:
         return _report(record, VerificationStatus.ERROR, checks, [], [])
 
-    execution_ok = record.verification_status == ExecutionStatus.VERIFIED
+    execution_ok = record.verification_status == ExecutionStatus.STATE_CHECKED
     checks.append(
         _check(
             "execution_succeeded",

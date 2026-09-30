@@ -117,7 +117,7 @@ describe('RealApiClient.traceCircuit', () => {
         backendVersion: '0.17.2',
         executionMode: 'statevector',
         provenanceClass: 'SIMULATION',
-        verificationStatus: 'VERIFIED',
+        verificationStatus: 'STATE_CHECKED',
         createdAt: '2026-09-29T07:18:11+00:00',
       })
     })

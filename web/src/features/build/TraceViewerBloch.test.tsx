@@ -282,7 +282,7 @@ describe('the Lab: browsing a trace changes nothing else', () => {
     backendVersion: '0.17.2',
     executionMode: 'statevector',
     provenanceClass: 'SIMULATION',
-    verificationStatus: 'VERIFIED',
+    verificationStatus: 'STATE_CHECKED',
     createdAt: '2026-01-01T00:00:00Z',
   }
   const VERIFICATION = { verificationStatus: 'VERIFIED' } as unknown as VerifyBellStateResult

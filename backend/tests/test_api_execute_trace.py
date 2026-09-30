@@ -23,7 +23,7 @@ from qentor.circuit.hashing import circuit_hash
 from qentor.circuit.model import Circuit, GateOp
 from qentor.execution.adapter import AdapterExecutionError, AdapterUnavailable
 from qentor.execution.aer import AerAdapter
-from qentor.provenance.models import ProvenanceClass, VerificationStatus
+from qentor.provenance.models import ProvenanceClass, ExecutionStatus
 from qentor.provenance.store import ProvenanceStore
 
 from tests.trace_fakes import SENTINEL_STATES, ScriptedAdapter, make_result
@@ -157,7 +157,7 @@ class TestResponseShapeAndProvenance(TraceEndpointCase):
 
     def test_verification_status_only_means_the_backend_ran(self) -> None:
         for step in self.trace(BELL_NO_MEASURE).steps:
-            self.assertEqual(step.provenance.verification_status, VerificationStatus.VERIFIED.value)
+            self.assertEqual(step.provenance.verification_status, ExecutionStatus.STATE_CHECKED.value)
         # No circuit-level verdict of any kind exists on the response.
         from qentor.api.schemas import TraceResponse
 
@@ -249,7 +249,7 @@ class TestBackendFailuresAreStructuredAndNeverSubstituted(TraceEndpointCase):
 
         self.assertRefused(ctx, 400, "TRACE_BACKEND_EXECUTION_FAILED")
         [record] = self.store.list_by_circuit_hash(circuit_hash(BELL_NO_MEASURE))
-        self.assertEqual(record.verification_status, VerificationStatus.ERROR)
+        self.assertEqual(record.verification_status, ExecutionStatus.ERROR)
         self.assertNotIn("statevector", record.payload)
 
     def test_an_unusable_state_is_a_502_and_the_bad_state_is_not_stored_as_a_result(self) -> None:
@@ -260,7 +260,7 @@ class TestBackendFailuresAreStructuredAndNeverSubstituted(TraceEndpointCase):
 
         self.assertRefused(ctx, 502, "TRACE_STATE_NOT_NORMALISED")
         [record] = self.store.list_by_circuit_hash(circuit_hash(Circuit(num_qubits=1, num_clbits=0, ops=[])))
-        self.assertEqual(record.verification_status, VerificationStatus.ERROR)
+        self.assertEqual(record.verification_status, ExecutionStatus.ERROR)
         self.assertNotIn("statevector", record.payload)
 
     def test_the_api_passes_through_exactly_what_a_backend_returned(self) -> None:

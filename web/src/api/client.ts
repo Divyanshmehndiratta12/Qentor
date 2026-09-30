@@ -170,8 +170,9 @@ export interface TutorFactResult {
  * Structured evidence from POST /api/tutor. Shaped after
  * `backend/qentor/api/schemas.py::TutorResponse`, normalised to camelCase.
  * `verificationStatus`/`provenanceClass` here describe the *execution* this
- * answer is grounded in (VERIFIED/FAILED/ERROR — the same three values
- * `/api/execute` itself reports), not a Bell-verifier verdict.
+ * answer is grounded in (STATE_CHECKED/FAILED/ERROR — the same values
+ * `/api/execute` itself reports: a state check on the run, not a verdict on the
+ * circuit), not a Bell-verifier verdict.
  *
  * `resultId`/`circuitHash`/`provenanceClass`/`verificationStatus` are `null`
  * for a lesson-only answer: lesson material is not a quantum result and has

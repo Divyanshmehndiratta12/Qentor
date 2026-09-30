@@ -164,7 +164,7 @@ describe('RealApiClient.askTutor', () => {
         result_id: 'res_abc',
         circuit_hash: 'hash_abc',
         provenance_class: 'SIMULATION',
-        verification_status: 'VERIFIED',
+        verification_status: 'STATE_CHECKED',
         used_fallback_template: true,
         facts: [{ id: 'F1', kind: 'circuit_summary', description: 'h(q0), cx(...)', result_id: 'res_abc' }],
       }),
@@ -205,7 +205,7 @@ describe('RealApiClient.askTutor', () => {
         result_id: 'res_abc',
         circuit_hash: 'hash_abc',
         provenance_class: 'SIMULATION',
-        verification_status: 'VERIFIED',
+        verification_status: 'STATE_CHECKED',
         used_fallback_template: true,
         facts: [],
       }),
@@ -226,11 +226,11 @@ describe('RealApiClient.askTutor', () => {
         result_id: 'res_abc',
         circuit_hash: 'hash_abc',
         provenance_class: 'SIMULATION',
-        verification_status: 'VERIFIED',
+        verification_status: 'STATE_CHECKED',
         used_fallback_template: true,
         facts: [
           { id: 'F1', kind: 'circuit_summary', description: '2-qubit circuit: h(q0), cx(...)', result_id: 'res_abc' },
-          { id: 'F2', kind: 'execution_status', description: 'execution res_abc: VERIFIED', result_id: 'res_abc' },
+          { id: 'F2', kind: 'execution_status', description: 'execution res_abc: STATE_CHECKED', result_id: 'res_abc' },
           { id: 'F3', kind: 'probability', description: 'outcome 00: probability 0.500000 (500 shots)', result_id: 'res_abc' },
           { id: 'F4', kind: 'probability', description: 'outcome 11: probability 0.500000 (500 shots)', result_id: 'res_abc' },
         ],
@@ -243,7 +243,7 @@ describe('RealApiClient.askTutor', () => {
     expect(result.resultId).toBe('res_abc')
     expect(result.circuitHash).toBe('hash_abc')
     expect(result.provenanceClass).toBe('SIMULATION')
-    expect(result.verificationStatus).toBe('VERIFIED')
+    expect(result.verificationStatus).toBe('STATE_CHECKED')
     expect(result.usedFallbackTemplate).toBe(true)
     expect(result.facts).toHaveLength(4)
     expect(result.facts[2]).toEqual({
@@ -261,7 +261,7 @@ describe('RealApiClient.askTutor', () => {
         result_id: 'res_abc',
         circuit_hash: 'hash_abc',
         provenance_class: 'SIMULATION',
-        verification_status: 'VERIFIED',
+        verification_status: 'STATE_CHECKED',
         used_fallback_template: true,
         facts: [
           { id: 'F1', kind: 'circuit_summary', description: '2-qubit circuit: h(q0), cx(...)', result_id: 'res_abc' },

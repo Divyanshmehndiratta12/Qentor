@@ -346,7 +346,7 @@ describe('provenance', () => {
     expect(field('result')).toBe('res_a0')
     expect(field('execution')).toBe('aer-local-a0')
     expect(field('circuit')).toBe('hash_prefix_a0')
-    expect(field('run status')).toBe('VERIFIED')
+    expect(field('state check')).toBe('STATE_CHECKED')
   })
 
   it('provenance follows the selected step (each step is its own run on its own prefix circuit)', () => {
@@ -387,7 +387,7 @@ describe('provenance', () => {
       screen.getByText(/Run status describes this backend execution only — it does not say your circuit is correct/),
     ).toBeInTheDocument()
     // The status is labelled as a *run* status; nothing calls the circuit itself verified/correct.
-    expect(field('run status')).toBe('VERIFIED')
+    expect(field('state check')).toBe('STATE_CHECKED')
     expect(screen.queryByText(/circuit verified|verified circuit|circuit is correct\s*$/i)).not.toBeInTheDocument()
   })
 

@@ -23,6 +23,7 @@ import { useRef, useState, type KeyboardEvent } from 'react'
 import type { ExecutionTraceResult, TraceStep } from '@/api'
 import { ProvenanceBadge } from '@/provenance/ProvenanceBadge'
 import { toQuantumValue } from '@/provenance/QuantumValue'
+import { executionStatusExplanation } from '@/provenance/executionStatus'
 import { VerifiedValueInline } from '@/provenance/VerifiedValue'
 import type { TraceFailure } from './store'
 import { BlochSphere } from './BlochSphere'
@@ -305,8 +306,10 @@ function ProvenanceCard({ trace, step }: { trace: ExecutionTraceResult; step: Tr
         <dd className="truncate text-slate-300" title={provenance.circuitHash}>
           {provenance.circuitHash}
         </dd>
-        <dt>run status</dt>
-        <dd className="text-slate-300">{provenance.verificationStatus}</dd>
+        <dt>state check</dt>
+        <dd className="text-slate-300" title={executionStatusExplanation(provenance.verificationStatus)}>
+          {provenance.verificationStatus}
+        </dd>
         {isFinal && (
           <>
             <dt>trace</dt>

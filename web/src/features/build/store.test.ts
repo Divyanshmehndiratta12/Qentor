@@ -21,7 +21,7 @@ const PROVENANCE: Provenance = {
   backendVersion: '0.17.2',
   executionMode: 'shots',
   provenanceClass: 'SIMULATION',
-  verificationStatus: 'VERIFIED',
+  verificationStatus: 'STATE_CHECKED',
   createdAt: '2026-01-01T00:00:00Z',
 }
 

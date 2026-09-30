@@ -534,6 +534,10 @@ async function safeErrorDetail(res: Response): Promise<string> {
   try {
     const body = await res.json()
     if (typeof body?.detail === 'string') return body.detail
+    // A structured refusal (`{detail: {code, message}}`: over a size limit, a malformed backend result)
+    // reads as its message, not as raw JSON.
+    const structured = TraceErrorDetailSchema.safeParse(body?.detail)
+    if (structured.success) return structured.data.message
     return JSON.stringify(body)
   } catch {
     return `HTTP ${res.status}`

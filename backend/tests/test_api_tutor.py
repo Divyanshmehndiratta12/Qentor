@@ -21,7 +21,7 @@ from qentor.circuit.model import Circuit, GateOp
 from qentor.execution.adapter import AdapterUnavailable
 from qentor.execution.aer import AerAdapter
 from qentor.provenance.models import ProvenanceClass, ProvenanceRecord
-from qentor.provenance.models import VerificationStatus as ExecutionStatus
+from qentor.provenance.models import ExecutionStatus
 from qentor.provenance.store import ProvenanceStore
 from qentor.tutor.deterministic import UNSUPPORTED_QUESTION_ANSWER
 from qentor.tutor.llm import LLMDraft, LLMUnavailable
@@ -76,7 +76,7 @@ class TutorEndpointTestCase(unittest.TestCase):
             backend_version=result.backend_version,
             execution_mode=result.execution_mode,
             provenance_class=ProvenanceClass.SIMULATION,
-            verification_status=ExecutionStatus.VERIFIED,
+            verification_status=ExecutionStatus.STATE_CHECKED,
             payload=result.to_payload(),
         )
         self.store.insert(record)
@@ -107,7 +107,7 @@ class TestGroundedAnswers(TutorEndpointTestCase):
         self.assertEqual(response.result_id, record.result_id)
         self.assertEqual(response.circuit_hash, record.circuit_hash)
         self.assertEqual(response.provenance_class, "SIMULATION")
-        self.assertEqual(response.verification_status, "VERIFIED")
+        self.assertEqual(response.verification_status, "STATE_CHECKED")
         self.assertTrue(response.used_fallback_template)
         self.assertGreater(len(response.facts), 0)
 

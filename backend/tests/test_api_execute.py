@@ -53,7 +53,7 @@ class TestBellStateAcceptance(unittest.TestCase):
 
     def test_bell_circuit_shots_mode_end_to_end(self) -> None:
         from qentor.circuit.hashing import circuit_hash
-        from qentor.provenance.models import ProvenanceClass, ProvenanceRecord, VerificationStatus
+        from qentor.provenance.models import ProvenanceClass, ProvenanceRecord, ExecutionStatus
 
         adapter = AerAdapter()
         store = ProvenanceStore(self.db_path)
@@ -67,7 +67,7 @@ class TestBellStateAcceptance(unittest.TestCase):
                 backend_version=result.backend_version,
                 execution_mode=result.execution_mode,
                 provenance_class=ProvenanceClass.SIMULATION,
-                verification_status=VerificationStatus.VERIFIED,
+                verification_status=ExecutionStatus.STATE_CHECKED,
                 payload=result.to_payload(),
             )
             store.insert(record)
@@ -75,7 +75,7 @@ class TestBellStateAcceptance(unittest.TestCase):
             # --- response-level assertions ---
             self.assertEqual(record.backend, "qiskit-aer")
             self.assertEqual(record.provenance_class, ProvenanceClass.SIMULATION)
-            self.assertEqual(record.verification_status, VerificationStatus.VERIFIED)
+            self.assertEqual(record.verification_status, ExecutionStatus.STATE_CHECKED)
             self.assertEqual(record.circuit_hash, chash)
             self.assertTrue(record.result_id.startswith("res_"))
 

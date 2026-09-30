@@ -10,7 +10,7 @@
  * accepts the backend's literal `ProvenanceClass` enum — so this is not a
  * value the network can forge, only one the mock adapter self-declares.
  */
-import type { ExecuteResponse, ProvenanceClass, TraceProvenanceResponse, VerificationStatus } from './schema'
+import type { ExecuteResponse, ExecutionStatus, ProvenanceClass, TraceProvenanceResponse } from './schema'
 
 export const FIXTURE = 'FIXTURE' as const
 
@@ -21,7 +21,8 @@ export interface Provenance {
   backendVersion: string
   executionMode: string
   provenanceClass: ProvenanceClass | typeof FIXTURE
-  verificationStatus: VerificationStatus
+  /** The execution's own status (the wire field is `verification_status`): a state check, NOT a verdict on the circuit. */
+  verificationStatus: ExecutionStatus
   createdAt: string
 }
 

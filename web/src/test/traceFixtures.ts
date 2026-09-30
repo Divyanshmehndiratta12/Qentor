@@ -83,7 +83,7 @@ export function wireTrace(options: WireTraceOptions): Record<string, unknown> {
         backend_version: backendVersion,
         execution_mode: 'statevector',
         provenance_class: 'SIMULATION',
-        verification_status: 'VERIFIED',
+        verification_status: 'STATE_CHECKED',
         created_at: `2026-09-29T07:18:1${i}+00:00`,
       },
       statevector,

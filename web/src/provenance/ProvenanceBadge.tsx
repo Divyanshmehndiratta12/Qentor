@@ -7,6 +7,7 @@
  */
 import type { Provenance } from './QuantumValue'
 import { FIXTURE } from './QuantumValue'
+import { executionStatusExplanation, executionStatusLabel } from './executionStatus'
 
 const CLASS_LABEL: Record<Provenance['provenanceClass'], string> = {
   SIMULATION: 'Simulated',
@@ -52,7 +53,8 @@ function badgeTooltip(p: Provenance): string {
     `circuit: ${p.circuitHash}`,
     `backend: ${p.backend} ${p.backendVersion}`,
     `mode: ${p.executionMode}`,
-    `status: ${p.verificationStatus}`,
+    `run: ${p.verificationStatus} (${executionStatusLabel(p.verificationStatus)})`,
+    executionStatusExplanation(p.verificationStatus),
     `at: ${p.createdAt}`,
   ].join('\n')
 }

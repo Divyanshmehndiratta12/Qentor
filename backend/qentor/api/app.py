@@ -32,10 +32,12 @@ from qentor.circuit.hashing import circuit_hash
 from qentor.execution.adapter import AdapterExecutionError, AdapterUnavailable, ExecutionResult
 from qentor.execution.aer import AerAdapter
 from qentor.execution.cirq_adapter import CirqAdapter
+from qentor.execution.limits import LimitExceeded, check_equivalence_limits, check_run_limits
 from qentor.execution.pennylane_adapter import PennyLaneAdapter
+from qentor.execution.sanity import state_problems
 from qentor.execution.trace import TraceBackendFault, TraceNotSupported, trace_circuit
 from qentor.lessons import LESSONS
-from qentor.provenance.models import ProvenanceClass, ProvenanceRecord, VerificationStatus
+from qentor.provenance.models import ExecutionStatus, ProvenanceClass, ProvenanceRecord
 from qentor.provenance.store import ProvenanceStore
 from qentor.tutor import (
     LessonContextError,
@@ -110,9 +112,73 @@ _llm_adapter = build_default_llm_adapter()
 # that exists but belongs to another lesson is a 422 conflict in the request.
 _LESSON_ERROR_STATUS = {LESSON_NOT_FOUND: 404, SECTION_NOT_FOUND: 404, SECTION_MISMATCH: 422}
 
+EXECUTION_STATE_INVALID = "EXECUTION_STATE_INVALID"
+
+
+def _limit_http_error(exc: LimitExceeded) -> HTTPException:
+    """A request over a platform limit (``qentor.execution.limits``): 422 with the
+    stable code and the numbers, before any backend allocates anything."""
+    return HTTPException(status_code=422, detail=exc.detail())
+
+
+def _enforce_run_limits(circuit, backend: str, *, shots: int | None = None) -> None:
+    try:
+        check_run_limits(circuit, backend, shots=shots)
+    except LimitExceeded as exc:
+        raise _limit_http_error(exc) from exc
+
+
+def _record_run(
+    result: ExecutionResult,
+    circuit_hash_: str,
+    num_qubits: int,
+    *,
+    shots: int | None = None,
+) -> ProvenanceRecord:
+    """Persist one successful backend run, after the state sanity check.
+
+    ``STATE_CHECKED`` means the backend's output is well-formed (unit norm,
+    probabilities and counts that add up) - it is NOT a claim about the circuit.
+    A result that fails the check is stored as ``FAILED`` with the reasons and
+    none of its numbers, and the request is refused with 502: a malformed state is
+    never shown, explained or built on.
+    """
+    problems = state_problems(result, num_qubits, shots=shots)
+    if problems:
+        _store.insert(
+            ProvenanceRecord.new(
+                circuit_hash=circuit_hash_,
+                backend=result.backend_name,
+                backend_version=result.backend_version,
+                execution_mode=result.execution_mode,
+                provenance_class=ProvenanceClass.SIMULATION,
+                verification_status=ExecutionStatus.FAILED,
+                payload={"error": "; ".join(problems), "code": EXECUTION_STATE_INVALID},
+            )
+        )
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "code": EXECUTION_STATE_INVALID,
+                "message": f"backend {result.backend_name!r} returned a result that failed the state check: {'; '.join(problems)}",
+            },
+        )
+    record = ProvenanceRecord.new(
+        circuit_hash=circuit_hash_,
+        backend=result.backend_name,
+        backend_version=result.backend_version,
+        execution_mode=result.execution_mode,
+        provenance_class=ProvenanceClass.SIMULATION,
+        verification_status=ExecutionStatus.STATE_CHECKED,
+        payload=result.to_payload(),
+    )
+    _store.insert(record)
+    return record
+
 
 @app.post("/api/execute", response_model=ExecuteResponse)
 def execute(request: ExecuteRequest) -> ExecuteResponse:
+    _enforce_run_limits(request.circuit, request.backend, shots=request.shots)
     chash = circuit_hash(request.circuit)
     adapter = _adapters[request.backend]
 
@@ -130,22 +196,18 @@ def execute(request: ExecuteRequest) -> ExecuteResponse:
             backend_version="unknown",
             execution_mode=request.mode,
             provenance_class=ProvenanceClass.SIMULATION,
-            verification_status=VerificationStatus.ERROR,
+            verification_status=ExecutionStatus.ERROR,
             payload={"error": str(exc)},
         )
         _store.insert(record)
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    record = ProvenanceRecord.new(
-        circuit_hash=chash,
-        backend=result.backend_name,
-        backend_version=result.backend_version,
-        execution_mode=result.execution_mode,
-        provenance_class=ProvenanceClass.SIMULATION,
-        verification_status=VerificationStatus.VERIFIED,
-        payload=result.to_payload(),
+    record = _record_run(
+        result,
+        chash,
+        request.circuit.num_qubits,
+        shots=request.shots if request.mode == "shots" else None,
     )
-    _store.insert(record)
 
     return ExecuteResponse(
         result_id=record.result_id,
@@ -184,24 +246,19 @@ def execute_trace(request: TraceRequest) -> TraceResponse:
     state, 503 if it is unavailable, 400 if the run itself failed.
     """
     adapter = _adapters[request.backend]
+    # Backend and operation limits first (the trace keeps its own, tighter,
+    # qubit limit and reports it with its own code).
+    _enforce_run_limits(request.circuit, request.backend)
     chash = circuit_hash(request.circuit)
     records: dict[str, ProvenanceRecord] = {}
 
     def record_execution(result: ExecutionResult, prefix_hash: str) -> str:
         # The trace layer has already required a real, normalised statevector
-        # (docs/VERIFICATION_ARCHITECTURE.md §4.1's VERIFIED criterion) before
-        # calling this. Same meaning of VERIFIED as /api/execute: the backend
-        # ran — not a claim about the circuit's correctness.
-        record = ProvenanceRecord.new(
-            circuit_hash=prefix_hash,
-            backend=result.backend_name,
-            backend_version=result.backend_version,
-            execution_mode=result.execution_mode,
-            provenance_class=ProvenanceClass.SIMULATION,
-            verification_status=VerificationStatus.VERIFIED,
-            payload=result.to_payload(),
-        )
-        _store.insert(record)
+        # (docs/VERIFICATION_ARCHITECTURE.md §4.1) before calling this; the same
+        # state check is applied here so a trace step means exactly what an
+        # /api/execute result means: STATE_CHECKED - the backend ran and returned a
+        # well-formed state, not a claim about the circuit.
+        record = _record_run(result, prefix_hash, request.circuit.num_qubits)
         records[record.result_id] = record
         return record.result_id
 
@@ -216,7 +273,7 @@ def execute_trace(request: TraceRequest) -> TraceResponse:
                 backend_version="unknown",
                 execution_mode="statevector",
                 provenance_class=ProvenanceClass.SIMULATION,
-                verification_status=VerificationStatus.ERROR,
+                verification_status=ExecutionStatus.ERROR,
                 payload={"error": message, "code": code},
             )
         )
@@ -426,7 +483,7 @@ def tutor_endpoint(request: TutorRequest) -> TutorResponse:
         answer, used_fallback_template = answer_lesson_aware_question(
             request.question, lesson_context, facts, record, _llm_adapter, request.language
         )
-    elif record.verification_status != VerificationStatus.VERIFIED:
+    elif record.verification_status != ExecutionStatus.STATE_CHECKED:
         answer, used_fallback_template = answer_failed_execution(record, request.language), True
     else:
         answer, used_fallback_template = answer_question_with_llm(
@@ -493,19 +550,10 @@ def multi_input_test_endpoint(request: MultiInputTestRequest) -> MultiInputTestR
     reinterpreted or truncated.
     """
     adapter = _adapters[request.backend]
+    _enforce_run_limits(request.circuit, request.backend)
 
     def record_execution(result: ExecutionResult, case_circuit_hash: str) -> str:
-        record = ProvenanceRecord.new(
-            circuit_hash=case_circuit_hash,
-            backend=result.backend_name,
-            backend_version=result.backend_version,
-            execution_mode=result.execution_mode,
-            provenance_class=ProvenanceClass.SIMULATION,
-            verification_status=VerificationStatus.VERIFIED,
-            payload=result.to_payload(),
-        )
-        _store.insert(record)
-        return record.result_id
+        return _record_run(result, case_circuit_hash, request.circuit.num_qubits).result_id
 
     try:
         report = run_multi_input_test(
@@ -566,19 +614,14 @@ def optimize_endpoint(request: OptimizeRequest) -> OptimizeResponse:
     so explicitly and carries no candidate circuit definition at all.
     """
     adapter = _adapters[request.backend]
+    _enforce_run_limits(request.circuit, request.backend)
+    try:
+        check_equivalence_limits(request.circuit.num_qubits)
+    except LimitExceeded as exc:
+        raise _limit_http_error(exc) from exc
 
     def record_execution(result: ExecutionResult, candidate_hash: str) -> str:
-        record = ProvenanceRecord.new(
-            circuit_hash=candidate_hash,
-            backend=result.backend_name,
-            backend_version=result.backend_version,
-            execution_mode=result.execution_mode,
-            provenance_class=ProvenanceClass.SIMULATION,
-            verification_status=VerificationStatus.VERIFIED,
-            payload=result.to_payload(),
-        )
-        _store.insert(record)
-        return record.result_id
+        return _record_run(result, candidate_hash, request.circuit.num_qubits).result_id
 
     report = optimize_circuit(request.circuit, adapter=adapter, record_execution=record_execution)
 

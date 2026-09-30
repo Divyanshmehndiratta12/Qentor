@@ -33,6 +33,8 @@ import type { TutorLanguage } from '@/api'
 import type { TutorTurn } from '@/features/build/store'
 import { useBuildStore } from '@/features/build/store'
 import { ProvenanceBadge } from '@/provenance/ProvenanceBadge'
+import { executionStatusLabel } from '@/provenance/executionStatus'
+import type { ExecutionStatus } from '@/provenance/schema'
 import {
   LAB_TUTOR_CONTEXT,
   TRACE_STEP_QUESTION,
@@ -275,7 +277,7 @@ function AnswerSource({ answer }: { answer: Extract<TutorTurn, { role: 'tutor' }
     ? `lesson ${answer.lessonId}${answer.sectionId ? ` · section ${answer.sectionId}` : ''}`
     : null
   const step = answer.traceStep
-    ? `trace step ${answer.traceStep.stepNumber} of ${answer.traceStep.totalSteps} · ${answer.traceStep.resultId} · ${answer.traceStep.provenanceClass} · ${answer.traceStep.verificationStatus}`
+    ? `trace step ${answer.traceStep.stepNumber} of ${answer.traceStep.totalSteps} · ${answer.traceStep.resultId} · ${answer.traceStep.provenanceClass} · ${executionStatusLabel(answer.traceStep.verificationStatus as ExecutionStatus)}`
     : null
 
   if (answer.resultId === null) {
@@ -289,7 +291,7 @@ function AnswerSource({ answer }: { answer: Extract<TutorTurn, { role: 'tutor' }
   return (
     <>
       <p className="mt-1.5 font-mono-qasm text-[11px] text-void-200">
-        grounded in {answer.resultId} · {answer.provenanceClass} · {answer.verificationStatus}
+        grounded in {answer.resultId} · {answer.provenanceClass} · {answer.verificationStatus ? executionStatusLabel(answer.verificationStatus as ExecutionStatus) : ''}
       </p>
       {step && <p className="mt-0.5 font-mono-qasm text-[11px] text-void-200">about {step}</p>}
       {lesson && (

@@ -92,6 +92,23 @@ learner question + result_ids + language
    footer: "AI explanation of verified results · N claims checked · M rejected"
 ```
 
+**The guard as built (`qentor/tutor/guard.py`, `claims.py`).** The draft is parsed into typed *claims*
+and the facts are parsed with the same parser; every claim must be supported by value, in any equivalent
+notation. Claims are: integers and counts ("512 out of 1024"), decimals, percentages, fractions ("1/2"),
+ratios ("3:1"), square-root expressions ("1/√2", also "/√2" after a ket), scientific notation, signed numbers
+(a dropped minus sign is a different claim; a "magnitude" phrase licenses the unsigned value), the imaginary
+part of an amplitude, bitstrings and kets that the facts do not mention, versions, number words of 3 or more
+and fraction words ("half") next to a quantity noun, qualitative probability words ("always", "impossible",
+"equally likely", which need a probability-1 outcome or equal probabilities in the facts), and verdicts
+("verified", "equivalent", "passes", and "correct" about this circuit). A verdict can be licensed only by a
+backend *result* fact that contains the word, and the execution-status fact deliberately does not, so a model
+cannot call a state-checked circuit verified or correct. Lesson material may be restated (its own numbers,
+"never", "verified" in a textbook sentence) but never turned into a claim about "this circuit" or "your
+result". Deliberate limits: the qualitative-word checks are coarse, "one" and "two" as words are ordinary
+prose, and a claim that merely restates a lesson number is allowed. Measured false-positive rate: 0 of 837
+deterministic lesson answers (every lesson, section, question and language), 0 of every step answer over
+one- and two-qubit traces, and 0 of the result answers, read back as if they were model drafts.
+
 **Fallback.** With no API key, a timeout of 8 seconds, or two guard failures, the server builds a
 template explanation from the same facts, for example: "Your circuit returned outcome 000 with
 probability {F1} for oracle 37, which is balanced." It is labelled "Explanation generated without AI".

@@ -34,7 +34,8 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from qentor.circuit.hashing import circuit_hash
 from qentor.circuit.model import Circuit, GateName, GateOp
 from qentor.execution.bloch import bloch_coordinates
-from qentor.provenance.models import ProvenanceRecord, VerificationStatus
+from qentor.execution.sanity import STATE_CHECKED_PLAIN
+from qentor.provenance.models import ExecutionStatus, ProvenanceRecord
 
 from .facts import _describe_op
 from .models import FactKind, TutorFact
@@ -207,7 +208,8 @@ def build_trace_step_context(
         "status",
         "trace_status",
         f"step result {record.result_id} (execution {ref.execution_id}) on {record.backend} {record.backend_version} "
-        f"({record.provenance_class.value}, {record.execution_mode} mode): {record.verification_status.value}",
+        f"({record.provenance_class.value}, {record.execution_mode} mode): {record.verification_status.value} "
+        f"({STATE_CHECKED_PLAIN})",
     )
 
     # -- the backend's state, then (single qubit) its Bloch vector ----------------
@@ -267,7 +269,7 @@ def _check_record(record: ProvenanceRecord, claimed_id: str | None, expected_has
 
 
 def _usable_state(record: ProvenanceRecord | None, num_qubits: int) -> list[list[float]] | None:
-    if record is None or record.verification_status != VerificationStatus.VERIFIED:
+    if record is None or record.verification_status != ExecutionStatus.STATE_CHECKED:
         return None
     state = record.payload.get("statevector")
     if not isinstance(state, list) or len(state) != 2**num_qubits:

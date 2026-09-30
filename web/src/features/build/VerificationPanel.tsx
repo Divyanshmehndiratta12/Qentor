@@ -9,6 +9,7 @@
  * or upgrades a status.
  */
 import type { VerificationCheckResult, VerifyBellStateResult } from '@/api'
+import { bellVerdictScope } from '@/provenance/executionStatus'
 import { VerificationStatusBadge } from '@/provenance/VerificationStatusBadge'
 import { useBuildStore } from './store'
 
@@ -26,7 +27,7 @@ export function VerificationPanel() {
   return (
     <div className="mt-4 flex flex-col gap-3 border-t border-void-500 pt-4">
       <div className="flex items-center justify-between">
-        <span className="text-[13px] font-semibold text-slate-100">Verification</span>
+        <span className="text-[13px] font-semibold text-slate-100">Bell-state check</span>
         <button
           type="button"
           onClick={() => void runVerification()}
@@ -64,6 +65,9 @@ function VerificationReport({ report }: { report: VerifyBellStateResult }) {
         <VerificationStatusBadge status={report.verificationStatus} />
         <span className="font-mono-qasm text-[11px] text-void-200">{report.verifier}</span>
       </div>
+      <p className="text-xs leading-snug text-slate-400" data-testid="verdict-scope">
+        {bellVerdictScope(report.verificationStatus)}
+      </p>
 
       <dl className="grid grid-cols-[auto,1fr] gap-x-3 gap-y-1 font-mono-qasm text-[11px] text-void-200">
         <dt>result</dt>

@@ -37,7 +37,7 @@ const ANSWER = {
   result_id: 'res_step1',
   circuit_hash: 'hash_step1',
   provenance_class: 'SIMULATION',
-  verification_status: 'VERIFIED',
+  verification_status: 'STATE_CHECKED',
   used_fallback_template: true,
   facts: [{ id: 'S1', kind: 'trace_step', description: 'step 2 of 2', result_id: 'res_step1' }],
   trace_step: {
@@ -48,7 +48,7 @@ const ANSWER = {
     result_id: 'res_step1',
     circuit_hash: 'hash_step1',
     provenance_class: 'SIMULATION',
-    verification_status: 'VERIFIED',
+    verification_status: 'STATE_CHECKED',
   },
 }
 
@@ -115,7 +115,7 @@ describe('RealApiClient.askTutor — trace step', () => {
       resultId: 'res_step1',
       circuitHash: 'hash_step1',
       provenanceClass: 'SIMULATION',
-      verificationStatus: 'VERIFIED',
+      verificationStatus: 'STATE_CHECKED',
     })
     expect(answer.facts[0]!.id).toBe('S1')
   })

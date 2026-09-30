@@ -24,7 +24,7 @@ from qentor.api.schemas import TraceRequest, TutorRequest
 from qentor.circuit.hashing import circuit_hash
 from qentor.circuit.model import Circuit, GateOp
 from qentor.provenance.models import ProvenanceClass, ProvenanceRecord
-from qentor.provenance.models import VerificationStatus as ExecutionStatus
+from qentor.provenance.models import ExecutionStatus
 from qentor.tutor import answer_step_aware_question, build_trace_step_context, resolve_lesson_context
 from qentor.tutor.facts import build_fact_sheet
 from qentor.tutor.llm import _TRACE_PROMPT_ADDENDUM, AnthropicAdapter, LLMDraft, LLMUnavailable, _system_prompt
@@ -275,12 +275,12 @@ class TestVerifiedStepFacts(TraceStepTestCase):
         step = trace.steps[2]
         self.assertEqual(response.result_id, step.provenance.result_id)
         self.assertEqual(response.circuit_hash, step.provenance.circuit_hash)
-        self.assertEqual((response.provenance_class, response.verification_status), ("SIMULATION", "VERIFIED"))
+        self.assertEqual((response.provenance_class, response.verification_status), ("SIMULATION", "STATE_CHECKED"))
         self.assertEqual(
             response.trace_step.model_dump(),
             {"step_index": 2, "step_number": 3, "total_steps": 3, "operation_index": 1,
              "result_id": step.provenance.result_id, "circuit_hash": step.provenance.circuit_hash,
-             "provenance_class": "SIMULATION", "verification_status": "VERIFIED"},
+             "provenance_class": "SIMULATION", "verification_status": "STATE_CHECKED"},
         )
 
     def test_with_a_lab_result_too_the_top_level_provenance_stays_the_results_and_the_step_is_separate(self) -> None:
@@ -291,6 +291,17 @@ class TestVerifiedStepFacts(TraceStepTestCase):
         self.assertEqual(response.trace_step.result_id, trace.steps[2].provenance.result_id)
         kinds = {f.id[0] for f in response.facts}
         self.assertEqual(kinds, {"F", "S"})
+
+
+class TestStepStatusWording(TraceStepTestCase):
+    def test_the_step_status_fact_says_state_checked_and_never_verified(self) -> None:
+        trace = self.trace(HZ)
+        response = self.ask_step(HZ, trace, 2)
+        status = next(f for f in response.facts if f.kind == "trace_status")
+        self.assertIn("STATE_CHECKED", status.description)
+        self.assertIn("does not show the circuit does what you intend", status.description)
+        self.assertNotIn("VERIFIED", status.description)
+        self.assertEqual(response.verification_status, "STATE_CHECKED")
 
 
 class TestStepIdentityIsVerified(TraceStepTestCase):
@@ -619,6 +630,35 @@ class TestStepAwareLLM(TraceStepTestCase):
         record = self._insert_record(HZ, "statevector")
         ask(question="What was the result?", result_id=record.result_id, circuit=HZ)
         self.assertEqual(len(calls), 1)
+
+
+class TestHonestStepAnswersPassTheClaimGuard(TraceStepTestCase):
+    """The guard must not be a machine for rejecting everything: the deterministic step
+    answer only quotes its own facts, so read back as if it were an LLM draft it must
+    never be flagged. (If it were, a correct model answer quoting the same facts would be
+    thrown away too.)"""
+
+    def test_every_step_question_and_language_over_one_and_two_qubit_traces(self) -> None:
+        from qentor.tutor.claims import find_violations
+        from qentor.tutor.models import TutorFact
+
+        checked = 0
+        for circuit in (HZ, HZH_M, BELL):
+            trace = self.trace(circuit)
+            for index in range(len(trace.steps)):
+                for question in (CHANGE, GATE, BLOCH, PREVIOUS):
+                    for language in ("en", "hi", "kn"):
+                        response = self.ask_step(circuit, trace, index, question, language=language)
+                        facts = [
+                            TutorFact(id=f.id, kind=f.kind, description=f.description, result_id=f.result_id)
+                            for f in response.facts
+                        ]
+                        violations = find_violations(response.answer, facts)
+                        checked += 1
+                        self.assertEqual(
+                            violations, [], f"{circuit_hash(circuit)[:8]} step {index} {question!r} {language}: {[str(v) for v in violations]}"
+                        )
+        self.assertGreater(checked, 100)
 
 
 class TestAdapterRequestBody(unittest.TestCase):

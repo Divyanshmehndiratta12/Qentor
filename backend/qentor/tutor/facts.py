@@ -13,6 +13,7 @@ model is given, not something the model can override).
 from __future__ import annotations
 
 from qentor.circuit.model import Circuit, GateOp
+from qentor.execution.sanity import STATE_CHECKED_PLAIN
 from qentor.provenance.models import ProvenanceRecord
 
 from .models import FactKind, TutorFact
@@ -35,7 +36,8 @@ def build_fact_sheet(circuit: Circuit, record: ProvenanceRecord) -> list[TutorFa
     add(
         "execution_status",
         f"execution {record.result_id} on {record.backend} {record.backend_version} "
-        f"({record.provenance_class.value}, {record.execution_mode} mode): {record.verification_status.value}",
+        f"({record.provenance_class.value}, {record.execution_mode} mode): {record.verification_status.value} "
+        f"({STATE_CHECKED_PLAIN})",
     )
 
     payload = record.payload

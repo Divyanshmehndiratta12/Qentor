@@ -15,7 +15,7 @@ from unittest.mock import patch
 from qentor.circuit.hashing import circuit_hash
 from qentor.circuit.model import Circuit, GateOp
 from qentor.provenance.models import ProvenanceClass, ProvenanceRecord
-from qentor.provenance.models import VerificationStatus as ExecutionStatus
+from qentor.provenance.models import ExecutionStatus
 from qentor.tutor.answer import answer_question_with_llm
 from qentor.tutor.config import (
     API_KEY_ENV_VAR,
@@ -47,7 +47,7 @@ def _record(payload: dict) -> ProvenanceRecord:
         backend_version="0.17.2",
         execution_mode="shots",
         provenance_class=ProvenanceClass.SIMULATION,
-        verification_status=ExecutionStatus.VERIFIED,
+        verification_status=ExecutionStatus.STATE_CHECKED,
         payload=payload,
     )
 

@@ -21,7 +21,7 @@ from qentor.circuit.model import Circuit, GateOp
 from qentor.execution.adapter import AdapterUnavailable
 from qentor.execution.aer import AerAdapter
 from qentor.provenance.models import ProvenanceClass, ProvenanceRecord
-from qentor.provenance.models import VerificationStatus as ExecutionStatus
+from qentor.provenance.models import ExecutionStatus
 from qentor.verification.bell_state import verify_bell_state
 from qentor.verification.models import CheckStatus, VerificationStatus
 
@@ -61,7 +61,7 @@ def _record_for(circuit: Circuit, *, backend: str, backend_version: str, executi
         backend_version=backend_version,
         execution_mode=execution_mode,
         provenance_class=ProvenanceClass.SIMULATION,
-        verification_status=ExecutionStatus.VERIFIED,
+        verification_status=ExecutionStatus.STATE_CHECKED,
         payload=payload,
     )
 

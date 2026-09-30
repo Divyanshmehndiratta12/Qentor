@@ -105,9 +105,12 @@ export const ProvenanceClassSchema = z.enum([
 ])
 export type ProvenanceClass = z.infer<typeof ProvenanceClassSchema>
 
-// backend/qentor/provenance/models.py::VerificationStatus
-export const VerificationStatusSchema = z.enum(['VERIFIED', 'FAILED', 'ERROR'])
-export type VerificationStatus = z.infer<typeof VerificationStatusSchema>
+// backend/qentor/provenance/models.py::ExecutionStatus — what is known about ONE execution, never about the
+// circuit: STATE_CHECKED (the backend ran and returned a well-formed result), FAILED (it ran but the result
+// failed that check), ERROR (the run failed), SUCCEEDED (an older row: ran, no state check recorded). The wire
+// field is still called `verification_status`; the word "verified" is reserved for property verifiers.
+export const ExecutionStatusSchema = z.enum(['STATE_CHECKED', 'FAILED', 'ERROR', 'SUCCEEDED'])
+export type ExecutionStatus = z.infer<typeof ExecutionStatusSchema>
 
 // backend/qentor/api/schemas.py::ExecuteResponse
 export const ExecuteResponseSchema = z.object({
@@ -117,7 +120,7 @@ export const ExecuteResponseSchema = z.object({
   backend_version: z.string(),
   execution_mode: z.string(),
   provenance_class: ProvenanceClassSchema,
-  verification_status: VerificationStatusSchema,
+  verification_status: ExecutionStatusSchema,
   created_at: z.string(),
   payload: z.record(z.string(), z.unknown()),
 })
@@ -150,7 +153,7 @@ export const TraceProvenanceSchema = z.object({
   backend_version: z.string(),
   execution_mode: z.string(),
   provenance_class: ProvenanceClassSchema,
-  verification_status: VerificationStatusSchema,
+  verification_status: ExecutionStatusSchema,
   created_at: z.string(),
 })
 export type TraceProvenanceResponse = z.infer<typeof TraceProvenanceSchema>
@@ -297,8 +300,8 @@ export type VerificationCheckStatus = z.infer<typeof VerificationCheckStatusSche
 
 // backend/qentor/verification/models.py::VerificationStatus — a verifier's
 // judgement (VERIFIED/FAILED/UNVERIFIABLE/ERROR), deliberately a distinct type
-// from `VerificationStatusSchema` above, which is the *execution's* own status
-// (VERIFIED/FAILED/ERROR, no UNVERIFIABLE) reported by /api/execute.
+// from `ExecutionStatusSchema` above, which is the *execution's* own status
+// (STATE_CHECKED/FAILED/ERROR/SUCCEEDED, no UNVERIFIABLE) reported by /api/execute.
 export const BellVerificationStatusSchema = z.enum(['VERIFIED', 'FAILED', 'UNVERIFIABLE', 'ERROR'])
 export type BellVerificationStatus = z.infer<typeof BellVerificationStatusSchema>
 
@@ -333,7 +336,7 @@ export const TutorFactSchema = z.object({
 export type TutorFact = z.infer<typeof TutorFactSchema>
 
 // backend/qentor/api/schemas.py::TutorResponse — `verification_status` here is
-// the *execution's* own status (VERIFIED/FAILED/ERROR, see
+// the *execution's* own status (STATE_CHECKED/FAILED/ERROR/SUCCEEDED, see
 // `VerificationStatusSchema` above), not a Bell-verifier verdict.
 // result_id/circuit_hash/provenance_class/verification_status are null for a
 // lesson-only answer: lesson material is not a quantum result. lesson_id and

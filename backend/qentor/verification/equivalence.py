@@ -22,6 +22,7 @@ from enum import Enum
 from pydantic import BaseModel, ConfigDict
 
 from qentor.circuit.model import Circuit, GateName
+from qentor.execution.limits import EQUIVALENCE_MAX_QUBITS
 
 from .models import CheckStatus, VerificationCheck
 
@@ -83,6 +84,28 @@ def check_equivalence(circuit_a: Circuit, circuit_b: Circuit) -> EquivalenceRepo
             global_phase=None,
             checks=checks,
             reason="circuits act on a different number of qubits",
+        )
+
+    within_limit = circuit_a.num_qubits <= EQUIVALENCE_MAX_QUBITS
+    checks.append(
+        VerificationCheck(
+            name="within_size_limit",
+            status=CheckStatus.PASS if within_limit else CheckStatus.FAIL,
+            detail=(
+                f"{circuit_a.num_qubits} qubits is within the {EQUIVALENCE_MAX_QUBITS}-qubit limit"
+                if within_limit
+                else f"{circuit_a.num_qubits} qubits is over the {EQUIVALENCE_MAX_QUBITS}-qubit limit "
+                f"(a 2**{circuit_a.num_qubits} x 2**{circuit_a.num_qubits} operator)"
+            ),
+        )
+    )
+    if not within_limit:
+        return EquivalenceReport(
+            status=EquivalenceStatus.UNVERIFIABLE,
+            method="qiskit.quantum_info.Operator.equiv",
+            global_phase=None,
+            checks=checks,
+            reason=f"too many qubits to build the operators (limit {EQUIVALENCE_MAX_QUBITS}); nothing was computed",
         )
 
     for label, circuit in (("A", circuit_a), ("B", circuit_b)):

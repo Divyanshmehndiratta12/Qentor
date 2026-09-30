@@ -43,7 +43,7 @@ const PROVENANCE: Provenance = {
   backendVersion: '0.17.2',
   executionMode: 'shots',
   provenanceClass: 'SIMULATION',
-  verificationStatus: 'VERIFIED',
+  verificationStatus: 'STATE_CHECKED',
   createdAt: '2026-01-01T00:00:00Z',
 }
 
@@ -74,7 +74,7 @@ const STEP_ANSWER: TutorAnswerResult = {
   resultId: 'trace-res',
   circuitHash: 'trace-hash',
   provenanceClass: 'SIMULATION',
-  verificationStatus: 'VERIFIED',
+  verificationStatus: 'STATE_CHECKED',
   usedFallbackTemplate: true,
   facts: [],
   traceStep: {
@@ -85,7 +85,7 @@ const STEP_ANSWER: TutorAnswerResult = {
     resultId: 'trace-res',
     circuitHash: 'trace-hash',
     provenanceClass: 'SIMULATION',
-    verificationStatus: 'VERIFIED',
+    verificationStatus: 'STATE_CHECKED',
   },
 }
 const LESSON_ANSWER: TutorAnswerResult = {
@@ -255,7 +255,7 @@ describe('the request carries the selected step’s identity', () => {
     seedTrace()
     render(<GuidePanel screen="lab" onClose={vi.fn()} />)
     fireEvent.click(stepStarter()!)
-    expect(await within(panel()).findByText(/about trace step 3 of 4 · trace-res · SIMULATION · VERIFIED/)).toBeInTheDocument()
+    expect(await within(panel()).findByText(/about trace step 3 of 4 · trace-res · SIMULATION · state checked/)).toBeInTheDocument()
   })
 })
 

@@ -7,7 +7,7 @@ import threading
 import unittest
 from pathlib import Path
 
-from qentor.provenance.models import ProvenanceClass, ProvenanceRecord, VerificationStatus
+from qentor.provenance.models import ProvenanceClass, ProvenanceRecord, ExecutionStatus
 from qentor.provenance.store import ProvenanceStore
 
 
@@ -28,7 +28,7 @@ class TestProvenanceStore(unittest.TestCase):
             backend_version="0.17.2",
             execution_mode="statevector",
             provenance_class=ProvenanceClass.SIMULATION,
-            verification_status=VerificationStatus.VERIFIED,
+            verification_status=ExecutionStatus.STATE_CHECKED,
             payload={"statevector": [[0.7071, 0.0], [0.0, 0.0], [0.0, 0.0], [0.7071, 0.0]]},
         )
 
@@ -41,7 +41,7 @@ class TestProvenanceStore(unittest.TestCase):
         self.assertEqual(fetched.circuit_hash, "abc123")
         self.assertEqual(fetched.backend, "qiskit-aer")
         self.assertEqual(fetched.provenance_class, ProvenanceClass.SIMULATION)
-        self.assertEqual(fetched.verification_status, VerificationStatus.VERIFIED)
+        self.assertEqual(fetched.verification_status, ExecutionStatus.STATE_CHECKED)
         self.assertEqual(fetched.payload["statevector"][0], [0.7071, 0.0])
 
     def test_get_unknown_id_returns_none(self) -> None:

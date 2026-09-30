@@ -11,7 +11,7 @@ the template; the API layer just reports whatever this returns.
 
 from __future__ import annotations
 
-from qentor.provenance.models import ProvenanceRecord, VerificationStatus
+from qentor.provenance.models import ExecutionStatus, ProvenanceRecord
 
 from .deterministic import answer_failed_execution, answer_question
 from .guard import GuardRejection, validate_llm_draft
@@ -74,7 +74,7 @@ def answer_step_aware_question(
     one: the lesson router, the result answer, or — with only a step to go on —
     a pointer to what can be asked.
     """
-    result_usable = record is not None and record.verification_status == VerificationStatus.VERIFIED
+    result_usable = record is not None and record.verification_status == ExecutionStatus.STATE_CHECKED
     result_facts = facts if result_usable else []
 
     if llm is not None and step.usable:
@@ -125,7 +125,7 @@ def answer_lesson_aware_question(
     question is still answered from the lesson, anything else gets the same
     honest failed-execution message the lesson-free path gives.
     """
-    result_usable = record is not None and record.verification_status == VerificationStatus.VERIFIED
+    result_usable = record is not None and record.verification_status == ExecutionStatus.STATE_CHECKED
     result_facts = facts if result_usable else []
 
     if record is not None and not result_usable:

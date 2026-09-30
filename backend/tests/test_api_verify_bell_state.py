@@ -25,7 +25,7 @@ from qentor.circuit.model import Circuit, GateOp
 from qentor.execution.adapter import AdapterUnavailable
 from qentor.execution.aer import AerAdapter
 from qentor.provenance.models import ProvenanceClass, ProvenanceRecord
-from qentor.provenance.models import VerificationStatus as ExecutionStatus
+from qentor.provenance.models import ExecutionStatus
 from qentor.provenance.store import ProvenanceStore
 
 BELL = Circuit(
@@ -76,7 +76,7 @@ class VerifyBellStateEndpointTestCase(unittest.TestCase):
             backend_version=result.backend_version,
             execution_mode=result.execution_mode,
             provenance_class=ProvenanceClass.SIMULATION,
-            verification_status=ExecutionStatus.VERIFIED,
+            verification_status=ExecutionStatus.STATE_CHECKED,
             payload=result.to_payload(),
         )
         self.store.insert(record)

@@ -25,7 +25,7 @@ const RESULT_ANSWER = {
   result_id: 'res_abc',
   circuit_hash: 'hash_abc',
   provenance_class: 'SIMULATION',
-  verification_status: 'VERIFIED',
+  verification_status: 'STATE_CHECKED',
   used_fallback_template: true,
   facts: [{ id: 'F1', kind: 'circuit_summary', description: '1-qubit circuit: h(q0)', result_id: 'res_abc' }],
 }

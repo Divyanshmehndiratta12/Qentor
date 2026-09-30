@@ -642,7 +642,7 @@ class TestEndpointLessonPlusResult(TutorEndpointTestCase):
         self.assertEqual(response.result_id, record.result_id)
         self.assertEqual(response.circuit_hash, record.circuit_hash)
         self.assertEqual(response.provenance_class, "SIMULATION")
-        self.assertEqual(response.verification_status, "VERIFIED")
+        self.assertEqual(response.verification_status, "STATE_CHECKED")
         self.assertEqual((response.lesson_id, response.section_id), ("phase", "s1"))
         # Both fact sources are present and distinguishable.
         result_facts = [f for f in response.facts if f.id.startswith("F")]
@@ -891,13 +891,13 @@ class TestFreeTextLessonQuestions(unittest.TestCase):
         ctx = resolve_lesson_context("phase", "s1")
         from qentor.tutor.facts import build_fact_sheet
         from qentor.provenance.models import ProvenanceClass, ProvenanceRecord
-        from qentor.provenance.models import VerificationStatus as ExecutionStatus
+        from qentor.provenance.models import ExecutionStatus
         from qentor.circuit.hashing import circuit_hash
 
         record = ProvenanceRecord.new(
             circuit_hash=circuit_hash(H_Z), backend="qiskit-aer", backend_version="0.17.2",
             execution_mode="statevector", provenance_class=ProvenanceClass.SIMULATION,
-            verification_status=ExecutionStatus.VERIFIED,
+            verification_status=ExecutionStatus.STATE_CHECKED,
             payload={"execution_id": "aer-local-fake", "statevector": [[0.7071067811865476, 0.0], [-0.7071067811865476, 0.0]]},
         )
         facts = build_fact_sheet(H_Z, record)

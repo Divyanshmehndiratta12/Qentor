@@ -45,7 +45,7 @@ const PROVENANCE: Provenance = {
   backendVersion: '0.17.2',
   executionMode: 'shots',
   provenanceClass: 'SIMULATION',
-  verificationStatus: 'VERIFIED',
+  verificationStatus: 'STATE_CHECKED',
   createdAt: '2026-01-01T00:00:00Z',
 }
 
@@ -113,7 +113,7 @@ const LAB_ANSWER: TutorAnswerResult = {
   resultId: 'res_abc',
   circuitHash: 'hash_abc',
   provenanceClass: 'SIMULATION',
-  verificationStatus: 'VERIFIED',
+  verificationStatus: 'STATE_CHECKED',
   usedFallbackTemplate: true,
   facts: [],
 }
@@ -503,7 +503,7 @@ describe('the Lab is unchanged', () => {
 
     await screen.findByText('LAB ANSWER')
     expect(askTutor.mock.calls[0]).toEqual([result.provenance.resultId, CIRCUIT, 'What was the result?', 'en'])
-    expect(within(panel()).getByText('grounded in res_abc · SIMULATION · VERIFIED')).toBeInTheDocument()
+    expect(within(panel()).getByText('grounded in res_abc · SIMULATION · state checked')).toBeInTheDocument()
     expect(within(panel()).queryByText(/lesson material/)).not.toBeInTheDocument()
     expect(useBuildStore.getState().lessonTutorTurns).toEqual({}) // nothing leaked into any lesson
   })
@@ -532,7 +532,7 @@ describe('the Lab is unchanged', () => {
     // lesson-only: no result, no provenance
     expect(within(panel()).getByText('from lesson bell · section s2 · lesson material, not a quantum result')).toBeInTheDocument()
     // mixed: the result's provenance line, and SEPARATELY the lesson line
-    expect(within(panel()).getByText('grounded in res_abc · SIMULATION · VERIFIED')).toBeInTheDocument()
+    expect(within(panel()).getByText('grounded in res_abc · SIMULATION · state checked')).toBeInTheDocument()
     expect(within(panel()).getByText('plus lesson bell · section s2 · lesson material, not a quantum result')).toBeInTheDocument()
   })
 })

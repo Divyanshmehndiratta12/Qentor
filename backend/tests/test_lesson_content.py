@@ -29,7 +29,7 @@ from qentor.execution.bloch import bloch_coordinates
 from qentor.execution.trace import trace_circuit
 from qentor.lessons import LESSONS, ConceptCheckSection, ExplanationSection, InteractiveLabSection, ReflectionSection, get_lesson
 from qentor.provenance.models import ProvenanceClass, ProvenanceRecord
-from qentor.provenance.models import VerificationStatus as ExecutionStatus
+from qentor.provenance.models import ExecutionStatus
 from qentor.verification.bell_state import verify_bell_state
 from qentor.verification.models import VerificationStatus
 
@@ -405,7 +405,7 @@ class TestLabsMatchTheirClaims(unittest.TestCase):
         record = ProvenanceRecord.new(
             circuit_hash=circuit_hash(circuit), backend=result.backend_name, backend_version=result.backend_version,
             execution_mode=result.execution_mode, provenance_class=ProvenanceClass.SIMULATION,
-            verification_status=ExecutionStatus.VERIFIED, payload=result.to_payload(),
+            verification_status=ExecutionStatus.STATE_CHECKED, payload=result.to_payload(),
         )
         self.assertEqual(verify_bell_state(circuit, record).verification_status, VerificationStatus.VERIFIED)
 
@@ -419,7 +419,7 @@ class TestLabsMatchTheirClaims(unittest.TestCase):
         broken_record = ProvenanceRecord.new(
             circuit_hash=circuit_hash(broken), backend=broken_result.backend_name, backend_version=broken_result.backend_version,
             execution_mode=broken_result.execution_mode, provenance_class=ProvenanceClass.SIMULATION,
-            verification_status=ExecutionStatus.VERIFIED, payload=broken_result.to_payload(),
+            verification_status=ExecutionStatus.STATE_CHECKED, payload=broken_result.to_payload(),
         )
         self.assertEqual(verify_bell_state(broken, broken_record).verification_status, VerificationStatus.UNVERIFIABLE)
 
@@ -508,7 +508,7 @@ class TestLabsMatchTheirClaims(unittest.TestCase):
         record = ProvenanceRecord.new(
             circuit_hash=circuit_hash(circuit), backend="qiskit-aer", backend_version="fixture",
             execution_mode="statevector", provenance_class=ProvenanceClass.SIMULATION,
-            verification_status=ExecutionStatus.VERIFIED,
+            verification_status=ExecutionStatus.STATE_CHECKED,
             payload={"execution_id": "fixture", "statevector": [[s, 0.0], [0.0, 0.0], [0.0, 0.0], [-s, 0.0]]},
         )
         self.assertEqual(verify_bell_state(circuit, record).verification_status, VerificationStatus.VERIFIED)
@@ -530,7 +530,7 @@ class TestLabsMatchTheirClaims(unittest.TestCase):
         record = ProvenanceRecord.new(
             circuit_hash=circuit_hash(circuit), backend=result.backend_name, backend_version=result.backend_version,
             execution_mode=result.execution_mode, provenance_class=ProvenanceClass.SIMULATION,
-            verification_status=ExecutionStatus.VERIFIED, payload=result.to_payload(),
+            verification_status=ExecutionStatus.STATE_CHECKED, payload=result.to_payload(),
         )
         names = {c.name for c in verify_bell_state(circuit, record).checks}
         # the lesson: same circuit/result, ran successfully, canonical H->CX pattern, only 00/11 seen, both seen

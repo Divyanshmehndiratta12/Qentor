@@ -14,7 +14,7 @@ import unittest
 from qentor.circuit.hashing import circuit_hash
 from qentor.circuit.model import Circuit, GateOp
 from qentor.provenance.models import ProvenanceClass, ProvenanceRecord
-from qentor.provenance.models import VerificationStatus as ExecutionStatus
+from qentor.provenance.models import ExecutionStatus
 from qentor.tutor.deterministic import (
     UNSUPPORTED_QUESTION_ANSWER,
     answer_failed_execution,
@@ -40,7 +40,7 @@ BELL_NO_MEASURE = Circuit(
 )
 
 
-def _record(circuit: Circuit, *, execution_mode: str, payload: dict, status=ExecutionStatus.VERIFIED) -> ProvenanceRecord:
+def _record(circuit: Circuit, *, execution_mode: str, payload: dict, status=ExecutionStatus.STATE_CHECKED) -> ProvenanceRecord:
     return ProvenanceRecord.new(
         circuit_hash=circuit_hash(circuit),
         backend="qiskit-aer",

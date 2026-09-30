@@ -38,7 +38,7 @@ const PROVENANCE: Provenance = {
   backendVersion: '0.17.2',
   executionMode: 'shots',
   provenanceClass: 'SIMULATION',
-  verificationStatus: 'VERIFIED',
+  verificationStatus: 'STATE_CHECKED',
   createdAt: '2026-01-01T00:00:00Z',
 }
 
@@ -107,7 +107,7 @@ describe('TutorPanel', () => {
       resultId: 'res_abc',
       circuitHash: 'hash_abc',
       provenanceClass: 'SIMULATION',
-      verificationStatus: 'VERIFIED',
+      verificationStatus: 'STATE_CHECKED',
       usedFallbackTemplate: true,
       facts: [],
     }
@@ -143,7 +143,7 @@ describe('TutorPanel', () => {
       resultId: 'res_abc',
       circuitHash: 'hash_abc',
       provenanceClass: 'SIMULATION',
-      verificationStatus: 'VERIFIED',
+      verificationStatus: 'STATE_CHECKED',
       usedFallbackTemplate: true,
       facts: [{ id: 'F1', kind: 'circuit_summary', description: '2-qubit circuit: h(q0), cx(...)', resultId: 'res_abc' }],
     }
@@ -165,7 +165,7 @@ describe('TutorPanel', () => {
       resultId: 'res_abc',
       circuitHash: 'hash_abc',
       provenanceClass: 'SIMULATION',
-      verificationStatus: 'VERIFIED',
+      verificationStatus: 'STATE_CHECKED',
       usedFallbackTemplate: true,
       facts: [
         { id: 'F3', kind: 'probability', description: 'outcome 00: probability 0.500000 (500 shots)', resultId: 'res_abc' },
@@ -186,7 +186,7 @@ describe('TutorPanel', () => {
     expect(screen.getAllByText(/outcome 00: probability 0.500000 \(500 shots\)/)).toHaveLength(2)
     expect(screen.getAllByText(/outcome 11: probability 0.500000 \(500 shots\)/)).toHaveLength(2)
     expect(screen.getAllByText('F3', { exact: false }).length).toBeGreaterThan(0)
-    expect(screen.getByText(/grounded in res_abc · SIMULATION · VERIFIED/)).toBeInTheDocument()
+    expect(screen.getByText(/grounded in res_abc · SIMULATION · state checked/)).toBeInTheDocument()
     expect(screen.getByText('template fallback · no AI')).toBeInTheDocument()
   })
 
@@ -198,7 +198,7 @@ describe('TutorPanel', () => {
       resultId: 'res_abc',
       circuitHash: 'hash_abc',
       provenanceClass: 'SIMULATION',
-      verificationStatus: 'VERIFIED',
+      verificationStatus: 'STATE_CHECKED',
       usedFallbackTemplate: true,
       facts: [],
     } satisfies TutorAnswerResult)
@@ -251,7 +251,7 @@ describe('TutorPanel', () => {
         resultId: 'res_abc',
         circuitHash: 'hash_abc',
         provenanceClass: 'SIMULATION',
-        verificationStatus: 'VERIFIED',
+        verificationStatus: 'STATE_CHECKED',
         usedFallbackTemplate: true,
         facts: [],
       })
@@ -266,7 +266,7 @@ describe('TutorPanel', () => {
       resultId: 'res_abc',
       circuitHash: 'hash_abc',
       provenanceClass: 'SIMULATION',
-      verificationStatus: 'VERIFIED',
+      verificationStatus: 'STATE_CHECKED',
       usedFallbackTemplate: true,
       facts: [],
     } satisfies TutorAnswerResult)
@@ -317,7 +317,7 @@ describe('TutorPanel', () => {
         resultId: 'res_abc',
         circuitHash: 'hash_abc',
         provenanceClass: 'SIMULATION',
-        verificationStatus: 'VERIFIED',
+        verificationStatus: 'STATE_CHECKED',
         usedFallbackTemplate: true,
         facts: [],
       })

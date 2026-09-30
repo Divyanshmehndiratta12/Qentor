@@ -23,10 +23,31 @@ class ProvenanceClass(str, Enum):
     RECORDED_HARDWARE = "RECORDED_HARDWARE"
 
 
-class VerificationStatus(str, Enum):
-    VERIFIED = "VERIFIED"
+class ExecutionStatus(str, Enum):
+    """What is known about ONE execution record — never about the circuit.
+
+    Deliberately not called "verified": the property verifiers in
+    ``qentor.verification`` own that word, and an execution that ran says nothing
+    about whether the circuit is right.
+
+    - ``STATE_CHECKED``: the backend ran and what it returned passed the state
+      sanity check (``qentor.execution.sanity``: unit-norm statevector, probabilities
+      summing to 1, counts summing to the shots).
+    - ``FAILED``: the backend ran but returned a result that failed that check.
+    - ``ERROR``: the run itself failed.
+    - ``SUCCEEDED``: the backend ran and no state check was recorded. Only rows
+      written before state checks existed (they were stored as ``VERIFIED``) read back
+      as this; nothing writes it any more, and it is not treated as usable.
+    """
+
+    STATE_CHECKED = "STATE_CHECKED"
     FAILED = "FAILED"
     ERROR = "ERROR"
+    SUCCEEDED = "SUCCEEDED"
+
+
+# Rows written before the rename stored the execution status as "VERIFIED".
+_LEGACY_EXECUTION_STATUS = {"VERIFIED": ExecutionStatus.SUCCEEDED}
 
 
 class ProvenanceRecord(BaseModel):
@@ -38,7 +59,7 @@ class ProvenanceRecord(BaseModel):
     backend_version: str
     execution_mode: str
     provenance_class: ProvenanceClass
-    verification_status: VerificationStatus
+    verification_status: ExecutionStatus
     created_at: str
     payload: dict[str, Any]
 
@@ -51,7 +72,7 @@ class ProvenanceRecord(BaseModel):
         backend_version: str,
         execution_mode: str,
         provenance_class: ProvenanceClass,
-        verification_status: VerificationStatus,
+        verification_status: ExecutionStatus,
         payload: dict[str, Any],
     ) -> "ProvenanceRecord":
         return cls(
@@ -88,7 +109,8 @@ class ProvenanceRecord(BaseModel):
             backend_version=row["backend_version"],
             execution_mode=row["execution_mode"],
             provenance_class=ProvenanceClass(row["provenance_class"]),
-            verification_status=VerificationStatus(row["verification_status"]),
+            verification_status=_LEGACY_EXECUTION_STATUS.get(row["verification_status"])
+            or ExecutionStatus(row["verification_status"]),
             created_at=row["created_at"],
             payload=json.loads(row["payload_json"]),
         )
