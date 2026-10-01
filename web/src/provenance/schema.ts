@@ -544,6 +544,16 @@ export type OptimizeEquivalence = z.infer<typeof OptimizeEquivalenceSchema>
 // OptimizationReport docstring): an unverified candidate's definition is
 // withheld by the server, not merely labelled, so nothing downstream can
 // apply it by mistake.
+// backend/qentor/api/schemas.py::OpChangeResponse / RuleNoteResponse: what the SERVER computed about the difference between the
+// original circuit and a verified candidate (qentor.verification.optimizer.diff_ops / explain_rule). The browser only draws it.
+export const OpChangeSchema = z.object({
+  kind: z.enum(['kept', 'removed', 'added']),
+  original_index: z.number().int().nullable(),
+  candidate_index: z.number().int().nullable(),
+  description: z.string(),
+})
+export const RuleNoteSchema = z.object({ rule: z.string(), explanation: z.string().nullable() })
+
 export const OptimizeResponseSchema = z.object({
   original_circuit_hash: z.string(),
   candidate_circuit_hash: z.string(),
@@ -558,6 +568,10 @@ export const OptimizeResponseSchema = z.object({
   reason: z.string().nullable(),
   candidate_circuit: CircuitSchema.nullable(),
   result_id: z.string().nullable(),
+  operations_removed: z.number().int().nonnegative(),
+  changes: z.array(OpChangeSchema),
+  rule_notes: z.array(RuleNoteSchema),
+  candidate_provenance: TraceProvenanceSchema.nullable(),
 })
 export type OptimizeResponse = z.infer<typeof OptimizeResponseSchema>
 

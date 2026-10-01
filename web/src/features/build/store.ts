@@ -108,6 +108,8 @@ let executionRequestSeq = 0
 // Newest-request-wins counters for the two read-only Lab checks (see `runEquivalence` / `runAgreement`).
 let equivalenceRequestSeq = 0
 let agreementRequestSeq = 0
+// And for Optimize: a proposal is only ever shown against the exact circuit it was made for.
+let optimizationRequestSeq = 0
 
 interface BuildState {
   circuit: Circuit
@@ -631,12 +633,22 @@ export const useBuildStore = create<BuildState>((set, get) => ({
     // never needs a resultId, so unlike runVerification/askTutor it does not
     // gate on `result` existing at all.
     if (circuit.ops.length === 0) return
-    set({ isOptimizing: true, optimizationError: null })
+    const seq = ++optimizationRequestSeq
+    set({ isOptimizing: true, optimizationError: null, optimization: null })
+    // A proposal is a rewrite of ONE circuit. If the circuit changed in flight (an edit, an undo, a loaded lesson) or a newer
+    // request superseded this one, the answer is dropped: it must never be shown, or applied, against a circuit it was not made for.
+    // Only the newest request owns the "optimizing" flag, so a dropped answer can neither strand it on nor turn it off early.
+    const isStale = () => seq !== optimizationRequestSeq || get().circuit !== circuit
+    const dropStale = () => {
+      if (seq === optimizationRequestSeq) set({ isOptimizing: false })
+    }
     try {
       const client = getApiClient()
       const optimization = await client.optimizeCircuit(circuit, backend)
+      if (isStale()) return dropStale()
       set({ optimization, isOptimizing: false })
     } catch (err) {
+      if (isStale()) return dropStale()
       const message =
         err instanceof BackendUnavailableError || err instanceof EndpointNotImplementedError
           ? err.message

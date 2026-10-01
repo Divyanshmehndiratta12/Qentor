@@ -1,4 +1,4 @@
-"""The fourteen challenges. Data only: every verdict is computed by ``qentor.challenges.evaluate`` from backend statevectors.
+"""The fifteen challenges. Data only: every verdict is computed by ``qentor.challenges.evaluate`` from backend statevectors.
 
 Hints are written to be deterministic and safe to show: they name gates and ideas, never a quantum result the learner has
 not produced (no probabilities or amplitudes appear here).
@@ -18,6 +18,10 @@ Three more challenges lock a fixed part the same way (``Constraints.anchor``, na
 * Grover (2 qubits, one marked item |01⟩): the oracle ``x q1; cz q0,q1; x q1``. It also checks the learner's circuit again with an
   oracle that marks |10⟩ instead (``replace_anchor``), so a circuit that hard-codes |01⟩ does not pass.
 
+One more challenge is about shortening, not about a state: ``optimize-redundant`` starts from a circuit with redundant gates and asks
+for one of at most three operations that does the same thing. "The same thing" is the platform's operator-equivalence check
+(``EquivalentTo``), so deleting a gate that was doing something does not pass, and the verdict is the backend's.
+
 Every challenge builds its circuit by appending gates (the Lab canvas appends), so the fixed oracle is something the
 learner places, exactly as given, and the evaluator checks it is there once, unchanged and in order.
 """
@@ -30,6 +34,7 @@ from .models import (
     Challenge,
     Constraints,
     EndsInBasisState,
+    EquivalentTo,
     PassesThroughSuperposition,
     Point,
     ProbabilitiesMatch,
@@ -70,6 +75,15 @@ _GROVER_ORACLE_01 = [g("x", 1), g("cz", 1, 0), g("x", 1)]
 _GROVER_ORACLE_10 = [g("x", 0), g("cz", 1, 0), g("x", 0)]
 _GROVER_DIFFUSION = [
     g("h", 0), g("h", 1), g("x", 0), g("x", 1), g("cz", 1, 0), g("x", 0), g("x", 1), g("h", 0), g("h", 1),
+]
+# The redundant circuit of the optimisation challenge: three H on q0 (one H), an X pair and an S/S-dagger pair on q1 (nothing), two RZ
+# rotations on q1 (one RZ with the summed angle: both angles are exact in binary, so their sum is exact too).
+_OPT_STARTER = [
+    g("h", 0), g("h", 0), g("h", 0),
+    g("x", 1), g("x", 1),
+    g("cx", 1, 0),
+    g("s", 1), g("sdg", 1),
+    g("rz", 1, angle=0.5), g("rz", 1, angle=0.25),
 ]
 _DJ_ORACLE = [g("cx", 2, 0), g("cx", 2, 1)]
 _BV_ORACLE = [g("cx", 3, 1), g("cx", 3, 2)]
@@ -626,5 +640,40 @@ RAW_CHALLENGES: list[Challenge] = [
         ],
         success_message="One oracle call and one diffusion found the marked item among four: the sign flip became a larger amplitude.",
         reference_solution=circ(2, [g("h", 0), g("h", 1), *_GROVER_ORACLE_01, *_GROVER_DIFFUSION, m(0, 0), m(1, 1)], 2),
+    ),
+    Challenge(
+        id="optimize-redundant",
+        lesson_id="interference",
+        title="Shorten it without changing it",
+        goal=(
+            "This circuit has gates that cancel or can be merged. Make it shorter - at most 3 operations - without changing what it does. "
+            "The backend checks that your circuit is equivalent to the starting one (the same operation, up to a global phase), so "
+            "removing a gate that was doing something will not pass."
+        ),
+        difficulty="intermediate",
+        success_condition="Your circuit is equivalent to the starting circuit (the backend's operator-equivalence check says so) and has at most 3 operations.",
+        constraints=Constraints(
+            num_qubits=2,
+            allowed_gates=[*ONE_QUBIT, GateName.CX, GateName.CZ, GateName.RX, GateName.RY, GateName.RZ],
+            max_ops=3,
+        ),
+        starter_circuit=circ(2, _OPT_STARTER),
+        checks=[
+            EquivalentTo(
+                id="equivalent.to_start",
+                label="Does exactly what the starting circuit does",
+                hint_index=1,
+                misconception="A shorter circuit is only a better one if it is still the same circuit. Taking out a gate that was doing something, or merging two that do not combine, changes what the circuit does.",
+                experiment="Before you change anything, pin the starting circuit as the reference (Equivalence, in the results panel). Then build your shorter circuit and use Check equivalence: which gate did you remove that mattered?",
+                target=circ(2, _OPT_STARTER),
+            )
+        ],
+        hints=[
+            "Look for gates that undo each other: apply one and then the other, and the qubit is exactly where it started.",
+            "H twice in a row does nothing, and so does X twice, and so does S followed by S-dagger. Two rotations about the same axis on the same qubit can be one rotation whose angle is their sum.",
+            "Three H gates on q[0] act like one H. Remove the X pair and the S, S-dagger pair on q[1]. Replace the two RZ gates with one RZ whose angle is the sum of theirs (set it in the palette before placing).",
+        ],
+        success_message="Same circuit, fewer gates: gates that cancel or merge never needed to be there.",
+        reference_solution=circ(2, [g("h", 0), g("cx", 1, 0), g("rz", 1, angle=0.75)]),
     ),
 ]

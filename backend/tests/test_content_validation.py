@@ -100,7 +100,7 @@ class TestTheShippedContentPassesEveryCheck(unittest.TestCase):
         self.assertEqual(report.checked["labs"], 13)
         self.assertEqual(report.checked["linked_circuits"], 13)
         self.assertEqual(report.checked["circuits_executed"], 13)
-        self.assertEqual(report.checked["challenges"], 14)
+        self.assertEqual(report.checked["challenges"], 15)
 
     def test_every_lesson_has_valid_prerequisites(self) -> None:
         self.assertEqual(check_prerequisites(list(LESSONS)), [])

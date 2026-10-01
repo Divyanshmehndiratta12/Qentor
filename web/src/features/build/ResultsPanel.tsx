@@ -25,7 +25,7 @@ import { toQuantumValue } from '@/provenance/QuantumValue'
 
 const Plot = createPlotlyComponent(Plotly)
 
-export function ResultsPanel() {
+export function ResultsPanel({ showOptimize = true }: { showOptimize?: boolean } = {}) {
   const isExecuting = useBuildStore((s) => s.isExecuting)
   const executionError = useBuildStore((s) => s.executionError)
   const executionErrorStatus = useBuildStore((s) => s.executionErrorStatus)
@@ -124,7 +124,7 @@ export function ResultsPanel() {
         <ComparePanel />
         <ExportPanel />
         <VerificationPanel />
-        <OptimizePanel />
+        {showOptimize && <OptimizePanel />}
         <MultiInputTestPanel />
         <AgreementPanel />
         <EquivalencePanel />

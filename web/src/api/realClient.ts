@@ -799,6 +799,15 @@ export class RealApiClient implements ApiClient {
       reason: response.reason,
       candidateCircuit: response.candidate_circuit,
       resultId: response.result_id,
+      operationsRemoved: response.operations_removed,
+      changes: response.changes.map((c) => ({
+        kind: c.kind,
+        originalIndex: c.original_index,
+        candidateIndex: c.candidate_index,
+        description: c.description,
+      })),
+      ruleNotes: response.rule_notes,
+      candidateProvenance: response.candidate_provenance ? provenanceFromTraceStep(response.candidate_provenance) : null,
     }
   }
 

@@ -34,9 +34,12 @@ from qentor.execution.trace import (
     trace_circuit,
 )
 
+from qentor.verification.equivalence import EquivalenceStatus, check_equivalence
+
 from .models import (
     Challenge,
     EndsInBasisState,
+    EquivalentTo,
     PassesThroughSuperposition,
     Point,
     ProbabilitiesMatch,
@@ -408,6 +411,17 @@ def _judge_states(
                         evidence=[Evidence(name="largest_probability_difference", value=gap)],
                     )
                 )
+
+        elif isinstance(check, EquivalentTo):
+            report = check_equivalence(check.target, circuit)
+            ok = report.status is EquivalenceStatus.EQUIVALENT
+            if ok:
+                detail = "The circuit does exactly what the starting circuit does (operator equivalence up to global phase, decided by the backend)."
+            elif report.status is EquivalenceStatus.NOT_EQUIVALENT:
+                detail = "The circuit does not do what the starting circuit does: the backend's equivalence check found a difference."
+            else:
+                detail = f"The backend could not decide whether the circuits are equivalent, so this does not pass: {report.reason or 'unverifiable'}."
+            outcomes.append(CheckOutcome(**base, passed=ok, detail=detail, result_id=steps[last].result_id))
 
         elif isinstance(check, PassesThroughSuperposition):
             middle = steps[1:last]

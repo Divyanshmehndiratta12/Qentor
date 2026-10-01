@@ -241,7 +241,8 @@ export function ChallengesScreen({
                   />
                 ) : (
                   <div className="h-[32rem] lg:h-full">
-                    <ResultsPanel />
+                    {/* A challenge is the learner's own work: the Lab's Optimize tool would hand over the answer to a shortening challenge. */}
+                    <ResultsPanel showOptimize={false} />
                   </div>
                 )}
               </div>

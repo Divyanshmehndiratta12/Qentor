@@ -246,7 +246,8 @@ Three features touch verdicts and explanations. The boundary is the same; this i
 **Challenge pass/fail is never AI.** `challenges/evaluate.py` decides it from backend statevectors and structural rules. The
 challenges package cannot import the tutor or any LLM code (import-graph test), the submit request has no field for a verdict or a
 number, and a test runs the endpoint with an LLM adapter that raises if called. The tutor and the debugger only ever explain a verdict
-that already exists.
+that already exists. This includes the optimisation challenge: whether a shorter circuit is the same circuit is
+`check_equivalence`'s answer (`EquivalentTo`), and the optimiser's own diff and rule sentences are server-computed structure, not a result.
 
 **"Debug my circuit"** (`POST /api/debug`, `tutor/debugger.py`) is built from facts the server holds: `F#` (a Lab run's record), `S#` (a
 verified trace step), `C#` (the challenge's goal and authored coaching) and `E#` (the per-check outcomes of an attempt the server

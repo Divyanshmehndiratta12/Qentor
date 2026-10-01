@@ -5,7 +5,7 @@
  * Everything here runs against the REAL catalog's wire format: `fixtures/catalog/public_catalog.json` is what `GET /api/lessons` and
  * `GET /api/challenges` serve (a backend test fails if it drifts), and it is parsed by the real client and its schemas. So these
  * tests check that the existing components render the new content, that the lab circuit that reaches the Lab is exactly the
- * server's, that progression, recommendation and Progress treat 13 lessons and 14 challenges correctly, and that the browser
+ * server's, that progression, recommendation and Progress treat 13 lessons and 15 challenges correctly, and that the browser
  * computes no quantum quantity anywhere along the way. The server-side verdicts themselves are tested in the backend suite.
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -97,11 +97,12 @@ const solved = (ids: string[]): Record<string, ReturnType<typeof emptyRecord>> =
   Object.fromEntries(ids.map((id) => [id, { ...emptyRecord(), attempts: 1, solved: true }]))
 
 describe('the real catalog, through the real client', () => {
-  it('maps 13 lessons and 14 challenges, the new ones after the original ten and nine, in catalog order', () => {
+  it('maps 13 lessons and 15 challenges, the new ones after the original ten and nine, in catalog order', () => {
     expect(LESSONS).toHaveLength(13)
-    expect(CHALLENGES).toHaveLength(14)
+    expect(CHALLENGES).toHaveLength(15)
     expect(LESSONS.slice(10).map((l) => l.id)).toEqual(NEW_LESSON_IDS)
-    expect(CHALLENGES.slice(9).map((c) => c.id)).toEqual(NEW_CHALLENGE_IDS)
+    expect(CHALLENGES.slice(9, 14).map((c) => c.id)).toEqual(NEW_CHALLENGE_IDS)
+    expect(CHALLENGES[14]?.id).toBe('optimize-redundant') // the optimisation challenge follows, in the Interference lesson
     expect(new Set(LESSONS.map((l) => l.id)).size).toBe(13)
   })
 
@@ -163,7 +164,7 @@ describe('the real catalog, through the real client', () => {
   })
 })
 
-describe('progression over 13 lessons and 14 challenges', () => {
+describe('progression over 13 lessons and 15 challenges', () => {
   it('a new lesson is locked until every one of its prerequisites is complete', () => {
     const none = new Set<string>()
     for (const id of NEW_LESSON_IDS) expect(getLessonState(lesson(id), none)).toBe('locked')
@@ -201,13 +202,16 @@ describe('progression over 13 lessons and 14 challenges', () => {
     // the ten original lessons are done, but the two new challenges of the old lessons are not solved: the first is offered
     expect(recommend(originals, originalChallenges)).toMatchObject({ kind: 'try_challenge', challengeId: 'bloch-plus-direction', lessonId: 'bloch-sphere' })
     const withBlochAndEntangle = [...originalChallenges, 'bloch-plus-direction', 'entangle-bell-pair']
+    // Interference is finished, so the optimisation challenge that belongs to it is offered before moving on to a new lesson
+    expect(recommend(originals, withBlochAndEntangle)).toMatchObject({ kind: 'try_challenge', challengeId: 'optimize-redundant', lessonId: 'interference' })
+    const allBefore = [...withBlochAndEntangle, 'optimize-redundant']
     expect(recommend(originals, [...originalChallenges, 'bloch-plus-direction'])).toMatchObject({ kind: 'try_challenge', challengeId: 'entangle-bell-pair' })
     // then the first new lesson is next
-    expect(recommend(originals, withBlochAndEntangle)).toMatchObject({ kind: 'next_lesson', lessonId: 'superdense-coding' })
+    expect(recommend(originals, allBefore)).toMatchObject({ kind: 'next_lesson', lessonId: 'superdense-coding' })
     // finish it: its challenge is next; solve it: teleportation; and so on
     let done = [...originals, 'superdense-coding']
-    expect(recommend(done, withBlochAndEntangle)).toMatchObject({ kind: 'try_challenge', challengeId: 'superdense-encode-10' })
-    let cleared = [...withBlochAndEntangle, 'superdense-encode-10']
+    expect(recommend(done, allBefore)).toMatchObject({ kind: 'try_challenge', challengeId: 'superdense-encode-10' })
+    let cleared = [...allBefore, 'superdense-encode-10']
     expect(recommend(done, cleared)).toMatchObject({ kind: 'next_lesson', lessonId: 'quantum-teleportation' })
     done = [...done, 'quantum-teleportation']
     expect(recommend(done, cleared)).toMatchObject({ kind: 'try_challenge', challengeId: 'teleport-ry-fixed' })
@@ -226,11 +230,11 @@ describe('progression over 13 lessons and 14 challenges', () => {
     expect(LESSONS.every((l) => isLessonComplete(l, everything[l.id]))).toBe(true)
   })
 
-  it('Progress shows challenge completion out of fourteen, with the new challenges listed and openable', () => {
+  it('Progress shows challenge completion out of fifteen, with the new challenges listed and openable', () => {
     const outcomes: ChallengeOutcomes = { ...emptyOutcomes(), records: solved(['create-one', 'bloch-plus-direction', 'grover-find-01']) }
     const open = vi.fn()
     render(<ChallengeProgress challenges={CHALLENGES} outcomes={outcomes} onOpenChallenge={open} />)
-    expect(screen.getByTestId('challenges-solved')).toHaveTextContent('3 of 14 solved')
+    expect(screen.getByTestId('challenges-solved')).toHaveTextContent('3 of 15 solved')
     cleanup()
   })
 })
@@ -312,6 +316,27 @@ describe('Learn -> lesson -> Lab, and Learn -> Challenge, with the real new less
     render(<LearnScreen onOpenLab={vi.fn()} />)
     const card = await screen.findByRole('button', { name: /^Superdense Coding/ })
     expect(card).toHaveTextContent(/Locked/i)
+  })
+
+  it('the Interference lesson offers its original challenge and the optimisation challenge, and opens either by id', async () => {
+    const onOpenChallenge = vi.fn()
+    render(<LearnScreen onOpenLab={vi.fn()} onOpenChallenge={onOpenChallenge} />)
+    fireEvent.click(await screen.findByRole('button', { name: new RegExp(`^${lesson('interference').title}`) }))
+    const practice = await screen.findByTestId('lesson-challenges')
+    const titles = within(practice).getAllByRole('button').map((b) => b.textContent)
+    expect(titles).toEqual([challenge('interference').title, 'Shorten it without changing it'])
+    fireEvent.click(within(practice).getByRole('button', { name: 'Shorten it without changing it' }))
+    expect(onOpenChallenge).toHaveBeenLastCalledWith('optimize-redundant')
+  })
+
+  it('the optimisation challenge, as the server serves it, starts redundant, is capped at 3 operations and reveals no answer', () => {
+    const c = challenge('optimize-redundant')
+    expect(c.lessonId).toBe('interference')
+    expect(c.starterCircuit.ops).toHaveLength(10)
+    expect(c.constraints.maxOps).toBe(3)
+    expect(c.checks).toEqual([{ id: 'equivalent.to_start', label: 'Does exactly what the starting circuit does' }])
+    expect(Object.keys(c).sort()).not.toContain('referenceSolution')
+    expect(JSON.stringify(c)).not.toMatch(/"(target|misconception|experiment|referenceSolution|reference_solution)"/) // keys, not words in the prose
   })
 
   it('bloch-sphere and entanglement now offer a challenge instead of nothing', async () => {

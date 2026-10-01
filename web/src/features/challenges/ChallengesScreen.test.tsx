@@ -595,3 +595,58 @@ describe('the right-hand panel', () => {
     expect(screen.getByRole('contentinfo', { name: 'Tutor' })).toBeInTheDocument()
   })
 })
+
+describe('an optimization challenge (shorten without changing)', () => {
+  const g = (gate: 'h' | 'x' | 's' | 'sdg' | 'cx' | 'rz', targets: number[], controls: number[] = [], params: number[] = []) => ({ gate, targets, controls, params, clbits: [] })
+  const STARTER = {
+    ...emptyCircuit(2, 0),
+    ops: [g('h', [0]), g('h', [0]), g('h', [0]), g('x', [1]), g('x', [1]), g('cx', [1], [0]), g('s', [1]), g('sdg', [1]), g('rz', [1], [], [0.5]), g('rz', [1], [], [0.25])],
+  }
+  const OPT = one('opt', {
+    lessonId: 'superposition',
+    goal: 'Make it shorter without changing what it does.',
+    constraints: { ...one('opt').constraints, numQubits: 2, allowedGates: ['h', 'x', 's', 'sdg', 'cx', 'rz'], maxOps: 3 },
+    starterCircuit: STARTER,
+    checks: [{ id: 'equivalent.to_start', label: 'Does exactly what the starting circuit does' }],
+  })
+
+  beforeEach(() => client.listChallenges.mockResolvedValue([OPT]))
+
+  it('opens with the redundant starter circuit on the canvas and its size limit in the brief', async () => {
+    await openList()
+    await openChallenge(/Challenge opt/)
+    expect(useBuildStore.getState().circuit.ops).toHaveLength(10)
+    expect(screen.getByText('Make it shorter without changing what it does.')).toBeInTheDocument()
+    expect(screen.getByText('3 ops')).toBeInTheDocument()
+  })
+
+  it('offers the equivalence tools but not the Lab’s Optimize button, which would hand over the answer', async () => {
+    await openList()
+    await openChallenge(/Challenge opt/)
+    fireEvent.click(screen.getAllByRole('tab').find((t) => t.id === 'tab-results')!)
+    expect(screen.getByRole('button', { name: 'Pin this circuit' })).toBeInTheDocument()
+    expect(screen.queryByTestId('optimize-panel')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Optimize' })).toBeNull()
+    expect(client.optimizeCircuit).not.toHaveBeenCalled()
+  })
+
+  it('submits the circuit and nothing else; the verdict is the server’s, shown with its failing check', async () => {
+    client.submitChallenge.mockResolvedValueOnce(
+      verdict({
+        passed: false,
+        successMessage: null,
+        nextHintIndex: 1,
+        nextHint: 'opt hint two',
+        checks: [{ id: 'equivalent.to_start', label: 'Does exactly what the starting circuit does', passed: false, evaluated: true, detail: 'The circuit does not do what the starting circuit does: the backend’s equivalence check found a difference.', hintIndex: 1, evidence: [], resultId: 'res_final' }],
+      }),
+    )
+    await openList()
+    await openChallenge(/Challenge opt/)
+    fireEvent.click(screen.getByRole('button', { name: /Submit for checking/ }))
+    const panel = await screen.findByTestId('verdict')
+    expect(panel.getAttribute('data-passed')).toBe('false')
+    expect(within(screen.getByTestId('check-equivalent.to_start')).getByText(/equivalence check found a difference/)).toBeInTheDocument()
+    expect(client.submitChallenge.mock.calls[0]).toHaveLength(2)
+    expect(client.submitChallenge.mock.calls[0]![1].ops).toEqual(STARTER.ops)
+  })
+})

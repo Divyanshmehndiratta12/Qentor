@@ -27,8 +27,9 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict
 
 from qentor.challenges import PublicChallenge
+from qentor.circuit.describe import describe_op
 from qentor.circuit.hashing import circuit_hash
-from qentor.circuit.model import Circuit, GateName, GateOp
+from qentor.circuit.model import Circuit
 from qentor.circuit.qasm import to_qasm3
 from qentor.circuit.qasm_parse import MAX_TEXT_CHARS, QasmParseError, parse_qasm3
 from qentor.execution.capabilities import UnsupportedGate, check_gate_support
@@ -81,25 +82,6 @@ class Proposal(BaseModel):
 
 
 # ------------------------------------------------------------------------------------------------------ the summary
-
-
-def describe_op(op: GateOp) -> str:
-    """``h on q[0]`` / ``cx control q[0], target q[1]`` / ``ry(1.5708) on q[1]``: structure only, never an effect."""
-    q = lambda i: f"q[{i}]"  # noqa: E731
-    gate = op.gate
-    if gate is GateName.MEASURE:
-        return f"measure {q(op.targets[0])} into c[{op.clbits[0]}]"
-    if gate is GateName.SWAP:
-        return f"swap {q(op.targets[0])} and {q(op.targets[1])}"
-    if gate in (GateName.CX, GateName.CZ):
-        return f"{gate.value} control {q(op.controls[0])}, target {q(op.targets[0])}"
-    if gate is GateName.CP:
-        return f"cp({op.params[0]!r}) control {q(op.controls[0])}, target {q(op.targets[0])}"
-    if gate is GateName.CCX:
-        return f"ccx controls {q(op.controls[0])}, {q(op.controls[1])}, target {q(op.targets[0])}"
-    if op.params:
-        return f"{gate.value}({op.params[0]!r}) on {q(op.targets[0])}"
-    return f"{gate.value} on {q(op.targets[0])}"
 
 
 def summarise(circuit: Circuit) -> str:

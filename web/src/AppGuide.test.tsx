@@ -114,6 +114,10 @@ const OPTIMIZATION: OptimizationResult = {
   reason: null,
   candidateCircuit: null,
   resultId: null,
+  operationsRemoved: 0,
+  changes: [],
+  ruleNotes: [],
+  candidateProvenance: null,
 }
 const MULTI_INPUT: MultiInputTestResult = {
   testId: 'test_1',

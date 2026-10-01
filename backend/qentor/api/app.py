@@ -125,12 +125,14 @@ from .schemas import (
     MultiInputCounterexampleResponse,
     MultiInputTestRequest,
     MultiInputTestResponse,
+    OpChangeResponse,
     OptimizeEquivalenceCheckResponse,
     OptimizeEquivalenceResponse,
     OptimizeRequest,
     OptimizeResponse,
     RegradeRequest,
     RegradeResponse,
+    RuleNoteResponse,
     TraceProvenanceResponse,
     TraceRequest,
     TraceResponse,
@@ -1029,6 +1031,12 @@ def optimize_endpoint(request: OptimizeRequest) -> OptimizeResponse:
         reason=report.reason,
         candidate_circuit=report.candidate_circuit,
         result_id=report.result_id,
+        operations_removed=report.operations_removed,
+        changes=[OpChangeResponse(**change.model_dump()) for change in report.changes],
+        rule_notes=[RuleNoteResponse(**note.model_dump()) for note in report.rule_notes],
+        candidate_provenance=(
+            _provenance_response(candidate_record) if report.result_id and (candidate_record := _store.get(report.result_id)) else None
+        ),
     )
 
 

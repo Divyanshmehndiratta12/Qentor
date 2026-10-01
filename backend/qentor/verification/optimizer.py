@@ -31,11 +31,13 @@ search problem, not a "small" rule).
 
 from __future__ import annotations
 
+import re
 from enum import Enum
-from typing import Callable
+from typing import Callable, Literal
 
 from pydantic import BaseModel, ConfigDict
 
+from qentor.circuit.describe import describe_op
 from qentor.circuit.hashing import circuit_hash
 from qentor.circuit.model import Circuit, GateName, GateOp
 from qentor.execution.adapter import (
@@ -68,6 +70,77 @@ class OptimizationStatus(str, Enum):
     UNVERIFIABLE = "UNVERIFIABLE"
 
 
+class OpChange(BaseModel):
+    """One line of the difference between the original circuit and the verified candidate, computed here from the two operation
+    lists (a longest-common-subsequence diff on exact operations): an operation kept, one removed from the original, one added
+    in the candidate (a merged rotation shows as the two removed and the one added). It describes structure, never an effect."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    kind: Literal["kept", "removed", "added"]
+    original_index: int | None
+    candidate_index: int | None
+    description: str
+
+
+class RuleNote(BaseModel):
+    """What an applied rewrite rule rests on, in one plain sentence (``None`` for a rule this module has no sentence for: nothing is
+    made up). It is textbook reasoning about why the rule is safe; whether the candidate really is equivalent is decided only by
+    the equivalence checker, and the sentence says nothing about this circuit's state."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    rule: str
+    explanation: str | None
+
+
+_SELF_INVERSE_NAMES = {"h", "x", "y", "z", "cx", "cz", "swap", "ccx"}
+_INVERSE_PAIR_NAMES = {"s", "sdg", "t", "tdg"}
+
+
+def explain_rule(rule: str) -> str | None:
+    """The sentence behind a rule string produced by ``generate_candidate``; ``None`` if the string is not one of ours."""
+    cancelled = re.match(r"^cancelled adjacent (\w+) pair", rule)
+    if cancelled:
+        gate = cancelled.group(1)
+        if gate in _INVERSE_PAIR_NAMES:
+            return "A gate followed by its inverse (S then S-dagger, or T then T-dagger) returns every state to where it started, so the pair changes nothing."
+        if gate in _SELF_INVERSE_NAMES:
+            return f"Applying {gate.upper()} twice in a row returns every state to where it started, so the pair changes nothing."
+        return None
+    merged = re.match(r"^merged adjacent (\w+) ops", rule)
+    if merged and merged.group(1) in {"rx", "ry", "rz"}:
+        return f"Two {merged.group(1).upper()} rotations on the same qubit add their angles, so they can be replaced by one rotation by the sum."
+    if re.match(r"^removed zero-angle (rx|ry|rz) ", rule):
+        return "A rotation by an angle of zero changes nothing, so it can be removed."
+    return None
+
+
+def diff_ops(original: Circuit, candidate: Circuit) -> list[OpChange]:
+    """The operation-level difference between two circuits, in reading order, from a longest common subsequence of exact operations."""
+    a, b = list(original.ops), list(candidate.ops)
+    n, m = len(a), len(b)
+    # lcs[i][j] = length of the longest common subsequence of a[i:] and b[j:]
+    lcs = [[0] * (m + 1) for _ in range(n + 1)]
+    for i in range(n - 1, -1, -1):
+        for j in range(m - 1, -1, -1):
+            lcs[i][j] = lcs[i + 1][j + 1] + 1 if a[i] == b[j] else max(lcs[i + 1][j], lcs[i][j + 1])
+    changes: list[OpChange] = []
+    i = j = 0
+    while i < n or j < m:
+        if i < n and j < m and a[i] == b[j]:
+            changes.append(OpChange(kind="kept", original_index=i, candidate_index=j, description=describe_op(a[i])))
+            i += 1
+            j += 1
+        elif j >= m or (i < n and lcs[i + 1][j] >= lcs[i][j + 1]):
+            changes.append(OpChange(kind="removed", original_index=i, candidate_index=None, description=describe_op(a[i])))
+            i += 1
+        else:
+            changes.append(OpChange(kind="added", original_index=None, candidate_index=j, description=describe_op(b[j])))
+            j += 1
+    return changes
+
+
 class OptimizationReport(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -88,6 +161,11 @@ class OptimizationReport(BaseModel):
     # not merely labelled, so nothing downstream can apply it by mistake.
     candidate_circuit: Circuit | None
     result_id: str | None
+    # Computed here, never by a client: how many operations the candidate removes, what changed operation by operation (only for a
+    # VERIFIED_SHORTER candidate, whose definition is the only one ever shown), and the sentence behind each rule that fired.
+    operations_removed: int = 0
+    changes: list[OpChange] = []
+    rule_notes: list[RuleNote] = []
 
 
 def generate_candidate(circuit: Circuit) -> tuple[Circuit, list[str]]:
@@ -170,6 +248,7 @@ def optimize_circuit(
             reason=equivalence.reason,
             candidate_circuit=None,
             result_id=None,
+            rule_notes=[RuleNote(rule=r, explanation=explain_rule(r)) for r in rules_applied],
         )
 
     if equivalence.status is EquivalenceStatus.NOT_EQUIVALENT:
@@ -191,6 +270,7 @@ def optimize_circuit(
             reason="candidate rewrite was not verified equivalent to the original; discarded",
             candidate_circuit=None,
             result_id=None,
+            rule_notes=[RuleNote(rule=r, explanation=explain_rule(r)) for r in rules_applied],
         )
 
     result_id = None
@@ -211,6 +291,9 @@ def optimize_circuit(
         reason=None,
         candidate_circuit=candidate,
         result_id=result_id,
+        operations_removed=len(circuit.ops) - len(candidate.ops),
+        changes=diff_ops(circuit, candidate),
+        rule_notes=[RuleNote(rule=r, explanation=explain_rule(r)) for r in rules_applied],
     )
 
 

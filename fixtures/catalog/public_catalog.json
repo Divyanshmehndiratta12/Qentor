@@ -843,6 +843,154 @@
         },
         "success_condition": "The fixed oracle is present once; before it both qubits are in |+⟩; the circuit ends in |01⟩; and with an oracle marking |10⟩ the same circuit would end in |10⟩.",
         "title": "Find |01⟩"
+      },
+      {
+        "checks": [
+          {
+            "id": "equivalent.to_start",
+            "label": "Does exactly what the starting circuit does"
+          }
+        ],
+        "constraints": {
+          "allowed_gates": [
+            "h",
+            "x",
+            "y",
+            "z",
+            "s",
+            "sdg",
+            "t",
+            "tdg",
+            "cx",
+            "cz",
+            "rx",
+            "ry",
+            "rz"
+          ],
+          "anchor": [],
+          "anchor_name": "oracle",
+          "gate_qubits": {},
+          "max_ops": 3,
+          "min_gate_counts": {},
+          "must_measure": [],
+          "num_clbits": 0,
+          "num_qubits": 2
+        },
+        "difficulty": "intermediate",
+        "fixed_oracle": false,
+        "goal": "This circuit has gates that cancel or can be merged. Make it shorter - at most 3 operations - without changing what it does. The backend checks that your circuit is equivalent to the starting one (the same operation, up to a global phase), so removing a gate that was doing something will not pass.",
+        "hints": [
+          "Look for gates that undo each other: apply one and then the other, and the qubit is exactly where it started.",
+          "H twice in a row does nothing, and so does X twice, and so does S followed by S-dagger. Two rotations about the same axis on the same qubit can be one rotation whose angle is their sum.",
+          "Three H gates on q[0] act like one H. Remove the X pair and the S, S-dagger pair on q[1]. Replace the two RZ gates with one RZ whose angle is the sum of theirs (set it in the palette before placing)."
+        ],
+        "id": "optimize-redundant",
+        "lesson_id": "interference",
+        "starter_circuit": {
+          "num_clbits": 0,
+          "num_qubits": 2,
+          "ops": [
+            {
+              "clbits": [],
+              "controls": [],
+              "gate": "h",
+              "params": [],
+              "targets": [
+                0
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [],
+              "gate": "h",
+              "params": [],
+              "targets": [
+                0
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [],
+              "gate": "h",
+              "params": [],
+              "targets": [
+                0
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [],
+              "gate": "x",
+              "params": [],
+              "targets": [
+                1
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [],
+              "gate": "x",
+              "params": [],
+              "targets": [
+                1
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [
+                0
+              ],
+              "gate": "cx",
+              "params": [],
+              "targets": [
+                1
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [],
+              "gate": "s",
+              "params": [],
+              "targets": [
+                1
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [],
+              "gate": "sdg",
+              "params": [],
+              "targets": [
+                1
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [],
+              "gate": "rz",
+              "params": [
+                0.5
+              ],
+              "targets": [
+                1
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [],
+              "gate": "rz",
+              "params": [
+                0.25
+              ],
+              "targets": [
+                1
+              ]
+            }
+          ],
+          "schema": "qentor.circuit/1"
+        },
+        "success_condition": "Your circuit is equivalent to the starting circuit (the backend's operator-equivalence check says so) and has at most 3 operations.",
+        "title": "Shorten it without changing it"
       }
     ]
   },

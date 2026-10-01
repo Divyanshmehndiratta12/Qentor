@@ -213,6 +213,12 @@ that input.
 - The final proposal and every intermediate step go through §4.3. Only EQUIVALENT proposals are shown as "Verified shorter". Anything else is discarded and logged as a verifier-caught bug.
 - P1: Qiskit transpiler output as a second proposal source through the same gate.
 - AI-proposed optimisations use exactly the same gate.
+- **Optimisation as learning (built).** A VERIFIED_SHORTER report also carries what the learner needs to understand the change, all computed by the server and none of it by the browser or a model:
+  - `operations_removed` and the original and candidate operation counts;
+  - `changes`: an operation-level diff (`diff_ops`, a longest-common-subsequence walk over exact operations): each operation of the original is `kept` or `removed`, each operation only in the candidate is `added`. A merged rotation is the two rotations removed and one added. The diff is attached only in the one place a VERIFIED_SHORTER report is built, after the equivalence check said EQUIVALENT; a rejected or unverifiable candidate is never described;
+  - `rule_notes`: for each rule that fired, a plain sentence on why that kind of rewrite is safe (`explain_rule`), or `null` for a rule string the server has no sentence for. The sentence is textbook reasoning, contains no number and no verdict, and the UI says the equivalence check, not the rule, decides;
+  - `candidate_provenance`: the persisted statevector run of the proposed circuit (result id, circuit hash, backend and version, mode, class), evidence to inspect and explicitly not the equivalence proof.
+- **`EquivalentTo` challenge check.** "Your whole circuit does what this circuit does" is judged by `check_equivalence` (operator equivalence up to global phase), not by comparing one state. A circuit the checker cannot decide does not pass. The challenge `optimize-redundant` ("Shorten it without changing it", Interference lesson) starts from a 10-operation circuit and asks for at most 3 that do the same thing. The Lab's Optimize button is not offered inside a challenge, where it would hand over the answer; Equivalence (pin a reference, check) is.
 
 ### 4.5 Hardware comparison
 - Input: a circuit hash.

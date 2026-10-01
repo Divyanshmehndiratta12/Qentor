@@ -401,6 +401,24 @@ class OptimizeEquivalenceResponse(BaseModel):
     reason: str | None
 
 
+class OpChangeResponse(BaseModel):
+    """One line of the original-versus-candidate difference, computed by the server (``qentor.verification.optimizer.diff_ops``)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    kind: Literal["kept", "removed", "added"]
+    original_index: int | None
+    candidate_index: int | None
+    description: str
+
+
+class RuleNoteResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    rule: str
+    explanation: str | None
+
+
 class OptimizeResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -420,6 +438,12 @@ class OptimizeResponse(BaseModel):
     # an unverified candidate's definition is withheld, not just labelled.
     candidate_circuit: Circuit | None
     result_id: str | None
+    # What the server computed about the difference, never the browser: how many operations went, what changed operation by
+    # operation (only for a VERIFIED_SHORTER candidate), the sentence behind each rule, and the provenance of the supporting run.
+    operations_removed: int
+    changes: list[OpChangeResponse]
+    rule_notes: list[RuleNoteResponse]
+    candidate_provenance: TraceProvenanceResponse | None
 
 
 class LessonCatalogResponse(BaseModel):

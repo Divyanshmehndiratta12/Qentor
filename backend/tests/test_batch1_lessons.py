@@ -824,7 +824,7 @@ class TestBatch1ChallengeAndProgressionLinks(unittest.TestCase):
         report = validate_content()
         self.assertTrue(report.ok, "\n" + str(report))
         self.assertEqual(report.checked["lessons"], 13)
-        self.assertEqual(report.checked["challenges"], 14)
+        self.assertEqual(report.checked["challenges"], 15)
 
     def test_the_original_ten_lessons_are_unchanged_apart_from_losing_the_stale_no_challenge_reason(self) -> None:
         self.assertEqual([len(lesson.sections) for lesson in LESSONS[:10]], [9] * 7 + [10] * 3)

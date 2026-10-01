@@ -287,6 +287,21 @@ export interface OptimizationEquivalenceResult {
   reason: string | null
 }
 
+/** One line of the server's original-versus-candidate difference. `kept` is in both circuits, `removed` only in the original,
+ * `added` only in the candidate; the description names a gate and its qubits, never an effect. */
+export interface OptimizationChange {
+  kind: 'kept' | 'removed' | 'added'
+  originalIndex: number | null
+  candidateIndex: number | null
+  description: string
+}
+
+/** The sentence behind an applied rule (null for a rule the server has no sentence for: nothing is invented here). */
+export interface OptimizationRuleNote {
+  rule: string
+  explanation: string | null
+}
+
 export interface OptimizationResult {
   originalCircuitHash: string
   candidateCircuitHash: string
@@ -301,6 +316,13 @@ export interface OptimizationResult {
   reason: string | null
   candidateCircuit: Circuit | null
   resultId: string | null
+  /** Computed by the server: how many operations the candidate removes. Never recomputed in the browser. */
+  operationsRemoved: number
+  /** Empty unless the candidate is VERIFIED_SHORTER: the server never describes a candidate it did not verify. */
+  changes: OptimizationChange[]
+  ruleNotes: OptimizationRuleNote[]
+  /** The persisted record of the supporting run of a verified candidate (same shape as any other result's provenance). */
+  candidateProvenance: Provenance | null
 }
 
 /**

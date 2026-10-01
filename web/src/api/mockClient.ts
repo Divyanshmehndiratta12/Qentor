@@ -386,6 +386,10 @@ export class MockApiClient implements ApiClient {
         reason: 'FIXTURE — the mock adapter only recognises two adjacent identical single-qubit gates.',
         candidateCircuit: null,
         resultId: null,
+        operationsRemoved: 0,
+        changes: [],
+        ruleNotes: [],
+        candidateProvenance: null,
       }
     }
 
@@ -413,6 +417,15 @@ export class MockApiClient implements ApiClient {
       reason: null,
       candidateCircuit,
       resultId: null,
+      operationsRemoved: circuit.ops.length - ops.length,
+      changes: circuit.ops.map((op, i) => ({
+        kind: i === cancelIndex || i === cancelIndex + 1 ? ('removed' as const) : ('kept' as const),
+        originalIndex: i,
+        candidateIndex: null,
+        description: `FIXTURE — ${op.gate}`,
+      })),
+      ruleNotes: [],
+      candidateProvenance: null,
     }
   }
 

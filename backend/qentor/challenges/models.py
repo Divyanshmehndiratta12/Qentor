@@ -99,6 +99,16 @@ class QubitStateMatches(_Substitutable):
     target: Circuit
 
 
+class EquivalentTo(_Check):
+    """The learner's WHOLE circuit does exactly what ``target`` does: operator equivalence up to a global phase, decided by
+    ``qentor.verification.equivalence`` (the platform's one documented equivalence method), not by comparing one state. This is the
+    check an optimisation challenge needs: a shorter circuit is only a better one if it is still the same circuit. A circuit the
+    checker cannot decide (over its size limit, a mid-circuit measurement) does not pass."""
+
+    kind: Literal["equivalent_to"] = "equivalent_to"
+    target: Circuit
+
+
 class PassesThroughSuperposition(_Check):
     """Some state after the first operation and before the last is a genuine superposition: its most likely outcome has
     probability no greater than 1/2 (within tolerance), so it is not one computational-basis state."""
@@ -113,7 +123,7 @@ class EndsInBasisState(_Check):
 
 
 Check = Annotated[
-    Union[StateMatches, StateDiffers, ProbabilitiesMatch, QubitStateMatches, PassesThroughSuperposition, EndsInBasisState],
+    Union[StateMatches, StateDiffers, ProbabilitiesMatch, QubitStateMatches, EquivalentTo, PassesThroughSuperposition, EndsInBasisState],
     Field(discriminator="kind"),
 ]
 

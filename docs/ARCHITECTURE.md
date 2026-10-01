@@ -18,7 +18,7 @@ FastAPI  ───────────────────────�
   circuit/        canonical model, OpenQASM 3 emitter, hashing, Qiskit/Cirq/PennyLane code views
   execution/      backend adapters (Aer, Cirq, PennyLane), trace, Bloch vectors, per-qubit reduced states, amplitude view, limits, sanity checks
   verification/   equivalence, cross-backend agreement, multi-input harness, optimiser, experiment comparison
-  challenges/     challenge definitions, the fourteen challenges, the deterministic evaluator
+  challenges/     challenge definitions, the fifteen challenges, the deterministic evaluator
   lessons/        lesson models (a server-side Lesson with the answer key, a PublicLesson without it), content, registry, concept-check grading
   content/        cross-catalog content validation (lessons, challenges, gate support, routes, the simulator); run by tests and a script, never at request time
   tutor/          fact sheets, LLM adapter, claim guard, deterministic answers, debugger, comparison facts
@@ -207,7 +207,7 @@ server process. Recorded hardware runs are not built.
 | `POST /api/execute` | Run a canonical circuit on a chosen backend (statevector or shots); writes a provenance record |
 | `POST /api/execute/trace` | The backend's state after each operation, one record per step |
 | `POST /api/compare/backends` | Statevectors of one circuit on several backends, compared on the server |
-| `POST /api/verify/equivalence`, `/bell-state`, `POST /api/test/multi-input`, `POST /api/optimize` | Verification layer |
+| `POST /api/verify/equivalence`, `/bell-state`, `POST /api/test/multi-input`, `POST /api/optimize` | Verification layer. Optimize also returns the server's operation diff, a sentence per rewrite rule, the removed count and the candidate's provenance (VERIFICATION_ARCHITECTURE §4.4) |
 | `POST /api/circuit/code`, `POST /api/export/circuit` | Read-only code views; a shareable bundle (circuit, QASM, code, run metadata, no results) |
 | `GET /api/challenges[/{id}]`, `POST /api/challenges/{id}/submit` | The challenge catalog (no answers) and the server's verdict |
 | `GET /api/generate/status`, `POST /api/generate/circuit` | AI code generation: whether a model is configured; a model PROPOSES OpenQASM 3 that the server parses, limits and labels "not yet verified" (503 with no model, 502 on a provider failure; see `AI_BOUNDARY.md` §9) |

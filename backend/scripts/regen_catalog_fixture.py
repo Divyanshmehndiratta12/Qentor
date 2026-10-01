@@ -1,7 +1,7 @@
 """Write (or check) ``fixtures/catalog/public_catalog.json``: what ``GET /api/lessons`` and ``GET /api/challenges`` serve.
 
 The web suite parses this file through the real client and its schemas, so the browser is tested against the exact wire format
-of the real catalog (13 lessons, 14 challenges) rather than a hand-made imitation. It holds ONLY the public view: no answer key,
+of the real catalog (13 lessons, 15 challenges) rather than a hand-made imitation. It holds ONLY the public view: no answer key,
 no explanation, no reference solution, no check target. ``backend/tests/test_public_catalog_fixture.py`` fails if it drifts.
 
 Usage (from the repository root):
