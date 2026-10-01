@@ -6,7 +6,7 @@ import { emptyRecord, type ChallengeRecord } from '@/features/challenges/challen
 import type { LessonProgress } from './lessonState'
 import { getRecommendation, STRUGGLE_ATTEMPTS } from './recommendation'
 
-const check = (id: string, correct = 'a'): LessonSection => ({
+const check = (id: string): LessonSection => ({
   type: 'concept_check',
   id,
   title: 'c',
@@ -16,8 +16,6 @@ const check = (id: string, correct = 'a'): LessonSection => ({
     { id: 'a', text: 'A' },
     { id: 'b', text: 'B' },
   ],
-  correctOptionId: correct,
-  explanation: 'e',
   concept: 'phase',
 })
 const intro: LessonSection = { type: 'explanation', id: 'intro', title: 'Intro', body: 'b' }

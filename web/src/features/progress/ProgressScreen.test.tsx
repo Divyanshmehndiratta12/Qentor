@@ -30,7 +30,8 @@ import { useBuildStore } from '@/features/build/store'
 import { useLearnStore } from '../learn/store'
 import { ProgressScreen } from './ProgressScreen'
 
-function checkSection(id: string, concept: string, correctOptionId = 'x'): Lesson['sections'][number] {
+// (the catalog carries no answer key: verdicts in these tests are set on the saved attempts, as the server would have returned them)
+function checkSection(id: string, concept: string): Lesson['sections'][number] {
   return {
     type: 'concept_check',
     id,
@@ -41,8 +42,6 @@ function checkSection(id: string, concept: string, correctOptionId = 'x'): Lesso
       { id: 'x', text: 'X' },
       { id: 'y', text: 'Y' },
     ],
-    correctOptionId,
-    explanation: 'because',
     concept,
   }
 }

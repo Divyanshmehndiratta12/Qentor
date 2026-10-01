@@ -28,7 +28,7 @@ function lesson(overrides: Partial<Lesson> = {}): Lesson {
   }
 }
 
-function conceptCheck(id: string, concept: string, correctOptionId = 'a'): LessonSection {
+function conceptCheck(id: string, concept: string): LessonSection {
   return {
     type: 'concept_check',
     id,
@@ -39,8 +39,6 @@ function conceptCheck(id: string, concept: string, correctOptionId = 'a'): Lesso
       { id: 'a', text: 'A' },
       { id: 'b', text: 'B' },
     ],
-    correctOptionId,
-    explanation: 'because',
     concept,
   }
 }

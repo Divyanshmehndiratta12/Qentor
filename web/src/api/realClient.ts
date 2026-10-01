@@ -16,15 +16,18 @@ import {
   AgreementResponseSchema,
   ChallengeCatalogResponseSchema,
   ChallengeSubmitResponseSchema,
+  ConceptCheckGradeResponseSchema,
   DebugResponseSchema,
   ExperimentCompareResponseSchema,
   ExportResponseSchema,
   CodeResponseSchema,
   EquivalenceResponseSchema,
   ExecuteResponseSchema,
+  GradeErrorDetailSchema,
   LessonCatalogResponseSchema,
   MultiInputTestResponseSchema,
   OptimizeResponseSchema,
+  RegradeResponseSchema,
   ShotsPayloadSchema,
   StatevectorPayloadSchema,
   TraceErrorDetailSchema,
@@ -36,6 +39,7 @@ import {
 } from '@/provenance/schema'
 import {
   BackendUnavailableError,
+  GradeRejectedError,
   TraceRejectedError,
   type ApiClient,
   type AgreementResult,
@@ -43,6 +47,9 @@ import {
   type Challenge,
   type ChallengeSubmission,
   type CodeViewsResult,
+  type ConceptCheckGrade,
+  type RegradedAnswer,
+  type SavedAnswer,
   type DebugReport,
   type DebugRequestInput,
   type CircuitExport,
@@ -63,10 +70,9 @@ import {
   type VerifyBellStateResult,
 } from './client'
 
-/** The only section field that needs snake_case -> camelCase conversion
- * (`correct_option_id`) — every other section field is already a
- * single-word name shared verbatim between the wire shape and the domain
- * type, so this is the one place that mapping actually has to happen. */
+/** A concept check is rebuilt field by field, never spread, so nothing the wire carried beyond the public fields (a
+ * `correct_option_id` or `explanation` from a server that should not have sent them) can reach a component. Every other
+ * section field is a single-word name shared verbatim between the wire shape and the domain type. */
 function mapLessonSection(section: LessonSectionResponse): LessonSection {
   if (section.type !== 'concept_check') return section
   return {
@@ -76,8 +82,6 @@ function mapLessonSection(section: LessonSectionResponse): LessonSection {
     prompt: section.prompt,
     question: section.question,
     options: section.options,
-    correctOptionId: section.correct_option_id,
-    explanation: section.explanation,
     concept: section.concept,
   }
 }
@@ -524,6 +528,65 @@ export class RealApiClient implements ApiClient {
     }))
   }
 
+  async gradeConceptCheck(lessonId: string, checkId: string, selectedOptionId: string): Promise<ConceptCheckGrade> {
+    // The body is the chosen option id and nothing else: no verdict, no key, no score. The ids go in the path, encoded.
+    let res: Response
+    try {
+      res = await fetch(
+        `${this.baseUrl}/api/lessons/${encodeURIComponent(lessonId)}/concept-checks/${encodeURIComponent(checkId)}/grade`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ selected_option_id: selectedOptionId }),
+        },
+      )
+    } catch (err) {
+      throw new BackendUnavailableError(
+        `could not reach the Qentor backend: ${err instanceof Error ? err.message : String(err)}`,
+      )
+    }
+
+    if (!res.ok) throw await gradeErrorFromResponse(res)
+
+    const grade = ConceptCheckGradeResponseSchema.parse(await res.json())
+    return {
+      lessonId: grade.lesson_id,
+      checkId: grade.check_id,
+      selectedOptionId: grade.selected_option_id,
+      correct: grade.correct,
+      explanation: grade.explanation,
+    }
+  }
+
+  async regradeConceptChecks(answers: SavedAnswer[]): Promise<RegradedAnswer[]> {
+    // Identifiers only, as saved: which option was picked for which check. The verdicts come back from the server.
+    let res: Response
+    try {
+      res = await fetch(`${this.baseUrl}/api/assessments/regrade`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          answers: answers.map((a) => ({ lesson_id: a.lessonId, check_id: a.checkId, selected_option_id: a.selectedOptionId })),
+        }),
+      })
+    } catch (err) {
+      throw new BackendUnavailableError(
+        `could not reach the Qentor backend: ${err instanceof Error ? err.message : String(err)}`,
+      )
+    }
+
+    if (!res.ok) throw await gradeErrorFromResponse(res)
+
+    return RegradeResponseSchema.parse(await res.json()).results.map((r) => ({
+      lessonId: r.lesson_id,
+      checkId: r.check_id,
+      selectedOptionId: r.selected_option_id,
+      status: r.status,
+      correct: r.correct,
+      explanation: r.explanation,
+    }))
+  }
+
   async askTutor(
     resultId: string | null,
     circuit: Circuit | null,
@@ -831,6 +894,24 @@ export function traceResultFromResponse(response: TraceResponse): ExecutionTrace
     })),
     finalResultId: response.final_result_id,
   }
+}
+
+/**
+ * A grading endpoint's refusal is `{detail: {code, message}}` and becomes a `GradeRejectedError` carrying the server's own
+ * code. Anything else (an HTML gateway page, a body that is not JSON, FastAPI's list of validation errors from some other
+ * layer) is not a grading refusal and is reported, unparsed, as `BackendUnavailableError`: no code is invented for it.
+ */
+async function gradeErrorFromResponse(res: Response): Promise<Error> {
+  let body: unknown
+  try {
+    body = await res.json()
+  } catch {
+    return new BackendUnavailableError(`HTTP ${res.status}`, res.status)
+  }
+  const detail = GradeErrorDetailSchema.safeParse((body as { detail?: unknown } | null)?.detail)
+  if (detail.success) return new GradeRejectedError(detail.data.code, detail.data.message, res.status)
+  const raw = (body as { detail?: unknown } | null)?.detail
+  return new BackendUnavailableError(typeof raw === 'string' ? raw : JSON.stringify(body), res.status)
 }
 
 /**

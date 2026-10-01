@@ -63,11 +63,12 @@ class ConceptCheckSection(BaseModel):
     ``question``/``options``/``correct_option_id``/``explanation`` must be
     present together (enforced below): there is no partially-specified quiz.
 
-    Grading itself happens client-side against ``correct_option_id`` — this
-    milestone adds no server-side grading endpoint (CLAUDE.md's execution/
-    verification boundary is about quantum results, not quiz answers, so it
-    doesn't apply here). That does mean the correct answer is visible in the
-    GET /api/lessons response; see the frontend's own note on this.
+    This is the SERVER-SIDE model: it holds the answer key. It is never
+    serialised to a client. ``GET /api/lessons`` serves ``PublicLesson``
+    (below), in which a concept check carries the question and the options and
+    neither ``correct_option_id`` nor ``explanation``; a client sends its
+    selection to the grading endpoint and gets back correctness plus the
+    explanation (``qentor.lessons.grading``).
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -108,6 +109,25 @@ class ConceptCheckSection(BaseModel):
                 f"is not one of the option ids {option_ids}"
             )
         return self
+
+
+class PublicConceptCheckSection(BaseModel):
+    """A concept check as a client may see it: the question and the choices, NEVER the answer key or the explanation.
+
+    The explanation is withheld as well as the key because an explanation almost always gives the answer away; a client
+    receives it from the grading endpoint, after it has submitted a selection. ``question`` and ``options`` are both
+    ``None`` for a prompt-only check (nothing to grade) and both present otherwise.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    type: Literal["concept_check"] = "concept_check"
+    id: str
+    title: str
+    prompt: str
+    question: str | None = None
+    options: list[ConceptCheckOption] | None = None
+    concept: str | None = None
 
 
 class InteractiveLabSection(BaseModel):
@@ -167,6 +187,10 @@ class Lesson(BaseModel):
     sections: list[LessonSection] = Field(min_length=1)
     linked_circuit: Circuit | None = None
     prerequisite_lesson_ids: list[str] = Field(default_factory=list)
+    # Why this lesson has no challenge, when none names it (``qentor.challenges``). The content validator
+    # (``qentor.content.validation``) requires every lesson to have a challenge OR to say why not here, and flags a reason
+    # that contradicts an existing challenge. Server-side only: ``PublicLesson`` does not carry it.
+    no_challenge_reason: str | None = None
 
     @model_validator(mode="after")
     def _section_ids_are_unique(self) -> "Lesson":
@@ -189,3 +213,59 @@ class Lesson(BaseModel):
         if self.id in self.prerequisite_lesson_ids:
             raise ValueError(f"lesson '{self.id}': cannot list itself as its own prerequisite")
         return self
+
+
+PublicLessonSection = Annotated[
+    Union[ExplanationSection, PublicConceptCheckSection, InteractiveLabSection, ReflectionSection],
+    Field(discriminator="type"),
+]
+
+
+class PublicLesson(BaseModel):
+    """A lesson as ``GET /api/lessons`` serves it: every field of ``Lesson``, with each concept check reduced to
+    ``PublicConceptCheckSection``. It cannot hold an answer key or an explanation, so no code path that builds one can leak
+    them (``extra="forbid"`` makes adding either a validation error, not a silent pass-through)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: str
+    title: str
+    short_description: str
+    concept: str
+    difficulty: Difficulty
+    estimated_minutes: int = Field(gt=0)
+    learning_objectives: list[str] = Field(min_length=1)
+    sections: list[PublicLessonSection] = Field(min_length=1)
+    linked_circuit: Circuit | None = None
+    prerequisite_lesson_ids: list[str] = Field(default_factory=list)
+
+
+def public_lesson(lesson: Lesson) -> PublicLesson:
+    """The client-facing view of ``lesson``: same order, same ids, concept checks without the key or the explanation."""
+    sections: list[object] = []
+    for section in lesson.sections:
+        if isinstance(section, ConceptCheckSection):
+            sections.append(
+                PublicConceptCheckSection(
+                    id=section.id,
+                    title=section.title,
+                    prompt=section.prompt,
+                    question=section.question,
+                    options=section.options,
+                    concept=section.concept,
+                )
+            )
+        else:
+            sections.append(section)
+    return PublicLesson(
+        id=lesson.id,
+        title=lesson.title,
+        short_description=lesson.short_description,
+        concept=lesson.concept,
+        difficulty=lesson.difficulty,
+        estimated_minutes=lesson.estimated_minutes,
+        learning_objectives=list(lesson.learning_objectives),
+        sections=sections,  # type: ignore[arg-type]
+        linked_circuit=lesson.linked_circuit,
+        prerequisite_lesson_ids=list(lesson.prerequisite_lesson_ids),
+    )

@@ -16,10 +16,11 @@ Browser (React + TypeScript)
 FastAPI  ──────────────────────────────────────────────────────────────
   api/            HTTP routes, request validation (pydantic), static serving of web/dist
   circuit/        canonical model, OpenQASM 3 emitter, hashing, Qiskit/Cirq/PennyLane code views
-  execution/      backend adapters (Aer, Cirq, PennyLane), trace, Bloch vectors, limits, sanity checks
+  execution/      backend adapters (Aer, Cirq, PennyLane), trace, Bloch vectors, per-qubit reduced states, amplitude view, limits, sanity checks
   verification/   equivalence, cross-backend agreement, multi-input harness, optimiser, experiment comparison
   challenges/     challenge definitions, the nine challenges, the deterministic evaluator
-  lessons/        lesson models, content, registry
+  lessons/        lesson models (a server-side Lesson with the answer key, a PublicLesson without it), content, registry, concept-check grading
+  content/        cross-catalog content validation (lessons, challenges, gate support, routes, the simulator); run by tests and a script, never at request time
   tutor/          fact sheets, LLM adapter, claim guard, deterministic answers, debugger, comparison facts
   provenance/     provenance records and store, challenge attempt log (writers: only api/ calls them)
   storage/        SQLite connection and schema (QENTOR_DB_PATH)
@@ -27,7 +28,8 @@ FastAPI  ───────────────────────�
 ────────────────────────────────────────────────────────────────────────
 ```
 
-Dependency direction is one way: `api → tutor → verification / challenges → execution → circuit`.
+Dependency direction is one way: `api → tutor → verification / challenges → execution → circuit`
+(`content` sits beside `api`: it reads `lessons`, `challenges` and `execution`, and nothing imports it at runtime).
 **Nothing in `execution`, `verification` or `challenges` imports `tutor`, and `tutor` never imports a
 provenance writer** (`provenance.store`, `provenance.attempts`); both are enforced by import-graph tests.
 The LLM sits at the top of the stack and can only read results.
@@ -208,6 +210,7 @@ server process. Recorded hardware runs are not built.
 | `GET /api/challenges[/{id}]`, `POST /api/challenges/{id}/submit` | The challenge catalog (no answers) and the server's verdict |
 | `POST /api/debug` | "Debug my circuit": observed / evidence / mismatch / next experiment / hint from server-held facts |
 | `POST /api/compare/experiments`, `POST /api/tutor/comparison` | Compare two real runs; ask the tutor about the recorded comparison |
-| `POST /api/tutor`, `GET /api/lessons`, `GET /api/health` | Tutor (result, lesson, trace-step context), lesson catalog, liveness |
+| `POST /api/tutor`, `GET /api/lessons`, `GET /api/health` | Tutor (result, lesson, trace-step context), lesson catalog (a concept check is served as its question and options only: no answer key, no explanation), liveness |
+| `POST /api/lessons/{lesson_id}/concept-checks/{check_id}/grade`, `POST /api/assessments/regrade` | The server grades a concept-check selection against the lesson's own key and returns correctness and the explanation; the batch form grades saved selections again after a reload (each on its own, so one stale entry cannot sink the rest). A malformed body is `422 GRADE_REQUEST_INVALID`, structured like every other refusal |
 
 Every request schema forbids extra fields, so a client has no field through which to send a result, a state or a verdict.

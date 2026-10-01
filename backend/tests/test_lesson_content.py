@@ -136,13 +136,21 @@ class TestFoundationLessonStructure(unittest.TestCase):
     def test_a_reader_could_still_follow_the_lesson_start_to_finish_through_the_api(self) -> None:
         from qentor.api import app as app_module
 
+        from qentor.lessons import public_lesson
+
         served = {lesson.id: lesson for lesson in app_module.list_lessons().lessons}
         for lesson in FOUNDATION:
             self.assertEqual(
                 [s.model_dump() for s in served[lesson.id].sections],
-                [s.model_dump() for s in lesson.sections],
+                [s.model_dump() for s in public_lesson(lesson).sections],
                 lesson.id,
             )
+            # Same sections in the same order; only a concept check differs from the authored one, by losing the key and
+            # the explanation (test_api_assessments.py pins that); every other section is served exactly as authored.
+            for shown, authored in zip(served[lesson.id].sections, lesson.sections):
+                self.assertEqual((shown.id, shown.type), (authored.id, authored.type))
+                if authored.type != "concept_check":
+                    self.assertEqual(shown.model_dump(), authored.model_dump(), (lesson.id, authored.id))
 
 
 class TestConceptCheckIntegrity(unittest.TestCase):

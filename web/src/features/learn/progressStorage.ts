@@ -17,9 +17,12 @@
  * Trust on the way back in — stored data is untrusted input, exactly like a network response:
  *  - `parseProgress` validates shape and drops individual bad entries; a structurally unreadable blob is reported as
  *    "recovered" (the raw text is kept under `qentor.learn.progress.unreadable` rather than silently destroyed).
- *  - `reconcileProgress` checks it against the real lesson catalog: unknown lessons/sections/options are dropped, and
- *    `isCorrect` is RECOMPUTED from the catalog's current answer key, never taken on trust from storage. A lesson whose content
- *    changed can therefore lose a stale attempt, but can never keep a stale verdict.
+ *  - `reconcileProgress` checks it against the real lesson catalog: unknown lessons/sections/options are dropped.
+ *  - The catalog carries no answer key (the server grades), so a saved `isCorrect` is only PROVISIONAL: once the catalog has
+ *    loaded, the store sends the saved selections to the server (`POST /api/assessments/regrade`) and replaces every verdict
+ *    with the server's answer, and drops a selection the server can no longer grade. A lesson whose content changed can
+ *    therefore lose a stale attempt, and keeps a stale verdict only while the server cannot be reached (the store says so).
+ *    Only the selection and the last verdict are saved, never the explanation (it comes back with the verdict).
  *
  * Versioning: the version is an integer. Older versions upgrade through `MIGRATIONS` (a chain, one step per version); a version
  * this build does not know — newer, or with a missing step — is treated as unreadable, never guessed at.
@@ -179,7 +182,10 @@ export function serializeProgress(progress: LearnerProgress): string {
  * Check stored progress against the real catalog (call after the catalog has loaded). Pure; returns new objects.
  * - lessons/sections not in the catalog are dropped;
  * - an attempt is kept only for a concept check that still has a question AND still offers the option that was chosen;
- * - `isCorrect` is recomputed from the catalog's current `correctOptionId`;
+ * - `isCorrect` is KEPT as last saved, because the catalog holds no answer key to check it against. It is provisional until
+ *   `regradeSavedAnswers` (store.ts) has had the server grade the saved selection again and overwritten it with the server's
+ *   verdict; a verdict is never decided here or taken on trust once the server has answered;
+ * - an in-memory explanation is kept only while the selection it explained is unchanged;
  * - `activeSectionIndex` is clamped into the lesson;
  * - a lesson with recorded progress counts as started.
  */
@@ -197,8 +203,9 @@ export function reconcileProgress(lessons: readonly Lesson[], progress: LearnerP
         if (!section.options.some((option) => option.id === attempt.selectedOptionId)) continue
         conceptCheckAttempts[section.id] = {
           selectedOptionId: attempt.selectedOptionId,
-          isCorrect: attempt.selectedOptionId === section.correctOptionId,
+          isCorrect: attempt.isCorrect,
           attemptCount: attempt.attemptCount,
+          ...(attempt.explanation !== undefined ? { explanation: attempt.explanation } : {}),
         }
       }
       const last = Math.max(0, lesson.sections.length - 1)

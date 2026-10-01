@@ -187,9 +187,15 @@ class TestAdvancedLessonStructure(unittest.TestCase):
     def test_the_lessons_are_served_through_the_api_unchanged(self) -> None:
         from qentor.api import app as app_module
 
+        from qentor.lessons import public_lesson
+
         served = {lesson.id: lesson for lesson in app_module.list_lessons().lessons}
         for lesson in ADVANCED:
-            self.assertEqual([s.model_dump() for s in served[lesson.id].sections], [s.model_dump() for s in lesson.sections])
+            self.assertEqual([s.model_dump() for s in served[lesson.id].sections], [s.model_dump() for s in public_lesson(lesson).sections])
+            for shown, authored in zip(served[lesson.id].sections, lesson.sections):
+                self.assertEqual((shown.id, shown.type), (authored.id, authored.type))
+                if authored.type != "concept_check":  # a concept check is served without its key and explanation
+                    self.assertEqual(shown.model_dump(), authored.model_dump())
             self.assertEqual(served[lesson.id].linked_circuit, lesson.linked_circuit)
 
 

@@ -28,7 +28,10 @@ from __future__ import annotations
 
 import hashlib
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.exception_handlers import request_validation_exception_handler
+from fastapi.responses import JSONResponse
 
 from qentor.challenges import CHALLENGES, evaluate_challenge, get_challenge, public_view
 from qentor.circuit.codegen import CODEGEN_VERSION, generate_all
@@ -44,7 +47,8 @@ from qentor.execution.pennylane_adapter import PennyLaneAdapter
 from qentor.execution.sanity import state_problems
 from qentor.execution.step_changes import compute_step_change
 from qentor.execution.trace import TraceBackendFault, TraceNotSupported, split_terminal_measurements, trace_circuit
-from qentor.lessons import LESSONS
+from qentor.lessons import LESSONS, public_lesson
+from qentor.lessons.grading import GradeError, grade_concept_check, regrade
 from qentor.provenance.models import ExecutionStatus, ProvenanceClass, ProvenanceRecord
 from qentor.provenance.attempts import AttemptRecord, AttemptStore
 from qentor.provenance.store import ProvenanceStore
@@ -91,6 +95,8 @@ from .schemas import (
     CodeRequest,
     CodeResponse,
     ComparisonTutorRequest,
+    ConceptCheckGradeRequest,
+    ConceptCheckGradeResponse,
     ExperimentCompareRequest,
     ExperimentCompareResponse,
     RunIdentityResponse,
@@ -112,6 +118,8 @@ from .schemas import (
     OptimizeEquivalenceResponse,
     OptimizeRequest,
     OptimizeResponse,
+    RegradeRequest,
+    RegradeResponse,
     TraceProvenanceResponse,
     TraceRequest,
     TraceResponse,
@@ -127,6 +135,28 @@ from .schemas import (
 )
 
 app = FastAPI(title="Qentor backend", version="0.1.0")
+
+GRADE_REQUEST_INVALID = "GRADE_REQUEST_INVALID"
+
+
+def _is_grading_path(path: str) -> bool:
+    return (path.startswith("/api/lessons/") and path.endswith("/grade")) or path == "/api/assessments/regrade"
+
+
+@app.exception_handler(RequestValidationError)
+async def _validation_error(request: Request, exc: RequestValidationError):
+    """A malformed grading request (not JSON, a missing or unknown field, the wrong type, too many answers) is a structured
+    ``detail = {"code", "message"}`` like every other refusal these endpoints give. Every other route keeps FastAPI's own
+    validation response, untouched. The message names the fields and what is wrong with them and never echoes a value."""
+    if not _is_grading_path(request.url.path):
+        return await request_validation_exception_handler(request, exc)
+    problems = []
+    for error in exc.errors():
+        where = ".".join(str(part) for part in error.get("loc", ()) if part != "body")
+        problems.append(f"{where or 'body'}: {error.get('msg', 'invalid')}")
+    message = "; ".join(problems[:5]) or "the request body is not valid"
+    return JSONResponse(status_code=422, content={"detail": {"code": GRADE_REQUEST_INVALID, "message": message}})
+
 
 _adapter = AerAdapter()
 # Keyed by each adapter's own `.name`, matching ExecuteRequest.backend's
@@ -1153,8 +1183,42 @@ def list_lessons() -> LessonCatalogResponse:
     yet, and nothing here executes, verifies or computes anything: a lesson's
     ``linked_circuit`` is a plain canonical circuit definition, the same shape
     ``/api/execute`` itself accepts, not a result.
+
+    A concept check is served as its question and options only. The answer key
+    and the explanation are NOT in this response (``PublicLesson``); a client
+    submits a selection to ``grade_concept_check_endpoint`` and gets correctness
+    and the explanation back.
     """
-    return LessonCatalogResponse(lessons=LESSONS)
+    return LessonCatalogResponse(lessons=[public_lesson(lesson) for lesson in LESSONS])
+
+
+@app.post(
+    "/api/lessons/{lesson_id}/concept-checks/{check_id}/grade",
+    response_model=ConceptCheckGradeResponse,
+)
+def grade_concept_check_endpoint(lesson_id: str, check_id: str, request: ConceptCheckGradeRequest) -> ConceptCheckGradeResponse:
+    """Grade one concept-check selection on the server (``qentor.lessons.grading``).
+
+    The request carries the option id the learner picked and nothing else; the server compares it with the lesson's own
+    answer key and returns ``correct`` and the ``explanation``. Deterministic, no model involved, nothing taken from the
+    client. Structured errors (``detail = {"code", "message"}``): 404 ``LESSON_NOT_FOUND`` / ``CONCEPT_CHECK_NOT_FOUND``, 422
+    ``CONCEPT_CHECK_NOT_GRADED`` (a prompt with no question) / ``OPTION_NOT_FOUND`` (not one of the choices) /
+    ``GRADE_REQUEST_INVALID`` (a malformed body).
+    """
+    try:
+        outcome = grade_concept_check(lesson_id, check_id, request.selected_option_id)
+    except GradeError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.detail()) from exc
+    return ConceptCheckGradeResponse(**outcome.model_dump())
+
+
+@app.post("/api/assessments/regrade", response_model=RegradeResponse)
+def regrade_endpoint(request: RegradeRequest) -> RegradeResponse:
+    """Grade saved selections again (``qentor.lessons.grading.regrade``), each on its own: a browser that reloads sends the
+    selections it saved and rebuilds its verdicts from these answers, so a saved ``correct`` is never taken on trust and a
+    changed answer key is picked up. A selection that can no longer be graded (the lesson, check or option no longer exists)
+    is reported in its own result and never fails the others."""
+    return RegradeResponse(results=regrade(request.answers))
 
 
 @app.get("/api/challenges", response_model=ChallengeCatalogResponse)

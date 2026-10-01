@@ -2,15 +2,30 @@
  * Tests for the step-by-step lesson player: one section visible at a time,
  * explicit Back/Continue navigation, and per-section-type completion
  * behavior. `useLearnStore` is the real store (not mocked) since this is
- * exactly what `LessonPlayer` reads/writes — only `@/api` needs no mocking
- * here because these tests never call `fetchLessons`.
+ * exactly what `LessonPlayer` reads/writes. A concept-check answer is graded by the
+ * SERVER, so `getApiClient` is replaced by `fakeGradingServer` (a test double holding the
+ * answer key the real catalog does not carry); these tests never call `fetchLessons`.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import type { Lesson } from '@/api'
 import { emptyCircuit } from '@/circuit/types'
+import { fakeGradingServer } from '@/test/gradingServer'
 import { useLearnStore } from './store'
 import { LessonPlayer } from './LessonPlayer'
+
+const client = vi.hoisted(() => ({ current: {} as Record<string, unknown> }))
+vi.mock('@/api', async () => {
+  const actual = await vi.importActual<typeof import('@/api')>('@/api')
+  return { ...actual, getApiClient: () => client.current }
+})
+
+/** Pick an option and Submit, then wait for the server's verdict to show. */
+async function answer(label: string) {
+  fireEvent.click(screen.getByLabelText(label))
+  fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
+  await screen.findByText(/Correct\.|Not quite\./)
+}
 
 const LAB_CIRCUIT = {
   ...emptyCircuit(2, 2),
@@ -37,8 +52,6 @@ const LESSON: Lesson = {
         { id: 'x', text: 'X' },
         { id: 'y', text: 'Y' },
       ],
-      correctOptionId: 'x',
-      explanation: 'Because X.',
       concept: 'basics',
     },
     { type: 'interactive_lab', id: 's3', title: 'Lab', instructions: 'Run it.', capability: 'execute' },
@@ -53,6 +66,7 @@ const INITIAL_STATE = useLearnStore.getState()
 describe('LessonPlayer', () => {
   beforeEach(() => {
     useLearnStore.setState(INITIAL_STATE, true)
+    client.current = fakeGradingServer({ keys: { 'lesson-1/s2': 'x' } }) // the "server": X is right
   })
 
   afterEach(() => {
@@ -90,7 +104,7 @@ describe('LessonPlayer', () => {
     expect(useLearnStore.getState().lessonProgress['lesson-1']?.activeSectionIndex).toBe(1)
   })
 
-  it('disables Continue on a full concept check until an answer is submitted', () => {
+  it('disables Continue on a full concept check until an answer is submitted — and graded', async () => {
     render(<LessonPlayer lesson={LESSON} onOpenLab={vi.fn()} />)
     fireEvent.click(screen.getByRole('button', { name: 'Continue' })) // -> concept check step
 
@@ -100,14 +114,25 @@ describe('LessonPlayer', () => {
     expect(screen.getByRole('button', { name: 'Continue' })).toBeDisabled() // selecting alone is not enough
 
     fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
+    await screen.findByText('Correct.')
     expect(screen.getByRole('button', { name: 'Continue' })).not.toBeDisabled()
   })
 
-  it('Continue after an attempt advances and completes the concept-check section regardless of correctness', () => {
+  it('Continue stays disabled when the server could not grade the answer, because no attempt was recorded', async () => {
+    client.current = { ...fakeGradingServer({ keys: { 'lesson-1/s2': 'x' } }), gradeConceptCheck: vi.fn().mockRejectedValue(new Error('down')) }
     render(<LessonPlayer lesson={LESSON} onOpenLab={vi.fn()} />)
     fireEvent.click(screen.getByRole('button', { name: 'Continue' })) // -> concept check
-    fireEvent.click(screen.getByLabelText('Y')) // wrong answer
+    fireEvent.click(screen.getByLabelText('X'))
     fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
+
+    await screen.findByTestId('grading-failed')
+    expect(screen.getByRole('button', { name: 'Continue' })).toBeDisabled()
+  })
+
+  it('Continue after an attempt advances and completes the concept-check section regardless of correctness', async () => {
+    render(<LessonPlayer lesson={LESSON} onOpenLab={vi.fn()} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' })) // -> concept check
+    await answer('Y') // wrong answer
 
     fireEvent.click(screen.getByRole('button', { name: 'Continue' })) // -> interactive lab
 
@@ -116,23 +141,21 @@ describe('LessonPlayer', () => {
     expect(useLearnStore.getState().lessonProgress['lesson-1']?.completedSectionIds.has('s2')).toBe(true)
   })
 
-  it('Continue stays enabled while retrying (the attempt already exists)', () => {
+  it('Continue stays enabled while retrying (the attempt already exists)', async () => {
     render(<LessonPlayer lesson={LESSON} onOpenLab={vi.fn()} />)
     fireEvent.click(screen.getByRole('button', { name: 'Continue' })) // -> concept check
-    fireEvent.click(screen.getByLabelText('Y'))
-    fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
+    await answer('Y')
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
 
     expect(screen.getByLabelText('X')).toBeInTheDocument() // back to the question
     expect(screen.getByRole('button', { name: 'Continue' })).not.toBeDisabled()
   })
 
-  it('the interactive lab step shows the capability and wires Open in Lab to onOpenLab', () => {
+  it('the interactive lab step shows the capability and wires Open in Lab to onOpenLab', async () => {
     const onOpenLab = vi.fn()
     render(<LessonPlayer lesson={LESSON} onOpenLab={onOpenLab} />)
     fireEvent.click(screen.getByRole('button', { name: 'Continue' })) // -> concept check
-    fireEvent.click(screen.getByLabelText('X'))
-    fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
+    await answer('X')
     fireEvent.click(screen.getByRole('button', { name: 'Continue' })) // -> interactive lab
 
     expect(screen.getByText(/uses the existing execute capability/)).toBeInTheDocument()
@@ -143,11 +166,10 @@ describe('LessonPlayer', () => {
     expect(screen.getByText('Step 3 of 4')).toBeInTheDocument()
   })
 
-  it('Continue completes the interactive lab step without requiring the lab to actually be opened', () => {
+  it('Continue completes the interactive lab step without requiring the lab to actually be opened', async () => {
     render(<LessonPlayer lesson={LESSON} onOpenLab={vi.fn()} />)
     fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
-    fireEvent.click(screen.getByLabelText('X'))
-    fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
+    await answer('X')
     fireEvent.click(screen.getByRole('button', { name: 'Continue' })) // -> interactive lab
 
     fireEvent.click(screen.getByRole('button', { name: 'Continue' })) // never clicked Open in Lab
@@ -157,11 +179,10 @@ describe('LessonPlayer', () => {
     expect(useLearnStore.getState().lessonProgress['lesson-1']?.completedSectionIds.has('s3')).toBe(true)
   })
 
-  it('the last section shows "Finish lesson", and finishing shows the lesson-complete state', () => {
+  it('the last section shows "Finish lesson", and finishing shows the lesson-complete state', async () => {
     render(<LessonPlayer lesson={LESSON} onOpenLab={vi.fn()} />)
     fireEvent.click(screen.getByRole('button', { name: 'Continue' })) // -> concept check
-    fireEvent.click(screen.getByLabelText('X'))
-    fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
+    await answer('X')
     fireEvent.click(screen.getByRole('button', { name: 'Continue' })) // -> interactive lab
     fireEvent.click(screen.getByRole('button', { name: 'Continue' })) // -> reflection (last step)
     expect(screen.getByRole('button', { name: 'Finish lesson' })).toBeInTheDocument()
@@ -224,8 +245,6 @@ describe('LessonPlayer', () => {
           prompt: 'Think about superposition.',
           question: null,
           options: null,
-          correctOptionId: null,
-          explanation: null,
           concept: null,
         },
         { type: 'reflection', id: 'r1', title: 'Reflect', prompt: 'Reflection prompt.' },
@@ -265,20 +284,18 @@ describe('LessonPlayer', () => {
     expect(useLearnStore.getState().lessonProgress['lesson-1']?.completedSectionIds.has('s4')).toBe(true)
   })
 
-  it('a concept check retry re-shows the question; a new submission replaces the earlier answer and Continue still works', () => {
+  it('a concept check retry re-shows the question; a new submission replaces the earlier answer and Continue still works', async () => {
     render(<LessonPlayer lesson={LESSON} onOpenLab={vi.fn()} />)
     fireEvent.click(screen.getByRole('button', { name: 'Continue' })) // -> concept check
-    fireEvent.click(screen.getByLabelText('Y'))
-    fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
+    await answer('Y')
     expect(screen.getByText('Not quite.')).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
-    fireEvent.click(screen.getByLabelText('X'))
-    fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
+    await answer('X')
 
     expect(screen.getByText('Correct.')).toBeInTheDocument()
     const attempt = useLearnStore.getState().lessonProgress['lesson-1']?.conceptCheckAttempts.s2
-    expect(attempt).toEqual({ selectedOptionId: 'x', isCorrect: true, attemptCount: 2 })
+    expect(attempt).toMatchObject({ selectedOptionId: 'x', isCorrect: true, attemptCount: 2 })
 
     fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
     expect(screen.getByText('Step 3 of 4')).toBeInTheDocument()
@@ -297,11 +314,10 @@ describe('LessonPlayer', () => {
     expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '1')
   })
 
-  it('preserves position and completion when the player is unmounted and mounted again', () => {
+  it('preserves position and completion when the player is unmounted and mounted again', async () => {
     const first = render(<LessonPlayer lesson={LESSON} onOpenLab={vi.fn()} />)
     fireEvent.click(screen.getByRole('button', { name: 'Continue' })) // -> concept check
-    fireEvent.click(screen.getByLabelText('Y'))
-    fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
+    await answer('Y')
     first.unmount()
 
     render(<LessonPlayer lesson={LESSON} onOpenLab={vi.fn()} />)
@@ -328,19 +344,29 @@ describe('LessonPlayer', () => {
       expect(localStorage.getItem('qentor.learn.activity.v1')).toBeNull()
     })
 
-    it('selecting an option without submitting records no activity; Submit does, once per day', () => {
+    it('selecting an option without submitting records no activity; a graded Submit does, once per day', async () => {
       render(<LessonPlayer lesson={LESSON} onOpenLab={vi.fn()} />)
       fireEvent.click(screen.getByRole('button', { name: 'Continue' })) // -> concept check
       fireEvent.click(screen.getByLabelText('Y'))
       expect(dates()).toEqual([])
 
       fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
+      await screen.findByText('Not quite.')
       expect(dates()).toHaveLength(1)
 
       fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
-      fireEvent.click(screen.getByLabelText('X'))
-      fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
+      await answer('X')
       expect(dates()).toHaveLength(1) // a retry the same day is still one activity day
+    })
+
+    it('an answer the server could not grade records no activity', async () => {
+      client.current = { ...fakeGradingServer({ keys: { 'lesson-1/s2': 'x' } }), gradeConceptCheck: vi.fn().mockRejectedValue(new Error('down')) }
+      render(<LessonPlayer lesson={LESSON} onOpenLab={vi.fn()} />)
+      fireEvent.click(screen.getByRole('button', { name: 'Continue' })) // -> concept check
+      fireEvent.click(screen.getByLabelText('Y'))
+      fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
+      await screen.findByTestId('grading-failed')
+      expect(dates()).toEqual([])
     })
 
     it('opening the lab step and Open in Lab record no activity', () => {

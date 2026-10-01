@@ -15,7 +15,10 @@ export type {
   Backend,
   BlochCoordinates,
   BlochSource,
+  ConceptCheckGrade,
   ConceptCheckOption,
+  RegradedAnswer,
+  SavedAnswer,
   ExecutePayload,
   AgreementBackendResult,
   AgreementPairResult,
@@ -67,7 +70,7 @@ export type {
   VerificationCheckResult,
   VerifyBellStateResult,
 } from './client'
-export { BackendUnavailableError, EndpointNotImplementedError, TraceRejectedError } from './client'
+export { BackendUnavailableError, EndpointNotImplementedError, GradeRejectedError, TraceRejectedError } from './client'
 
 let cached: ApiClient | null = null
 

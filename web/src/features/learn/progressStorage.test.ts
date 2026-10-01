@@ -18,7 +18,7 @@ import {
   type LearnerProgress,
 } from './progressStorage'
 
-const check = (id: string, correctOptionId = 'a'): LessonSection => ({
+const check = (id: string): LessonSection => ({
   type: 'concept_check',
   id,
   title: 'Check',
@@ -28,8 +28,6 @@ const check = (id: string, correctOptionId = 'a'): LessonSection => ({
     { id: 'a', text: 'A' },
     { id: 'b', text: 'B' },
   ],
-  correctOptionId,
-  explanation: 'because',
   concept: 'superposition',
 })
 
@@ -229,16 +227,15 @@ describe('version migration', () => {
 })
 
 describe('reconcileProgress against the real catalog', () => {
-  const L1 = lesson('l1', [INTRO, check('q1', 'a'), check('q2', 'b')])
+  const L1 = lesson('l1', [INTRO, check('q1'), check('q2')])
 
-  it('keeps valid progress and recomputes correctness from the CURRENT answer key', () => {
+  it('keeps valid progress; the saved verdict stays PROVISIONAL (the catalog has no key to check it against)', () => {
     const stored: LearnerProgress = {
       startedLessonIds: new Set(['l1']),
       lessonProgress: {
         l1: {
           activeSectionIndex: 1,
           completedSectionIds: new Set(['intro']),
-          // stored verdicts are deliberately wrong: q1 'a' is correct, q2 'a' is wrong (key is 'b')
           conceptCheckAttempts: {
             q1: { selectedOptionId: 'a', isCorrect: false, attemptCount: 1 },
             q2: { selectedOptionId: 'a', isCorrect: true, attemptCount: 2 },
@@ -247,20 +244,36 @@ describe('reconcileProgress against the real catalog', () => {
       },
     }
     const out = reconcileProgress([L1], stored).lessonProgress.l1!
-    expect(out.conceptCheckAttempts.q1).toEqual({ selectedOptionId: 'a', isCorrect: true, attemptCount: 1 })
-    expect(out.conceptCheckAttempts.q2).toEqual({ selectedOptionId: 'a', isCorrect: false, attemptCount: 2 })
+    // reconcile keeps the verdicts exactly as saved: only the server (regradeSavedAnswers, see store.test / progressPersistence.test)
+    // may replace one, and nothing here can decide correctness because the catalog carries no answer key
+    expect(out.conceptCheckAttempts.q1).toEqual({ selectedOptionId: 'a', isCorrect: false, attemptCount: 1 })
+    expect(out.conceptCheckAttempts.q2).toEqual({ selectedOptionId: 'a', isCorrect: true, attemptCount: 2 })
     expect(out.activeSectionIndex).toBe(1)
   })
 
-  it('a changed answer key changes the verdict on the stored choice', () => {
+  it('an in-memory explanation is kept only with the attempt it explained, and is never serialised', () => {
     const stored: LearnerProgress = {
       startedLessonIds: new Set(['l1']),
       lessonProgress: {
-        l1: { activeSectionIndex: 0, completedSectionIds: new Set(), conceptCheckAttempts: { q1: { selectedOptionId: 'a', isCorrect: true, attemptCount: 1 } } },
+        l1: {
+          activeSectionIndex: 0,
+          completedSectionIds: new Set(),
+          conceptCheckAttempts: { q1: { selectedOptionId: 'a', isCorrect: true, attemptCount: 1, explanation: 'because' } },
+        },
       },
     }
-    const changed = lesson('l1', [INTRO, check('q1', 'b')])
-    expect(reconcileProgress([changed], stored).lessonProgress.l1!.conceptCheckAttempts.q1!.isCorrect).toBe(false)
+    expect(reconcileProgress([L1], stored).lessonProgress.l1!.conceptCheckAttempts.q1!.explanation).toBe('because')
+    expect(serializeProgress(stored)).not.toContain('because')
+    expect(JSON.parse(serializeProgress(stored)).lessons.l1.conceptCheckAttempts.q1).toEqual({ selectedOptionId: 'a', isCorrect: true, attemptCount: 1 })
+  })
+
+  it('a saved explanation in storage is ignored on load (it comes back from the server)', () => {
+    const raw = JSON.stringify({
+      version: 1,
+      startedLessonIds: ['l1'],
+      lessons: { l1: { activeSectionIndex: 0, completedSectionIds: [], conceptCheckAttempts: { q1: { selectedOptionId: 'a', isCorrect: true, attemptCount: 1, explanation: 'planted' } } } },
+    })
+    expect(parseProgress(raw)!.lessonProgress.l1!.conceptCheckAttempts.q1).toEqual({ selectedOptionId: 'a', isCorrect: true, attemptCount: 1 })
   })
 
   it('drops lessons, sections and options the catalog no longer has', () => {

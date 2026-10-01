@@ -21,15 +21,20 @@
  * `LearnScreen` has no effect on this data, which is exactly what makes
  * `LessonPlayer`'s resume-in-place behavior work without any extra plumbing.
  *
- * Grading a concept-check answer happens entirely here, client-side, against
- * the `correctOptionId` already present in the fetched lesson data; nothing
- * here computes or invents a quantum value, and nothing here ever touches
- * `useBuildStore` (the circuit/Lab state) — see `lessonState.ts` for the
- * completion/mastery rules this progress data feeds.
+ * Grading a concept-check answer happens on the SERVER: the lesson catalog this
+ * store holds carries no answer key, so `submitConceptCheckAnswer` sends the
+ * selection to the grading endpoint and records the verdict and explanation it
+ * returns. If the server cannot be reached or refuses, nothing is recorded and
+ * the failure is shown — a verdict is never guessed or substituted. After a reload,
+ * `regradeSavedAnswers` sends the saved selections back to the server and replaces
+ * every saved verdict with its answer, so mastery is reconstructed from the authority
+ * and not from what was saved. Nothing here computes or invents a quantum value, and
+ * nothing here ever touches `useBuildStore` (the circuit/Lab state) — see
+ * `lessonState.ts` for the completion/mastery rules this progress data feeds.
  */
 import { create } from 'zustand'
-import { getApiClient, BackendUnavailableError, EndpointNotImplementedError } from '@/api'
-import type { Lesson } from '@/api'
+import { getApiClient, BackendUnavailableError, EndpointNotImplementedError, GradeRejectedError } from '@/api'
+import type { Lesson, SavedAnswer } from '@/api'
 import { isLessonComplete, type ConceptCheckAttempt, type LessonProgress } from './lessonState'
 import { recordActivity, toLocalDateKey, type ActivityHistory } from './streak'
 import { loadActivityHistory, saveActivityHistory } from './streakStorage'
@@ -55,6 +60,29 @@ function emptyProgress(): LessonProgress {
   return { activeSectionIndex: 0, completedSectionIds: new Set(), conceptCheckAttempts: {} }
 }
 
+/** Where a concept-check submission stands: `grading` while the server is being asked, `failed` (with why) when it could not
+ * be graded. Absent when nothing is pending. Never persisted. */
+export type GradingStatus = { state: 'grading' } | { state: 'failed'; message: string }
+
+/**
+ * Whether the saved verdicts have been re-checked with the server since the page loaded.
+ * `idle`: nothing to check yet. `checking`: the request is out. `done`: every saved verdict is the server's.
+ * `unverified`: the server could not be reached, so the verdicts shown are the ones last saved.
+ */
+export type RegradeStatus = 'idle' | 'checking' | 'done' | 'unverified'
+
+export function gradingKey(lessonId: string, sectionId: string): string {
+  return `${lessonId}/${sectionId}`
+}
+
+function gradingFailureMessage(err: unknown): string {
+  if (err instanceof GradeRejectedError) return `The server would not grade this answer (${err.code}): ${err.message}`
+  if (err instanceof BackendUnavailableError || err instanceof EndpointNotImplementedError) {
+    return `Your answer could not be checked: ${err.message}. Nothing was recorded — try again.`
+  }
+  return `Your answer could not be checked: ${err instanceof Error ? err.message : String(err)}. Nothing was recorded — try again.`
+}
+
 interface LearnState {
   lessons: Lesson[]
   isLoading: boolean
@@ -76,6 +104,11 @@ interface LearnState {
   /** True when saved progress was found but could not be read and was set aside; cleared by the next successful save. */
   progressRecovered: boolean
 
+  /** Submissions the server is grading or could not grade, keyed `lessonId/sectionId` (see `gradingKey`). */
+  gradingStatus: Record<string, GradingStatus>
+  /** Whether saved verdicts have been re-checked with the server since load (see `RegradeStatus`). */
+  regradeStatus: RegradeStatus
+
   fetchLessons: () => Promise<void>
   /** Re-read saved progress and streak from storage (what a page reload does), reconciled with the loaded catalog. */
   rehydrate: () => void
@@ -86,12 +119,14 @@ interface LearnState {
   /** Progress — records that the learner explicitly finished this section
    * (clicked Continue/Finish on it in `LessonPlayer`). Idempotent. */
   completeSection: (lessonId: string, sectionId: string) => void
-  submitConceptCheckAnswer: (
-    lessonId: string,
-    sectionId: string,
-    selectedOptionId: string,
-    correctOptionId: string,
-  ) => void
+  /**
+   * Ask the server to grade this selection and, if it answers, record its verdict and explanation as the latest attempt.
+   * Resolves `true` when an attempt was recorded and `false` when it was not (the server could not be reached or refused,
+   * or this check is already being graded) — in which case `gradingStatus` says why and progress is unchanged.
+   */
+  submitConceptCheckAnswer: (lessonId: string, sectionId: string, selectedOptionId: string) => Promise<boolean>
+  /** Have the server grade every saved selection again and adopt its verdicts (see `RegradeStatus`). */
+  regradeSavedAnswers: () => Promise<void>
 }
 
 const boot = progressStore.load()
@@ -107,6 +142,8 @@ export const useLearnStore = create<LearnState>((set, get) => ({
   activityHistory: loadActivityHistory(),
   persistence: progressStore.probe() ? 'device' : 'session-only',
   progressRecovered: boot.status === 'recovered',
+  gradingStatus: {},
+  regradeStatus: 'idle',
 
   rehydrate: () => {
     const loaded = progressStore.load()
@@ -116,8 +153,10 @@ export const useLearnStore = create<LearnState>((set, get) => ({
       activityHistory: loadActivityHistory(),
       persistence: progressStore.probe() ? 'device' : 'session-only',
       progressRecovered: loaded.status === 'recovered',
+      regradeStatus: 'idle',
     })
     reconcileWithCatalog()
+    void get().regradeSavedAnswers()
   },
 
   fetchLessons: async () => {
@@ -127,6 +166,7 @@ export const useLearnStore = create<LearnState>((set, get) => ({
       const lessons = await client.listLessons()
       set({ lessons, isLoading: false })
       reconcileWithCatalog()
+      void get().regradeSavedAnswers()
     } catch (err) {
       const message =
         err instanceof BackendUnavailableError || err instanceof EndpointNotImplementedError
@@ -178,14 +218,39 @@ export const useLearnStore = create<LearnState>((set, get) => ({
     }
   },
 
-  submitConceptCheckAnswer: (lessonId, sectionId, selectedOptionId, correctOptionId) => {
+  submitConceptCheckAnswer: async (lessonId, sectionId, selectedOptionId) => {
+    const key = gradingKey(lessonId, sectionId)
+    if (get().gradingStatus[key]?.state === 'grading') return false // one question to the server at a time per check
+    set({ gradingStatus: { ...get().gradingStatus, [key]: { state: 'grading' } } })
+
+    const clearStatus = (next?: GradingStatus) => {
+      const rest = { ...get().gradingStatus }
+      delete rest[key]
+      set({ gradingStatus: next ? { ...rest, [key]: next } : rest })
+    }
+
+    let grade
+    try {
+      grade = await getApiClient().gradeConceptCheck(lessonId, sectionId, selectedOptionId)
+    } catch (err) {
+      clearStatus({ state: 'failed', message: gradingFailureMessage(err) })
+      return false
+    }
+    // The verdict must be about exactly what was asked. One for anything else is refused, never recorded.
+    if (grade.lessonId !== lessonId || grade.checkId !== sectionId || grade.selectedOptionId !== selectedOptionId) {
+      clearStatus({ state: 'failed', message: 'The server answered about a different question, so the answer was not recorded — try again.' })
+      return false
+    }
+
     const existing = get().lessonProgress[lessonId] ?? emptyProgress()
     const previous = existing.conceptCheckAttempts[sectionId]
     const attempt: ConceptCheckAttempt = {
       selectedOptionId,
-      isCorrect: selectedOptionId === correctOptionId,
+      isCorrect: grade.correct,
       attemptCount: (previous?.attemptCount ?? 0) + 1,
+      explanation: grade.explanation,
     }
+    clearStatus()
     set({
       lessonProgress: {
         ...get().lessonProgress,
@@ -197,9 +262,63 @@ export const useLearnStore = create<LearnState>((set, get) => ({
     })
     persistProgress()
 
-    // Activity rule: submitting a concept-check answer counts (right or
-    // wrong, first try or retry — the same calendar day is still one day).
+    // Activity rule: an answer the server graded counts (right or wrong, first try or retry — the same calendar day is
+    // still one day). An answer that could not be graded was never recorded and does not count.
     recordActivityToday()
+    return true
+  },
+
+  regradeSavedAnswers: async () => {
+    const { lessons, lessonProgress, regradeStatus } = get()
+    if (lessons.length === 0 || regradeStatus === 'checking') return // nothing to attach verdicts to yet, or already asking
+
+    const asked: SavedAnswer[] = []
+    for (const [lessonId, progress] of Object.entries(lessonProgress)) {
+      for (const [checkId, attempt] of Object.entries(progress.conceptCheckAttempts)) {
+        asked.push({ lessonId, checkId, selectedOptionId: attempt.selectedOptionId })
+      }
+    }
+    if (asked.length === 0) {
+      set({ regradeStatus: 'done' })
+      return
+    }
+
+    set({ regradeStatus: 'checking' })
+    let answers
+    try {
+      answers = await getApiClient().regradeConceptChecks(asked)
+    } catch {
+      set({ regradeStatus: 'unverified' }) // the saved verdicts stay as last saved; the UI says they were not re-checked
+      return
+    }
+
+    // Apply each answer to the attempt it was about, unless the learner has answered that check again meanwhile.
+    const progress: Record<string, LessonProgress> = { ...get().lessonProgress }
+    for (const answer of answers) {
+      const lesson = progress[answer.lessonId]
+      const attempt = lesson?.conceptCheckAttempts[answer.checkId]
+      if (!lesson || !attempt || attempt.selectedOptionId !== answer.selectedOptionId) continue
+      const attempts = { ...lesson.conceptCheckAttempts }
+      if (answer.status === 'GRADED' && answer.correct !== null) {
+        attempts[answer.checkId] = {
+          ...attempt,
+          isCorrect: answer.correct,
+          ...(answer.explanation !== null ? { explanation: answer.explanation } : {}),
+        }
+      } else {
+        delete attempts[answer.checkId] // the server can no longer grade this selection: stale, so it is dropped
+      }
+      progress[answer.lessonId] = { ...lesson, conceptCheckAttempts: attempts }
+    }
+
+    // Every saved selection must have been answered for the verdicts to count as re-checked.
+    const answered = new Set(answers.map((a) => gradingKey(a.lessonId, a.checkId)))
+    const complete = asked.every((a) => answered.has(gradingKey(a.lessonId, a.checkId)))
+
+    const before = serializeProgress({ startedLessonIds: get().startedLessonIds, lessonProgress: get().lessonProgress })
+    set({ lessonProgress: progress, regradeStatus: complete ? 'done' : 'unverified' })
+    const after = serializeProgress({ startedLessonIds: get().startedLessonIds, lessonProgress: progress })
+    if (before !== after) persistProgress()
   },
 }))
 

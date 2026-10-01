@@ -16,7 +16,10 @@ from .models import (
     InteractiveLabSection,
     Lesson,
     LessonSection,
+    PublicConceptCheckSection,
+    PublicLesson,
     ReflectionSection,
+    public_lesson,
 )
 from .registry import LESSONS, LessonRegistryError, get_lesson
 
@@ -28,7 +31,10 @@ __all__ = [
     "Lesson",
     "LessonSection",
     "LessonRegistryError",
+    "PublicConceptCheckSection",
+    "PublicLesson",
     "ReflectionSection",
     "LESSONS",
     "get_lesson",
+    "public_lesson",
 ]

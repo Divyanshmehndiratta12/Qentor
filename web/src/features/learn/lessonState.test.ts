@@ -27,7 +27,7 @@ function lesson(overrides: Partial<Lesson> = {}): Lesson {
   }
 }
 
-function fullConceptCheck(id: string, correctOptionId = 'a'): LessonSection {
+function fullConceptCheck(id: string): LessonSection {
   return {
     type: 'concept_check',
     id,
@@ -38,8 +38,6 @@ function fullConceptCheck(id: string, correctOptionId = 'a'): LessonSection {
       { id: 'a', text: 'A' },
       { id: 'b', text: 'B' },
     ],
-    correctOptionId,
-    explanation: 'because',
     concept: 'concept',
   }
 }
@@ -52,8 +50,6 @@ function promptOnlyConceptCheck(id: string): LessonSection {
     prompt: 'q',
     question: null,
     options: null,
-    correctOptionId: null,
-    explanation: null,
     concept: null,
   }
 }

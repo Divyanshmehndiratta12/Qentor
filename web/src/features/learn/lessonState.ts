@@ -18,8 +18,14 @@ export type LessonState = 'available' | 'locked' | 'completed'
 
 export interface ConceptCheckAttempt {
   selectedOptionId: string
+  /** The SERVER's verdict on `selectedOptionId` (from the grading endpoint); never decided in the browser. */
   isCorrect: boolean
   attemptCount: number
+  /**
+   * The server's explanation for this answer. Held in memory only and NOT saved with the progress: after a reload it is
+   * fetched again with the verdict (`regradeConceptChecks`), so a saved copy can never go stale. Absent until then.
+   */
+  explanation?: string
 }
 
 /**
@@ -46,15 +52,12 @@ export interface LessonProgress {
   conceptCheckAttempts: Record<string, ConceptCheckAttempt>
 }
 
-/** A concept_check section with every question field present — the shape
- * `ConceptCheckQuiz` actually renders. The backend guarantees these four
- * fields are present together or all null (`ConceptCheckSection`'s own
- * validator), so a plain `question !== null` check is enough to narrow. */
+/** A concept_check section with a real question — the shape `ConceptCheckQuiz` actually renders. The backend guarantees
+ * `question` and `options` are present together or both null, so a plain `question !== null` check is enough to narrow.
+ * There is no answer key or explanation on it: the server grades a selection and returns those. */
 export interface FullConceptCheckSection extends LessonConceptCheckSection {
   question: string
   options: ConceptCheckOption[]
-  correctOptionId: string
-  explanation: string
 }
 
 export function isFullConceptCheck(section: LessonSection): section is FullConceptCheckSection {

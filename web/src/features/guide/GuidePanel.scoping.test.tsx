@@ -77,8 +77,6 @@ const BELL: Lesson = {
         { id: 'a', text: 'Wrong option' },
         { id: 'b', text: 'Right option' },
       ],
-      correctOptionId: 'b',
-      explanation: 'QUIZ RATIONALE TEXT.',
       concept: 'entanglement',
     },
     { type: 'reflection', id: 's3', title: 'Reflect', prompt: 'Reflect prompt.' },

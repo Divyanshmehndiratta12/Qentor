@@ -59,13 +59,12 @@ export interface ConceptCheckOption {
 }
 
 /**
- * `question`/`options`/`correctOptionId`/`explanation` are all `null`
- * together, or all present together (the backend enforces this) — a
- * prompt-only concept check (no scoring) has all four `null`, exactly as
- * every concept_check was before this milestone. Grading happens client-side
- * against `correctOptionId`: there is no server-side grading endpoint in this
- * milestone, which does mean the correct answer is visible in the network
- * response — see `@/features/learn/ConceptCheckQuiz.tsx`'s own note.
+ * `question` and `options` are both `null` (a prompt-only check, nothing to score)
+ * or both present (the backend enforces this). There is deliberately NO answer key
+ * and NO explanation here: the server withholds both from the catalog and grades a
+ * submitted selection itself (`ApiClient.gradeConceptCheck`), returning correctness
+ * and the explanation. A component therefore cannot decide correctness, because the
+ * data to do it with never reaches the browser.
  */
 export interface LessonConceptCheckSection {
   type: 'concept_check'
@@ -74,9 +73,31 @@ export interface LessonConceptCheckSection {
   prompt: string
   question: string | null
   options: ConceptCheckOption[] | null
-  correctOptionId: string | null
-  explanation: string | null
   concept: string | null
+}
+
+/** The server's verdict on one concept-check selection, with the explanation. It never names the answer key. */
+export interface ConceptCheckGrade {
+  lessonId: string
+  checkId: string
+  selectedOptionId: string
+  correct: boolean
+  explanation: string
+}
+
+/** A selection the browser saved earlier, sent back to be graded again. */
+export interface SavedAnswer {
+  lessonId: string
+  checkId: string
+  selectedOptionId: string
+}
+
+/** The server's answer for one `SavedAnswer`: `GRADED` with a verdict and explanation, or a status saying it can no
+ * longer be graded (and then neither). */
+export interface RegradedAnswer extends SavedAnswer {
+  status: 'GRADED' | 'UNKNOWN_LESSON' | 'UNKNOWN_CHECK' | 'NOT_GRADED' | 'UNKNOWN_OPTION'
+  correct: boolean | null
+  explanation: string | null
 }
 
 export interface LessonInteractiveLabSection {
@@ -482,6 +503,23 @@ export class TraceRejectedError extends Error {
   }
 }
 
+/**
+ * A structured refusal from a grading endpoint (`detail = {code, message}`): the server understood the request and
+ * declined to grade it (unknown lesson or check, an option that is not one of the choices, a prompt with no question, a
+ * malformed body). Carries no verdict. Distinct from `BackendUnavailableError`, which stays "could not reach it".
+ */
+export class GradeRejectedError extends Error {
+  readonly code: string
+  readonly status: number
+
+  constructor(code: string, message: string, status: number) {
+    super(message)
+    this.name = 'GradeRejectedError'
+    this.code = code
+    this.status = status
+  }
+}
+
 export class EndpointNotImplementedError extends Error {
   constructor(endpoint: string) {
     super(`${endpoint} has no backend implementation yet`)
@@ -535,6 +573,22 @@ export interface ApiClient {
    * client-side rather than fetched separately.
    */
   listLessons(): Promise<Lesson[]>
+
+  /**
+   * POST /api/lessons/{lessonId}/concept-checks/{checkId}/grade — the SERVER grades one selection against the lesson's
+   * own answer key and returns correctness and the explanation. The request carries the option id and nothing else (no
+   * verdict, no key, no score). A refusal (unknown lesson or check, an option that is not one of the choices, a prompt
+   * with no question) is a `GradeRejectedError` with the server's own `code`; an unreachable server is a
+   * `BackendUnavailableError`. Either way nothing is graded here and no verdict is substituted.
+   */
+  gradeConceptCheck(lessonId: string, checkId: string, selectedOptionId: string): Promise<ConceptCheckGrade>
+
+  /**
+   * POST /api/assessments/regrade — grade saved selections again, each on its own. After a reload the browser holds only
+   * what the learner picked (and the verdicts it was last told); this lets it rebuild every verdict from the server
+   * instead of trusting saved ones. An answer that can no longer be graded comes back with a status saying so.
+   */
+  regradeConceptChecks(answers: SavedAnswer[]): Promise<RegradedAnswer[]>
 
   /**
    * POST /api/tutor — a deterministic, grounded answer (no LLM yet). Sends

@@ -33,12 +33,16 @@ export const ConceptCheckOptionSchema = z.object({
   text: z.string(),
 })
 
-// backend/qentor/lessons/models.py::ConceptCheckSection — `question` et al.
-// are `.nullable()`, not `.optional()`, because pydantic/FastAPI serialise a
-// `None` field as JSON `null`, not an omitted key (same convention as every
-// other optional field in this file, e.g. `OptimizeResponseSchema.reason`).
-// The backend guarantees these four are present together or all null; this
-// schema doesn't re-enforce that (the backend catalog is already validated).
+// backend/qentor/lessons/models.py::PublicConceptCheckSection — the question and
+// the options, and NOTHING that grades them: the answer key and the explanation
+// are not in the catalog, they come back from the grading endpoint for a selection
+// this client submits (`ConceptCheckGradeResponseSchema`). `question` and `options`
+// are `.nullable()`, not `.optional()`, because pydantic/FastAPI serialise a `None`
+// field as JSON `null`, not an omitted key (same convention as every other optional
+// field in this file, e.g. `OptimizeResponseSchema.reason`); they are both null
+// (a prompt-only check) or both present. This object is not `.passthrough()`, so a
+// `correct_option_id` or `explanation` a server sent anyway is dropped at the
+// boundary and can never reach a component.
 export const ConceptCheckSectionSchema = z.object({
   type: z.literal('concept_check'),
   id: z.string(),
@@ -46,8 +50,6 @@ export const ConceptCheckSectionSchema = z.object({
   prompt: z.string(),
   question: z.string().nullable(),
   options: z.array(ConceptCheckOptionSchema).nullable(),
-  correct_option_id: z.string().nullable(),
-  explanation: z.string().nullable(),
   concept: z.string().nullable(),
 })
 
@@ -96,6 +98,35 @@ export const LessonCatalogResponseSchema = z.object({
   lessons: z.array(LessonSchema),
 })
 export type LessonCatalogResponse = z.infer<typeof LessonCatalogResponseSchema>
+
+// backend/qentor/api/schemas.py::ConceptCheckGradeResponse — the SERVER's verdict on one selection, and the explanation.
+// It names no answer key: a wrong answer is `correct: false` and the explanation, nothing more.
+export const ConceptCheckGradeResponseSchema = z.object({
+  lesson_id: z.string(),
+  check_id: z.string(),
+  selected_option_id: z.string(),
+  correct: z.boolean(),
+  explanation: z.string(),
+  grader: z.string(),
+})
+export type ConceptCheckGradeResponse = z.infer<typeof ConceptCheckGradeResponseSchema>
+
+// backend/qentor/lessons/grading.py::RegradeResult — one saved selection graded again. `GRADED` carries a verdict and the
+// explanation; any other status means the selection can no longer be graded (the lesson, check or option no longer
+// exists) and carries neither.
+export const RegradeResultSchema = z.object({
+  lesson_id: z.string(),
+  check_id: z.string(),
+  selected_option_id: z.string(),
+  status: z.enum(['GRADED', 'UNKNOWN_LESSON', 'UNKNOWN_CHECK', 'NOT_GRADED', 'UNKNOWN_OPTION']),
+  correct: z.boolean().nullable(),
+  explanation: z.string().nullable(),
+})
+export const RegradeResponseSchema = z.object({ results: z.array(RegradeResultSchema) })
+export type RegradeResponse = z.infer<typeof RegradeResponseSchema>
+
+// `detail = {code, message}` of a grading refusal (404 / 422 from the grading endpoints).
+export const GradeErrorDetailSchema = z.object({ code: z.string(), message: z.string() })
 
 // backend/qentor/provenance/models.py::ProvenanceClass
 export const ProvenanceClassSchema = z.enum([

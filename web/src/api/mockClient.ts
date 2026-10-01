@@ -27,8 +27,11 @@ import type {
   Backend,
   Challenge,
   ChallengeSubmission,
+  ConceptCheckGrade,
   DebugReport,
   DebugRequestInput,
+  RegradedAnswer,
+  SavedAnswer,
   CircuitExport,
   ExperimentComparison,
   CodeViewsResult,
@@ -158,6 +161,15 @@ export class MockApiClient implements ApiClient {
 
   async askComparisonTutor(_comparisonId: string, _question: string, _language?: TutorLanguage): Promise<TutorAnswerResult> {
     throw new EndpointNotImplementedError('POST /api/tutor/comparison (the FIXTURE mock adapter has no comparisons)')
+  }
+
+  /** Deliberately NOT faked: a verdict comes only from the server's own answer key, which no client holds. */
+  async gradeConceptCheck(_lessonId: string, _checkId: string, _selectedOptionId: string): Promise<ConceptCheckGrade> {
+    throw new EndpointNotImplementedError('POST /api/lessons/{id}/concept-checks/{id}/grade (the FIXTURE mock adapter cannot grade)')
+  }
+
+  async regradeConceptChecks(_answers: SavedAnswer[]): Promise<RegradedAnswer[]> {
+    throw new EndpointNotImplementedError('POST /api/assessments/regrade (the FIXTURE mock adapter cannot grade)')
   }
 
   /** Deliberately NOT faked: the export bundle is written by the server. */

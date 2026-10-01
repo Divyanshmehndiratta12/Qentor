@@ -14,6 +14,8 @@ import type { Lesson } from '@/api'
 import { emptyCircuit } from '@/circuit/types'
 
 const listLessons = vi.fn()
+// Concept checks are graded by the SERVER; this is its stand-in (it holds the answer key the catalog does not carry).
+const grading = vi.hoisted(() => ({ current: {} as { gradeConceptCheck?: unknown; regradeConceptChecks?: unknown } }))
 
 vi.mock('@/api', async () => {
   const actual = await vi.importActual<typeof import('@/api')>('@/api')
@@ -26,9 +28,13 @@ vi.mock('@/api', async () => {
       optimizeCircuit: vi.fn(),
       runMultiInputTest: vi.fn(),
       listLessons,
+      gradeConceptCheck: grading.current.gradeConceptCheck,
+      regradeConceptChecks: grading.current.regradeConceptChecks,
     }),
   }
 })
+
+import { fakeGradingServer } from '@/test/gradingServer'
 
 import { useBuildStore } from '@/features/build/store'
 import { useLearnStore } from './store'
@@ -75,8 +81,6 @@ const LESSON_B: Lesson = {
         { id: 'x', text: 'X' },
         { id: 'y', text: 'Y' },
       ],
-      correctOptionId: 'x',
-      explanation: 'Because X.',
       concept: 'advanced',
     },
     { type: 'interactive_lab', id: 's3', title: 'Lab', instructions: 'Run it.', capability: 'execute' },
@@ -118,6 +122,7 @@ async function advanceLessonBToConceptCheck() {
 async function answerLessonBConceptCheck(optionLabel: 'X' | 'Y') {
   fireEvent.click(screen.getByLabelText(optionLabel))
   fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
+  await screen.findByText(/Correct\.|Not quite\./) // the server's verdict
 }
 
 /** Fully completes Lesson B end to end, answering its one concept check as directed. */
@@ -133,6 +138,7 @@ async function completeLessonB(optionLabel: 'X' | 'Y' = 'X') {
 
 describe('LearnScreen', () => {
   beforeEach(() => {
+    grading.current = fakeGradingServer({ keys: { 'b/s2': 'x' } }) // lesson b's check: X is right
     listLessons.mockReset()
     useLearnStore.setState(INITIAL_LEARN_STATE, true)
     useBuildStore.setState(INITIAL_BUILD_STATE, true)

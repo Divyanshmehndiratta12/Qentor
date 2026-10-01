@@ -3,22 +3,40 @@
  * module graph (`vi.resetModules()` + dynamic import): module state is gone, localStorage is not — exactly what a page reload
  * does. Everything the learner sees (completion, unlocks, mastery, misconception signals) must come back identical because it is
  * re-derived from the saved facts by the same functions; and stored data is treated as untrusted (stale, malformed, missing).
+ *
+ * Quiz verdicts are the SERVER's: the catalog carries no answer key, so the API client is replaced by `fakeGradingServer` (a test
+ * double that holds the key). A reload saves only the selection and the last verdict, then asks the server to grade the saved
+ * selections again; every verdict the learner sees after a reload is that answer, not the saved one.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, render, screen } from '@testing-library/react'
-import type { Lesson, LessonSection } from '@/api'
+import { BackendUnavailableError, type Lesson, type LessonSection, type RegradedAnswer } from '@/api'
+import { fakeGradingServer } from '@/test/gradingServer'
 import { getLessonMastery, getLessonState, isLessonComplete } from './lessonState'
 import { getMisconceptions, getOverallLearningProgress } from './learnerInsights'
 import { PROGRESS_STORAGE_KEY, PROGRESS_UNREADABLE_KEY, type ProgressStore } from './progressStorage'
 import { ACTIVITY_STORAGE_KEY } from './streakStorage'
 
-const client = vi.hoisted(() => ({ listLessons: vi.fn() }))
+const client = vi.hoisted(() => ({
+  listLessons: vi.fn(),
+  gradeConceptCheck: vi.fn(),
+  regradeConceptChecks: vi.fn(),
+}))
 vi.mock('@/api', async () => {
   const actual = await vi.importActual<typeof import('@/api')>('@/api')
   return { ...actual, getApiClient: () => client }
 })
 
-const check = (id: string, correct = 'a', concept = 'superposition'): LessonSection => ({
+/** The "server": which option is right for each check of the catalog below. */
+const KEYS = { 'l1/q1': 'a', 'l1/q2': 'b', 'l2/q1': 'a' }
+let server = fakeGradingServer({ keys: KEYS })
+function useServer(next = fakeGradingServer({ keys: KEYS })) {
+  server = next
+  client.gradeConceptCheck.mockImplementation(server.gradeConceptCheck)
+  client.regradeConceptChecks.mockImplementation(server.regradeConceptChecks)
+}
+
+const check = (id: string, concept = 'superposition'): LessonSection => ({
   type: 'concept_check',
   id,
   title: 'Check',
@@ -28,8 +46,6 @@ const check = (id: string, correct = 'a', concept = 'superposition'): LessonSect
     { id: 'a', text: 'A' },
     { id: 'b', text: 'B' },
   ],
-  correctOptionId: correct,
-  explanation: 'because',
   concept,
 })
 const intro: LessonSection = { type: 'explanation', id: 'intro', title: 'Intro', body: 'b' }
@@ -48,19 +64,26 @@ const lesson = (id: string, sections: LessonSection[], prerequisiteLessonIds: st
 })
 
 const CATALOG: Lesson[] = [
-  lesson('l1', [intro, check('q1', 'a'), check('q2', 'b')]),
-  lesson('l2', [intro, check('q1', 'a')], ['l1']),
+  lesson('l1', [intro, check('q1'), check('q2')]),
+  lesson('l2', [intro, check('q1')], ['l1']),
   lesson('l3', [intro]),
 ]
 
 type StoreModule = typeof import('./store')
 
-/** A page reload: fresh modules, same localStorage. Then the catalog loads, as it does on every visit. */
+/** Wait until the saved answers have been sent to the server and its answer applied (or it could not be reached). */
+async function settled(s: StoreModule['useLearnStore']): Promise<void> {
+  if (s.getState().lessons.length === 0) return // nothing to attach verdicts to: the re-check does not start
+  await vi.waitFor(() => expect(['done', 'unverified']).toContain(s.getState().regradeStatus))
+}
+
+/** A page reload: fresh modules, same localStorage. Then the catalog loads, as it does on every visit, and the server is asked again. */
 async function reload(catalog: Lesson[] = CATALOG): Promise<StoreModule['useLearnStore']> {
   vi.resetModules()
   client.listLessons.mockResolvedValue(catalog)
   const { useLearnStore } = await import('./store')
   await useLearnStore.getState().fetchLessons()
+  await settled(useLearnStore)
   return useLearnStore
 }
 
@@ -78,12 +101,15 @@ const snapshot = (s: StoreModule['useLearnStore']) => {
 
 beforeEach(() => {
   localStorage.clear()
+  useServer()
 })
 afterEach(() => {
   cleanup()
   localStorage.clear()
   vi.restoreAllMocks()
   client.listLessons.mockReset()
+  client.gradeConceptCheck.mockReset()
+  client.regradeConceptChecks.mockReset()
 })
 
 describe('progress survives a reload', () => {
@@ -92,10 +118,10 @@ describe('progress survives a reload', () => {
     const a = s.getState()
     a.selectLesson('l1')
     a.completeSection('l1', 'intro')
-    a.submitConceptCheckAnswer('l1', 'q1', 'a', 'a') // right
+    await a.submitConceptCheckAnswer('l1', 'q1', 'a') // the server says: right
     a.completeSection('l1', 'q1')
-    a.submitConceptCheckAnswer('l1', 'q2', 'a', 'b') // wrong
-    a.submitConceptCheckAnswer('l1', 'q2', 'a', 'b') // wrong again → a "high" signal
+    await a.submitConceptCheckAnswer('l1', 'q2', 'a') // the server says: wrong
+    await a.submitConceptCheckAnswer('l1', 'q2', 'a') // wrong again → a "high" signal
     a.completeSection('l1', 'q2') // lesson 1 complete
     a.selectLesson('l2')
     a.setActiveSectionIndex('l2', 1)
@@ -126,8 +152,25 @@ describe('progress survives a reload', () => {
     await learnSomething()
     const after = await reload()
     const attempts = after.getState().lessonProgress.l1!.conceptCheckAttempts
-    expect(attempts.q1).toEqual({ selectedOptionId: 'a', isCorrect: true, attemptCount: 1 })
-    expect(attempts.q2).toEqual({ selectedOptionId: 'a', isCorrect: false, attemptCount: 2 })
+    expect(attempts.q1).toMatchObject({ selectedOptionId: 'a', isCorrect: true, attemptCount: 1 })
+    expect(attempts.q2).toMatchObject({ selectedOptionId: 'a', isCorrect: false, attemptCount: 2 })
+  })
+
+  it('what is saved is the selection, the verdict and the count — never the explanation, which comes back from the server', async () => {
+    await learnSomething()
+    const saved = JSON.parse(localStorage.getItem(PROGRESS_STORAGE_KEY)!)
+    expect(saved.lessons.l1.conceptCheckAttempts.q2).toEqual({ selectedOptionId: 'a', isCorrect: false, attemptCount: 2 })
+    expect(localStorage.getItem(PROGRESS_STORAGE_KEY)).not.toContain('Explanation for')
+    const after = await reload()
+    expect(after.getState().lessonProgress.l1!.conceptCheckAttempts.q2!.explanation).toBe('Explanation for l1/q2.') // fetched again
+  })
+
+  it('after a reload the server is sent exactly the saved selections — ids and choices, no verdicts', async () => {
+    await learnSomething()
+    await reload()
+    const sent = client.regradeConceptChecks.mock.calls.at(-1)![0] as Array<Record<string, unknown>>
+    expect(sent.map((a) => a.lessonId + '/' + a.checkId + '=' + a.selectedOptionId).sort()).toEqual(['l1/q1=a', 'l1/q2=a'])
+    for (const answer of sent) expect(Object.keys(answer).sort()).toEqual(['checkId', 'lessonId', 'selectedOptionId'])
   })
 
   it('mastery is reconstructed exactly', async () => {
@@ -182,24 +225,86 @@ describe('stored data is untrusted: stale and invalid', () => {
     const s = await reload()
     s.getState().selectLesson('l1')
     s.getState().completeSection('l1', 'intro')
-    s.getState().submitConceptCheckAnswer('l1', 'q1', 'a', 'a')
+    await s.getState().submitConceptCheckAnswer('l1', 'q1', 'a') // right
     s.getState().completeSection('l1', 'q1')
-    s.getState().submitConceptCheckAnswer('l1', 'q2', 'b', 'b')
+    await s.getState().submitConceptCheckAnswer('l1', 'q2', 'b') // right
     s.getState().completeSection('l1', 'q2')
     expect(isLessonComplete(CATALOG[0]!, s.getState().lessonProgress.l1)).toBe(true)
   }
 
-  it('a lesson whose answer key changed re-grades the saved choice (no stale verdict) and rewrites storage', async () => {
+  it('a lesson whose answer key changed on the server gets the saved choice graded again (no stale verdict) and rewrites storage', async () => {
     await savedProgress()
-    const changed = [lesson('l1', [intro, check('q1', 'a'), check('q2', 'a')]), ...CATALOG.slice(1)] // q2's key is now 'a'
-    const s = await reload(changed)
-    expect(s.getState().lessonProgress.l1!.conceptCheckAttempts.q2).toEqual({ selectedOptionId: 'b', isCorrect: false, attemptCount: 1 })
+    useServer(fakeGradingServer({ keys: { ...KEYS, 'l1/q2': 'a' } })) // q2's key is now 'a'; the saved choice was 'b'
+    const s = await reload()
+    expect(s.getState().lessonProgress.l1!.conceptCheckAttempts.q2).toMatchObject({ selectedOptionId: 'b', isCorrect: false, attemptCount: 1 })
     expect(JSON.parse(localStorage.getItem(PROGRESS_STORAGE_KEY)!).lessons.l1.conceptCheckAttempts.q2.isCorrect).toBe(false)
+  })
+
+  it('a verdict someone edited in localStorage is replaced by the server’s after the reload', async () => {
+    await savedProgress()
+    const saved = JSON.parse(localStorage.getItem(PROGRESS_STORAGE_KEY)!)
+    saved.lessons.l1.conceptCheckAttempts.q2 = { selectedOptionId: 'a', isCorrect: true, attemptCount: 1 } // 'a' is WRONG for q2
+    localStorage.setItem(PROGRESS_STORAGE_KEY, JSON.stringify(saved))
+    const s = await reload()
+    expect(s.getState().lessonProgress.l1!.conceptCheckAttempts.q2).toMatchObject({ selectedOptionId: 'a', isCorrect: false })
+    expect(JSON.parse(localStorage.getItem(PROGRESS_STORAGE_KEY)!).lessons.l1.conceptCheckAttempts.q2.isCorrect).toBe(false)
+  })
+
+  it('mastery after a reload comes from the server’s verdicts, not from edited saved ones', async () => {
+    await savedProgress() // both right: mastered
+    const saved = JSON.parse(localStorage.getItem(PROGRESS_STORAGE_KEY)!)
+    const honest = snapshot(await reload()).mastery
+    expect(honest).toContainEqual(['l1', 'mastered'])
+    saved.lessons.l1.conceptCheckAttempts.q1 = { selectedOptionId: 'b', isCorrect: true, attemptCount: 1 } // really wrong
+    saved.lessons.l1.conceptCheckAttempts.q2 = { selectedOptionId: 'a', isCorrect: true, attemptCount: 1 } // really wrong
+    localStorage.setItem(PROGRESS_STORAGE_KEY, JSON.stringify(saved))
+    const after = snapshot(await reload()).mastery
+    expect(after).toContainEqual(['l1', 'developing']) // 0 of 2 correct, whatever the saved file claimed
+  })
+
+  it('when the server cannot be reached on reload the saved verdicts stay, and the learner is told they were not re-checked', async () => {
+    await savedProgress()
+    client.regradeConceptChecks.mockRejectedValue(new BackendUnavailableError('could not reach the Qentor backend: down'))
+    const s = await reload()
+    expect(s.getState().regradeStatus).toBe('unverified')
+    expect(s.getState().lessonProgress.l1!.conceptCheckAttempts.q2).toMatchObject({ selectedOptionId: 'b', isCorrect: true })
+    expect(JSON.parse(localStorage.getItem(PROGRESS_STORAGE_KEY)!).lessons.l1.conceptCheckAttempts.q2.isCorrect).toBe(true) // not rewritten
+    expect(s.getState().lessonProgress.l1!.conceptCheckAttempts.q2!.explanation).toBeUndefined() // nothing invented in its place
+  })
+
+  it('a saved choice the server can no longer grade is dropped', async () => {
+    await savedProgress()
+    const reduced = fakeGradingServer({ keys: KEYS })
+    reduced.removeCheck('l1', 'q2')
+    useServer(reduced)
+    const s = await reload()
+    expect(s.getState().lessonProgress.l1!.conceptCheckAttempts.q2).toBeUndefined()
+    expect(s.getState().lessonProgress.l1!.conceptCheckAttempts.q1).toBeDefined()
+    expect(s.getState().regradeStatus).toBe('done')
+  })
+
+  it('an answer given while the saved ones are still being re-checked is not overwritten by the older re-check', async () => {
+    await savedProgress()
+    vi.resetModules()
+    client.listLessons.mockResolvedValue(CATALOG)
+    let release!: (answers: RegradedAnswer[]) => void
+    client.regradeConceptChecks.mockImplementation(() => new Promise<RegradedAnswer[]>((resolve) => (release = resolve)))
+    const { useLearnStore } = await import('./store')
+    await useLearnStore.getState().fetchLessons()
+    await vi.waitFor(() => expect(useLearnStore.getState().regradeStatus).toBe('checking'))
+
+    await useLearnStore.getState().submitConceptCheckAnswer('l1', 'q2', 'a') // a new choice, wrong
+    release([
+      { lessonId: 'l1', checkId: 'q1', selectedOptionId: 'a', status: 'GRADED', correct: true, explanation: 'e1' },
+      { lessonId: 'l1', checkId: 'q2', selectedOptionId: 'b', status: 'GRADED', correct: true, explanation: 'old' }, // about the OLD choice
+    ])
+    await vi.waitFor(() => expect(useLearnStore.getState().regradeStatus).not.toBe('checking'))
+    expect(useLearnStore.getState().lessonProgress.l1!.conceptCheckAttempts.q2).toMatchObject({ selectedOptionId: 'a', isCorrect: false, attemptCount: 2 })
   })
 
   it('a removed section: its completion and attempt are dropped, and completion follows the new lesson', async () => {
     await savedProgress()
-    const shorter = [lesson('l1', [intro, check('q1', 'a')]), ...CATALOG.slice(1)]
+    const shorter = [lesson('l1', [intro, check('q1')]), ...CATALOG.slice(1)]
     const s = await reload(shorter)
     const progress = s.getState().lessonProgress.l1!
     expect(Object.keys(progress.conceptCheckAttempts)).toEqual(['q1'])
@@ -209,7 +314,7 @@ describe('stored data is untrusted: stale and invalid', () => {
 
   it('a NEW section makes a previously complete lesson incomplete again', async () => {
     await savedProgress()
-    const grown = [lesson('l1', [intro, check('q1', 'a'), check('q2', 'b'), check('q3', 'a')]), ...CATALOG.slice(1)]
+    const grown = [lesson('l1', [intro, check('q1'), check('q2'), check('q3')]), ...CATALOG.slice(1)]
     const s = await reload(grown)
     expect(isLessonComplete(grown[0]!, s.getState().lessonProgress.l1)).toBe(false)
   })
@@ -222,7 +327,7 @@ describe('stored data is untrusted: stale and invalid', () => {
 
   it('a saved option that no longer exists is dropped rather than graded', async () => {
     await savedProgress()
-    const relabelled = [lesson('l1', [intro, check('q1', 'a'), { ...check('q2', 'y'), options: [{ id: 'x', text: 'X' }, { id: 'y', text: 'Y' }] } as LessonSection]), ...CATALOG.slice(1)]
+    const relabelled = [lesson('l1', [intro, check('q1'), { ...check('q2'), options: [{ id: 'x', text: 'X' }, { id: 'y', text: 'Y' }] } as LessonSection]), ...CATALOG.slice(1)]
     const s = await reload(relabelled)
     expect(s.getState().lessonProgress.l1!.conceptCheckAttempts.q2).toBeUndefined()
   })
@@ -343,6 +448,17 @@ describe('the persistence note (what the learner is told)', () => {
     const s = await renderNote()
     act(() => s.setState({ progressRecovered: true }))
     expect(screen.getByTestId('progress-recovered').textContent).toContain('starting fresh')
+  })
+
+  it('says saved quiz answers were not re-checked only when the server could not be reached', async () => {
+    const s = await renderNote()
+    expect(screen.queryByTestId('answers-unverified')).toBeNull()
+    for (const status of ['idle', 'checking', 'done'] as const) {
+      act(() => s.setState({ regradeStatus: status }))
+      expect(screen.queryByTestId('answers-unverified')).toBeNull()
+    }
+    act(() => s.setState({ regradeStatus: 'unverified' }))
+    expect(screen.getByTestId('answers-unverified').textContent).toContain('couldn’t be re-checked with the server')
   })
 
   it('never claims sync, cloud or an account', async () => {

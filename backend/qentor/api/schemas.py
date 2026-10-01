@@ -20,7 +20,8 @@ from qentor.execution.bloch import BlochVector
 from qentor.execution.reduced_state import QubitReducedState
 from qentor.execution.step_changes import StepChange
 from qentor.verification.experiment_compare import CircuitDifference, MeasurementDifference, StateDifference
-from qentor.lessons import Lesson
+from qentor.lessons import PublicLesson
+from qentor.lessons.grading import GradeOutcome, RegradeItem, RegradeResult
 from qentor.tutor.trace_context import TraceStepRef
 
 
@@ -424,16 +425,43 @@ class OptimizeResponse(BaseModel):
 class LessonCatalogResponse(BaseModel):
     """GET /api/lessons's entire response — the read-only lesson catalog.
 
-    ``lessons`` reuses the domain model (``qentor.lessons.Lesson``) directly,
-    the same way ``OptimizeResponse.candidate_circuit`` reuses ``Circuit``:
-    one shape, not a parallel API-only copy that could drift from it. There is
-    no learner progress/state field anywhere on this response — that stays
-    out of scope for this milestone.
+    ``lessons`` is ``PublicLesson``, the client-facing view of the domain
+    model: a concept check carries its question and options and NEITHER the
+    answer key NOR the explanation (``qentor.lessons.models``). Those come
+    back only from the grading endpoint, for a selection the client submits.
+    There is no learner progress/state field anywhere on this response.
     """
 
     model_config = ConfigDict(extra="forbid")
 
-    lessons: list[Lesson]
+    lessons: list[PublicLesson]
+
+
+class ConceptCheckGradeRequest(BaseModel):
+    """One selection for POST /api/lessons/{lesson_id}/concept-checks/{check_id}/grade: the option id picked, and nothing
+    else. There is no field for a verdict, a key or a score; an unknown field is a validation error."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    selected_option_id: str = Field(min_length=1, max_length=200)
+
+
+class ConceptCheckGradeResponse(GradeOutcome):
+    """The server's verdict on one selection (``qentor.lessons.grading.GradeOutcome``): correctness and the explanation."""
+
+
+class RegradeRequest(BaseModel):
+    """Selections a client saved earlier, to be graded again by the server (after a reload). At most 500 per request."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    answers: list[RegradeItem] = Field(max_length=500)
+
+
+class RegradeResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    results: list[RegradeResult]
 
 
 # --------------------------------------------------------------------------- #

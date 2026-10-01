@@ -142,7 +142,11 @@ Two sources, two authorities, kept apart by id:
   the section itself plus the (up to two) explanation sections closest before it, in lesson order
   (the first explanation if none precede it); a foundation lesson has nine sections and an advanced one ten, and a prompt
   never carries all of them. A quiz's correct option and answer rationale are never included, so a
-  hint cannot give the answer away. "Simpler" and "hint" quote the nearest of those explanations.
+  hint cannot give the answer away. "Simpler" and "hint" quote the nearest of those explanations. The
+  answer key and the explanation are kept out of `GET /api/lessons` too: a client sends its selection to
+  the grading endpoint (`qentor.lessons.grading`) and gets correctness and the explanation back. Grading
+  is a plain comparison with the authored key; no model is involved, and nothing is taken from the client
+  but the ids and the option it picked.
 - Lesson prose lives only in `qentor.lessons` and is authored in English. No lesson text contains a
   decimal or percentage (so it cannot be mistaken for a result), and worked examples are labelled as
   textbook algebra with the numbers left to the Lab and Trace. `tests/test_lesson_content.py` checks
