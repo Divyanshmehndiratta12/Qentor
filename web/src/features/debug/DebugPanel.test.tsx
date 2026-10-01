@@ -228,8 +228,11 @@ describe('in the Lab', () => {
       })
     })
 
-  it('is in the Results panel and waits for a real result', () => {
+  const openDebugMode = () => fireEvent.click(screen.getByRole('tab', { name: 'Debug' }))
+
+  it('is the tutor\'s Debug mode and waits for a real result', () => {
     render(<App />)
+    openDebugMode()
     const region = screen.getByTestId('debug-lab')
     expect(within(region).getByRole('button', { name: 'Debug my circuit' })).toBeDisabled()
     expect(within(region).getByText(/Run the circuit first/)).toBeInTheDocument()
@@ -238,6 +241,7 @@ describe('in the Lab', () => {
   it('debugs the circuit on screen against the result the server issued for it', async () => {
     render(<App />)
     seed()
+    openDebugMode()
     const region = screen.getByTestId('debug-lab')
     fireEvent.change(within(region).getByLabelText(/What were you trying to do/), { target: { value: 'coin flip' } })
     fireEvent.click(within(region).getByRole('button', { name: 'Debug my circuit' }))
@@ -252,6 +256,7 @@ describe('in the Lab', () => {
     render(<App />)
     seed()
     act(() => useBuildStore.getState().setTutorLanguage('kn'))
+    openDebugMode()
     fireEvent.click(within(screen.getByTestId('debug-lab')).getByRole('button', { name: 'Debug my circuit' }))
     await screen.findByTestId('debug-report')
     expect(client.debugCircuit.mock.calls[0]![0].language).toBe('kn')

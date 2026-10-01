@@ -28,10 +28,13 @@
  * browser with computed amplitudes/counts spliced into the prompt — that is
  * exactly what AI_BOUNDARY.md forbids.
  */
-import { useState } from 'react'
+import { useId, useState } from 'react'
+import type { KeyboardEvent } from 'react'
 import type { TutorLanguage } from '@/api'
 import type { TutorTurn } from '@/features/build/store'
 import { useBuildStore } from '@/features/build/store'
+import { LabDebug } from '@/features/debug/LabDebug'
+import { GeneratePanel } from '@/features/generate/GeneratePanel'
 import { ProvenanceBadge } from '@/provenance/ProvenanceBadge'
 import { executionStatusLabel } from '@/provenance/executionStatus'
 import type { ExecutionStatus } from '@/provenance/schema'
@@ -45,6 +48,23 @@ import {
 } from './tutorContext'
 
 const STARTER_QUESTIONS = ['What does this circuit do?', 'What was the result?']
+
+/**
+ * The four things a learner can ask of the Lab's tutor, kept apart so it is always clear which one is happening:
+ *  - Explain: a question about the result the backend produced (the conversation);
+ *  - What changed?: the selected trace step, explained from the backend's own record of that step;
+ *  - Debug: the server's structured "what did my circuit do, and what to try next";
+ *  - Generate code: a language model PROPOSES OpenQASM, the server reads it (never a result, never verified by the model).
+ * Explain and What changed? share ONE conversation (the Lab's), so the scoping rules in `tutorContext.ts` are unchanged.
+ */
+export type Mode = 'explain' | 'changed' | 'debug' | 'generate'
+const MODES: { id: Mode; label: string }[] = [
+  { id: 'explain', label: 'Explain' },
+  { id: 'changed', label: 'What changed?' },
+  { id: 'debug', label: 'Debug' },
+  { id: 'generate', label: 'Generate code' },
+]
+const ALL_MODES: readonly Mode[] = MODES.map((m) => m.id)
 
 /** Matches `TutorLanguage` — labels only, the code sent to the backend is
  * what actually selects the deterministic template / LLM prompt language. */
@@ -65,8 +85,29 @@ const LANGUAGE_LABELS: Record<TutorLanguage, string> = {
 export function TutorPanel({
   showStarters = true,
   context = LAB_TUTOR_CONTEXT,
-}: { showStarters?: boolean; context?: TutorContext } = {}) {
+  showModes = true,
+  modes = ALL_MODES,
+  challengeId,
+}: {
+  showStarters?: boolean
+  context?: TutorContext
+  showModes?: boolean
+  /** Which of the modes to offer (the Challenges screen has its own Debug, so it leaves that one out). */
+  modes?: readonly Mode[]
+  /** The challenge on screen, if any: Generate code then asks the model with that challenge's public brief as context. */
+  challengeId?: string | null
+} = {}) {
   const [question, setQuestion] = useState('')
+  const [chosenMode, setMode] = useState<Mode>('explain')
+  const offered = MODES.filter((m) => modes.includes(m.id))
+  const mode: Mode = offered.some((m) => m.id === chosenMode) ? chosenMode : (offered[0]?.id ?? 'explain')
+  const tabsId = useId()
+  // The four modes belong to the Lab's own tutor; a lesson's conversation and the Guide's embedded tutor stay as they were.
+  const modesShown = showModes && context.kind === 'lab'
+  const activeMode: Mode = modesShown ? mode : 'explain'
+  const conversationShown = activeMode === 'explain' || activeMode === 'changed'
+  const stepNumber = useBuildStore((s) => (s.trace && s.trace.steps[s.selectedTraceStep] ? s.selectedTraceStep + 1 : null))
+  const stepCount = useBuildStore((s) => s.trace?.steps.length ?? 0)
   const result = useBuildStore((s) => s.result)
   const hasTraceStep = useBuildStore((s) => s.trace !== null && s.trace.steps[s.selectedTraceStep] !== undefined)
   const executionError = useBuildStore((s) => s.executionError)
@@ -123,8 +164,67 @@ export function TutorPanel({
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-auto px-4 py-3">
-        {turns.length === 0 && (
+      {modesShown && (
+        <div role="tablist" aria-label="What to ask the tutor" className="flex gap-1 border-b border-void-500 px-3 pt-1.5" onKeyDown={(e) => onTabKeys(e, offered, mode, setMode)}>
+          {offered.map((m) => (
+            <button
+              key={m.id}
+              id={`${tabsId}-${m.id}`}
+              type="button"
+              role="tab"
+              aria-selected={mode === m.id}
+              aria-controls={`${tabsId}-panel`}
+              tabIndex={mode === m.id ? 0 : -1}
+              onClick={() => setMode(m.id)}
+              className={`rounded-t-md border-b-2 px-2.5 py-1.5 text-xs font-medium focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-cyan-glow ${
+                mode === m.id ? 'border-violet-glow bg-void-800 text-slate-100' : 'border-transparent text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              {m.label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {activeMode === 'generate' && (
+        <div role="tabpanel" id={`${tabsId}-panel`} aria-labelledby={`${tabsId}-generate`} className="min-h-0 flex-1 overflow-hidden">
+          <GeneratePanel onShowExplanation={() => setMode('explain')} challengeId={challengeId} />
+        </div>
+      )}
+
+      {activeMode === 'debug' && (
+        <div role="tabpanel" id={`${tabsId}-panel`} aria-labelledby={`${tabsId}-debug`} className="min-h-0 flex-1 overflow-auto px-4 py-3">
+          <LabDebug />
+        </div>
+      )}
+
+      {conversationShown && (
+      <div role={modesShown ? 'tabpanel' : undefined} id={modesShown ? `${tabsId}-panel` : undefined} aria-labelledby={modesShown ? `${tabsId}-${activeMode}` : undefined} className="min-h-0 flex-1 overflow-auto px-4 py-3">
+        {activeMode === 'changed' && (
+          <div className="mb-3 rounded-lg border border-void-500 bg-void-800 p-3.5" data-testid="changed-mode">
+            {stepNumber !== null ? (
+              <>
+                <p className="text-[13px] leading-snug text-slate-200">
+                  Step {stepNumber} of {stepCount} is selected in the trace. The tutor explains what the backend recorded for that step: the operation, and the
+                  state before and after it.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => submit(TRACE_STEP_QUESTION)}
+                  disabled={!canAskStep}
+                  className="mt-2.5 rounded-md border border-violet-glow/60 bg-violet-dim/30 px-2.5 py-1.5 text-xs font-medium text-violet-glow hover:bg-violet-dim/50 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-cyan-glow disabled:cursor-not-allowed disabled:opacity-45"
+                >
+                  {TRACE_STEP_QUESTION}
+                </button>
+              </>
+            ) : (
+              <p className="text-[13px] leading-snug text-slate-300">
+                Run the trace in the Results panel and pick a step. This mode explains what changed at the step you picked, from the backend&rsquo;s own record of it.
+              </p>
+            )}
+          </div>
+        )}
+        {activeMode === 'explain' && turns.length === 0 && (
           <div className="rounded-lg border border-void-500 bg-void-800 p-3.5">
             <p className="font-serif-prose text-[15px] leading-snug text-slate-200">
               {context.kind === 'lesson'
@@ -167,7 +267,9 @@ export function TutorPanel({
           </p>
         )}
       </div>
+      )}
 
+      {conversationShown && (
       <div className="flex items-center gap-2 border-t border-void-500 p-3">
         <input
           aria-label="Ask the tutor"
@@ -187,8 +289,21 @@ export function TutorPanel({
           Ask
         </button>
       </div>
+      )}
     </div>
   )
+}
+
+/** Left/Right/Home/End move between the modes (the tab pattern: only the selected tab is in the tab order). */
+function onTabKeys(e: KeyboardEvent<HTMLDivElement>, offered: readonly { id: Mode }[], current: Mode, setMode: (mode: Mode) => void) {
+  const index = offered.findIndex((m) => m.id === current)
+  const count = offered.length
+  const next = e.key === 'ArrowRight' ? (index + 1) % count : e.key === 'ArrowLeft' ? (index - 1 + count) % count : e.key === 'Home' ? 0 : e.key === 'End' ? count - 1 : -1
+  if (next < 0) return
+  e.preventDefault()
+  setMode(offered[next]!.id)
+  const tablist = e.currentTarget // read now: React clears the event's currentTarget once the handler returns
+  requestAnimationFrame(() => tablist.querySelectorAll<HTMLElement>('[role="tab"]')[next]?.focus())
 }
 
 /** What this panel's answers are grounded in, at a glance. */

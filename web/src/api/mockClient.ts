@@ -20,13 +20,14 @@
  */
 import type { Circuit } from '@/circuit/types'
 import { FIXTURE, toQuantumValue, type Provenance, type QuantumValue } from '@/provenance/QuantumValue'
-import { EndpointNotImplementedError } from './client'
+import { EndpointNotImplementedError, GenerationUnavailableError } from './client'
 import type {
   AgreementResult,
   ApiClient,
   Backend,
   Challenge,
   ChallengeSubmission,
+  CircuitProposal,
   ConceptCheckGrade,
   DebugReport,
   DebugRequestInput,
@@ -39,6 +40,8 @@ import type {
   ExecutePayload,
   ExecutionMode,
   ExecutionTraceResult,
+  GenerationRequestInput,
+  GenerationStatus,
   Lesson,
   MultiInputTestCase,
   MultiInputTestResult,
@@ -147,6 +150,15 @@ export class MockApiClient implements ApiClient {
 
   async submitChallenge(_challengeId: string, _circuit: Circuit): Promise<ChallengeSubmission> {
     throw new EndpointNotImplementedError('POST /api/challenges/{id}/submit (the FIXTURE mock adapter cannot judge a circuit)')
+  }
+
+  /** Deliberately NOT faked: there is no substitute for a language model, so the FIXTURE adapter says it is unavailable. */
+  async getGenerationStatus(): Promise<GenerationStatus> {
+    return { available: false, provider: null, model: null, reason: 'The FIXTURE mock adapter has no AI code generation.' }
+  }
+
+  async generateCircuit(_request: GenerationRequestInput): Promise<CircuitProposal> {
+    throw new GenerationUnavailableError('The FIXTURE mock adapter has no AI code generation.')
   }
 
   /** Deliberately NOT faked: a debugging report is built by the server from its own records. */

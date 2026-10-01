@@ -69,6 +69,13 @@ from qentor.tutor import (
     debug_circuit,
     resolve_lesson_context,
 )
+from qentor.tutor.proposal import (
+    PROPOSAL_LABEL,
+    VERIFICATION_STATUS as PROPOSAL_VERIFICATION_STATUS,
+    build_context as build_proposal_context,
+    validate_draft as validate_proposal_draft,
+)
+from qentor.tutor.llm import LLMUnavailable
 from qentor.tutor.trace_context import TRACE_RESULT_NOT_FOUND
 from qentor.tutor.lesson_context import LESSON_NOT_FOUND, SECTION_MISMATCH, SECTION_NOT_FOUND
 from qentor.verification.agreement import AGREEMENT_THRESHOLD, METHOD as AGREEMENT_METHOD, compare_all
@@ -109,6 +116,10 @@ from .schemas import (
     ExecuteResponse,
     ExportRequest,
     ExportResponse,
+    GenerateCircuitRequest,
+    GenerateCircuitResponse,
+    GenerationProblemResponse,
+    GenerationStatusResponse,
     LessonCatalogResponse,
     MultiInputCaseResponse,
     MultiInputCounterexampleResponse,
@@ -808,6 +819,97 @@ def debug_endpoint(request: DebugRequest) -> DebugResponse:
         provenance_class=provenance.provenance_class.value if provenance else None,
         verification_status=provenance.verification_status.value if provenance else None,
         attempt_id=attempt_record.attempt_id if attempt_record else None,
+    )
+
+
+AI_GENERATION_UNAVAILABLE = "AI_GENERATION_UNAVAILABLE"
+AI_GENERATION_FAILED = "AI_GENERATION_FAILED"
+
+
+def _generation_adapter():
+    """The configured LLM if it can write circuits, else ``None``. Qentor has no other generator: nothing here substitutes for it."""
+    llm = _llm_adapter
+    return llm if llm is not None and hasattr(llm, "generate_circuit") else None
+
+
+@app.get("/api/generate/status", response_model=GenerationStatusResponse)
+def generation_status_endpoint() -> GenerationStatusResponse:
+    """Whether AI circuit generation exists on this server. It does only when a language model is configured in the server's own
+    environment (``QENTOR_TUTOR_LLM_ENABLED`` and an API key); everything else in Qentor works without one. No key, model name
+    or secret is ever returned beyond the provider and model names."""
+    llm = _generation_adapter()
+    if llm is None:
+        return GenerationStatusResponse(
+            available=False,
+            provider=None,
+            model=None,
+            reason=(
+                "AI code generation is not configured on this server: no language model is set up. "
+                "Nothing is generated or substituted; the rest of Qentor works without it."
+            ),
+        )
+    return GenerationStatusResponse(available=True, provider=llm.name, model=getattr(llm, "model_name", None), reason=None)
+
+
+@app.post("/api/generate/circuit", response_model=GenerateCircuitResponse)
+def generate_circuit_endpoint(request: GenerateCircuitRequest) -> GenerateCircuitResponse:
+    """AI proposes OpenQASM 3; the server reads, validates and labels it (``qentor.tutor.proposal``). The model's text is never
+    executed and never trusted: the server's own parser turns it into the canonical circuit (or refuses it, with a line and a
+    reason), the platform limits are checked, and what comes back for insertion is the canonical text emitted from that parsed
+    circuit. The explanation is the model's only if the claim guard finds no unproduced claim in it; otherwise a template written
+    from the parsed circuit, and the response says so. ``PROPOSED`` is never "verified": the circuit becomes a result only when the
+    learner runs it through the ordinary Run, and a challenge verdict only comes from submitting it.
+
+    With no language model configured this is a 503 ``AI_GENERATION_UNAVAILABLE`` - never a canned circuit. A provider failure is a
+    502 ``AI_GENERATION_FAILED`` the client may retry.
+    """
+    llm = _generation_adapter()
+    if llm is None:
+        raise HTTPException(
+            status_code=503,
+            detail={"code": AI_GENERATION_UNAVAILABLE, "message": "AI code generation is not configured on this server."},
+        )
+
+    lesson_facts: list = []
+    if request.lesson_id is not None:
+        try:
+            lesson_facts = list(resolve_lesson_context(request.lesson_id, request.section_id).facts)
+        except LessonContextError as exc:
+            raise HTTPException(status_code=_LESSON_ERROR_STATUS[exc.code], detail={"code": exc.code, "message": exc.message}) from exc
+
+    challenge_view = None
+    if request.challenge_id is not None:
+        challenge = get_challenge(request.challenge_id)
+        if challenge is None:
+            raise HTTPException(status_code=404, detail={"code": "CHALLENGE_NOT_FOUND", "message": f"no challenge {request.challenge_id!r}"})
+        challenge_view = public_view(challenge)
+
+    context = build_proposal_context(lesson_facts=lesson_facts, challenge=challenge_view, current=request.circuit)
+    try:
+        draft = llm.generate_circuit(request.prompt.strip(), context, request.language)
+    except LLMUnavailable as exc:
+        raise HTTPException(
+            status_code=502,
+            detail={"code": AI_GENERATION_FAILED, "message": "The language model could not be reached or gave an unusable reply. Try again."},
+        ) from exc
+
+    proposal = validate_proposal_draft(draft, challenge_view)
+    return GenerateCircuitResponse(
+        status=proposal.status,
+        label=PROPOSAL_LABEL,
+        verification_status=PROPOSAL_VERIFICATION_STATUS,
+        generator=llm.name,
+        model=getattr(llm, "model_name", None),
+        raw_qasm=proposal.raw_qasm,
+        circuit=proposal.circuit,
+        canonical_qasm=proposal.canonical_qasm,
+        circuit_hash=proposal.circuit_hash,
+        summary=proposal.summary,
+        explanation=proposal.explanation,
+        explanation_source=proposal.explanation_source,
+        explanation_note=proposal.explanation_note,
+        problems=[GenerationProblemResponse(code=p.code, message=p.message, line=p.line) for p in proposal.problems],
+        constraint_notes=proposal.constraint_notes,
     )
 
 

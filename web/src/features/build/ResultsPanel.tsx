@@ -13,7 +13,6 @@ import { VerificationPanel } from './VerificationPanel'
 import { OptimizePanel } from './OptimizePanel'
 import { MultiInputTestPanel } from './MultiInputTestPanel'
 import { TracePanel } from './TracePanel'
-import { LabDebug } from '@/features/debug/LabDebug'
 import { ComparePanel } from '@/features/compare/ComparePanel'
 import { ExportPanel } from '@/features/share/ExportPanel'
 import { AgreementPanel } from './AgreementPanel'
@@ -122,7 +121,6 @@ export function ResultsPanel() {
         )}
 
         <TracePanel />
-        <LabDebug />
         <ComparePanel />
         <ExportPanel />
         <VerificationPanel />

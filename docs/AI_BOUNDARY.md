@@ -20,7 +20,7 @@ through a backend before a learner sees it.
 | Explain a misconception tag | The tag comes from deterministic rules. The AI explains it. |
 | Give a hint | Conceptual hints freely. A hint that contains a circuit is a candidate (below). |
 | Propose a candidate circuit (fix or optimisation) | Returned as the canonical JSON model. Shown only with its verification status. |
-| Propose candidate code | Only as OpenQASM 3, parsed into the model. Python is never executed. |
+| Propose candidate code | Only as OpenQASM 3, parsed into the model by the server's own parser. Python is never executed. Built: see §9 |
 | Propose a candidate optimisation | Goes through the equivalence checker like any other proposal |
 | Make a typed claim ("P(00)=0.5 for this circuit") | The claim is re-simulated. It is shown only if it matches, and then the backend value is shown. |
 | Answer in the learner's selected language (P1) | Numbers still come from facts |
@@ -269,3 +269,37 @@ refused rather than compared.
 
 Tests that pin this: `test_debugger.py` (fake LLMs that invent numbers, verdicts, kets and citations), `test_experiment_compare.py`,
 `test_challenges.py`, and `backend/scripts/mutation_check.py` (each rule above has a mutant that must be caught).
+
+## 9. AI code generation
+
+A learner can describe a circuit in words and a language model can PROPOSE OpenQASM 3 for it (`POST /api/generate/circuit`,
+`qentor/tutor/proposal.py`). The model proposes; every decision about the proposal is made by the backend.
+
+1. **Context.** The model sees the learner's words (untrusted text, capped at 600 characters), optionally the lesson they are in
+   (the registry's `L#` facts: no answer key, no explanation), a challenge's PUBLIC brief (goal, gates, size: never a reference
+   solution or a check target) and the learner's current circuit as the server's own canonical text. None of it is a result.
+2. **The model's reply** is JSON: OpenQASM 3 text and one or two sentences of explanation. Both are untrusted.
+3. **The text is read by the server's own parser** (`qentor/circuit/qasm_parse.py`): a fixed subset (one qubit register, the model's
+   gates, `c[i] = measure q[j];`, angles with `pi` and `+ - * /`), never executed, never Python, no block constructs, no second
+   register. Anything else is refused with its line and a reason; nothing is guessed or dropped. A parsed proposal is then checked
+   against the proposal limits (8 qubits, 60 operations) and the platform's run limits and gate support.
+4. **What the learner may insert is the canonical OpenQASM emitted from the parsed circuit**, not the model's own text (comments,
+   spelling and surprises are gone). The model's text is shown only behind a disclosure.
+5. **The explanation** goes through the existing claim guard against the one fact the backend has about the proposal: its structure
+   (qubits, operations, in order). A probability, amplitude, count, outcome or verdict in it is a claim no backend produced, so the
+   whole explanation is replaced by a template written from the parsed circuit, and the response says so (`explanation_source` is `AI`
+   or `TEMPLATE`, with a note).
+6. **A proposal is never "correct" because the model wrote it.** The response carries `verification_status = UNVERIFIED_AGAINST_INTENT`
+   and the label "AI proposal — not yet verified against your intent", which the UI shows verbatim (the browser defines no label of its
+   own). What a proposal does is learned only by running it: Insert replaces the learner's circuit as one undo step, Run is the
+   ordinary Run (the backend's numbers with provenance), Explain is the ordinary result-grounded tutor question, and for a challenge
+   the verdict comes only from submitting the circuit to the server's evaluator. The proposal response has no field for a result.
+
+**No key, no feature, no substitute.** `GET /api/generate/status` says whether a language model is configured in the server's own
+environment (`QENTOR_TUTOR_LLM_ENABLED` and an API key). If not, the UI says so and offers no form, `POST` is a 503
+`AI_GENERATION_UNAVAILABLE`, and there is no deterministic generator behind it: a canned circuit would pass for an AI one. A provider
+failure is a 502 `AI_GENERATION_FAILED` the client may retry. Nothing else in Qentor needs a key.
+
+Tests (`test_qasm_parse.py`, `test_ai_generation.py`, the web `generate.test.tsx` and `realClient.generate.test.ts`) use a stand-in
+model, including one that returns Python, invented probabilities, verdicts and prompt injection; the Anthropic adapter's request and
+every failure mode are tested with the HTTP transport mocked. The real provider path has not been run in this build (no key).

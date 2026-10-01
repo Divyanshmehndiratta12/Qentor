@@ -537,7 +537,83 @@ export class BackendUnavailableError extends Error {
   }
 }
 
+/** GET /api/generate/status: whether this server can generate circuits. Only a configured language model makes it available. */
+export interface GenerationStatus {
+  available: boolean
+  provider: string | null
+  model: string | null
+  /** Why not, in the server's words, when `available` is false. */
+  reason: string | null
+}
+
+/** What POST /api/generate/circuit takes: the learner's words, identifiers and the current circuit as context. No quantum value. */
+export interface GenerationRequestInput {
+  prompt: string
+  language?: TutorLanguage
+  lessonId?: string | null
+  sectionId?: string | null
+  challengeId?: string | null
+  /** The learner's current circuit, sent as context so a request can refer to it. */
+  circuit?: Circuit | null
+}
+
+export interface GenerationProblem {
+  code: string
+  message: string
+  line: number | null
+}
+
+/**
+ * The server's reading of one model draft. `PROPOSED` means ONLY that the text parsed into the canonical circuit and fits the
+ * platform's limits; `verificationStatus` is always UNVERIFIED_AGAINST_INTENT. `canonicalQasm` is what the server emitted from
+ * the parsed circuit (the text to insert), `rawQasm` is the model's own text, kept for transparency. There is no result in it.
+ */
+export interface CircuitProposal {
+  status: 'PROPOSED' | 'REJECTED'
+  label: string
+  verificationStatus: string
+  generator: string
+  model: string | null
+  rawQasm: string
+  circuit: Circuit | null
+  canonicalQasm: string | null
+  circuitHash: string | null
+  summary: string | null
+  explanation: string | null
+  /** AI: the model's own words, accepted by the claim guard. TEMPLATE: written by the server from the parsed circuit. */
+  explanationSource: 'AI' | 'TEMPLATE' | null
+  explanationNote: string | null
+  problems: GenerationProblem[]
+  constraintNotes: string[]
+}
+
+/** The server has no language model configured: there is nothing to retry and nothing is generated or substituted. */
+export class GenerationUnavailableError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'GenerationUnavailableError'
+  }
+}
+
+/** The language model could not be reached or gave an unusable reply: asking again may work. */
+export class GenerationFailedError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'GenerationFailedError'
+  }
+}
+
 export interface ApiClient {
+  /** GET /api/generate/status — whether AI circuit generation exists on this server. */
+  getGenerationStatus(): Promise<GenerationStatus>
+
+  /**
+   * POST /api/generate/circuit — a language model PROPOSES OpenQASM 3; the server parses, validates and labels it. Rejects with
+   * `GenerationUnavailableError` when no model is configured and `GenerationFailedError` when the model failed. Never executes
+   * anything and carries no result: running the proposal is the ordinary `executeCircuit`.
+   */
+  generateCircuit(request: GenerationRequestInput): Promise<CircuitProposal>
+
   /** POST /api/execute — executes a circuit. */
   executeCircuit(
     circuit: Circuit,

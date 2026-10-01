@@ -23,6 +23,8 @@ import {
   CodeResponseSchema,
   EquivalenceResponseSchema,
   ExecuteResponseSchema,
+  GenerateCircuitResponseSchema,
+  GenerationStatusSchema,
   GradeErrorDetailSchema,
   LessonCatalogResponseSchema,
   MultiInputTestResponseSchema,
@@ -39,6 +41,8 @@ import {
 } from '@/provenance/schema'
 import {
   BackendUnavailableError,
+  GenerationFailedError,
+  GenerationUnavailableError,
   GradeRejectedError,
   TraceRejectedError,
   type ApiClient,
@@ -46,7 +50,10 @@ import {
   type Backend,
   type Challenge,
   type ChallengeSubmission,
+  type CircuitProposal,
   type CodeViewsResult,
+  type GenerationRequestInput,
+  type GenerationStatus,
   type ConceptCheckGrade,
   type RegradedAnswer,
   type SavedAnswer,
@@ -91,6 +98,62 @@ export class RealApiClient implements ApiClient {
 
   constructor(baseUrl: string = '') {
     this.baseUrl = baseUrl
+  }
+
+  async getGenerationStatus(): Promise<GenerationStatus> {
+    let res: Response
+    try {
+      res = await fetch(`${this.baseUrl}/api/generate/status`)
+    } catch (err) {
+      throw new BackendUnavailableError(`could not reach the Qentor backend: ${err instanceof Error ? err.message : String(err)}`)
+    }
+    if (!res.ok) throw new BackendUnavailableError(await safeErrorDetail(res), res.status)
+    return GenerationStatusSchema.parse(await res.json())
+  }
+
+  async generateCircuit(input: GenerationRequestInput): Promise<CircuitProposal> {
+    // The learner's words, identifiers and the current circuit as context. There is no field through which a quantum value, a
+    // result or a verdict could be sent, and nothing here evaluates what comes back: it is parsed, mapped and handed on.
+    const body: Record<string, unknown> = { prompt: input.prompt.trim(), language: input.language ?? 'en' }
+    if (input.lessonId) body.lesson_id = input.lessonId
+    if (input.sectionId) body.section_id = input.sectionId
+    if (input.challengeId) body.challenge_id = input.challengeId
+    if (input.circuit && input.circuit.ops.length > 0) body.circuit = CircuitSchema.parse(input.circuit)
+
+    let res: Response
+    try {
+      res = await fetch(`${this.baseUrl}/api/generate/circuit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+    } catch (err) {
+      throw new BackendUnavailableError(`could not reach the Qentor backend: ${err instanceof Error ? err.message : String(err)}`)
+    }
+    if (!res.ok) {
+      const detail = await structuredDetail(res)
+      if (res.status === 503 && detail?.code === 'AI_GENERATION_UNAVAILABLE') throw new GenerationUnavailableError(detail.message)
+      if (res.status === 502 && detail?.code === 'AI_GENERATION_FAILED') throw new GenerationFailedError(detail.message)
+      throw new BackendUnavailableError(detail?.message ?? `HTTP ${res.status}`, res.status)
+    }
+    const r = GenerateCircuitResponseSchema.parse(await res.json())
+    return {
+      status: r.status,
+      label: r.label,
+      verificationStatus: r.verification_status,
+      generator: r.generator,
+      model: r.model,
+      rawQasm: r.raw_qasm,
+      circuit: r.circuit,
+      canonicalQasm: r.canonical_qasm,
+      circuitHash: r.circuit_hash,
+      summary: r.summary,
+      explanation: r.explanation,
+      explanationSource: r.explanation_source,
+      explanationNote: r.explanation_note,
+      problems: r.problems,
+      constraintNotes: r.constraint_notes,
+    }
   }
 
   async executeCircuit(
@@ -971,5 +1034,16 @@ async function safeErrorDetail(res: Response): Promise<string> {
     return JSON.stringify(body)
   } catch {
     return `HTTP ${res.status}`
+  }
+}
+
+/** A structured refusal body (`{detail: {code, message}}`), or `null` for anything else. */
+async function structuredDetail(res: Response): Promise<{ code: string; message: string } | null> {
+  try {
+    const body = await res.json()
+    const parsed = TraceErrorDetailSchema.safeParse(body?.detail)
+    return parsed.success ? { code: parsed.data.code, message: parsed.data.message } : null
+  } catch {
+    return null
   }
 }

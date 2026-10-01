@@ -815,3 +815,32 @@ export const ExportResponseSchema = z.object({
   note: z.string(),
 })
 export type ExportResponse = z.infer<typeof ExportResponseSchema>
+
+// backend/qentor/api/schemas.py::GenerationStatusResponse — whether this server can generate circuits at all.
+export const GenerationStatusSchema = z.object({
+  available: z.boolean(),
+  provider: z.string().nullable(),
+  model: z.string().nullable(),
+  reason: z.string().nullable(),
+})
+
+// backend/qentor/api/schemas.py::GenerateCircuitResponse — the server's reading of one model draft. There is deliberately no
+// field for a probability, a count, a result id or a verdict: "PROPOSED" only means the text parsed and fits the limits.
+export const GenerateCircuitResponseSchema = z.object({
+  status: z.enum(['PROPOSED', 'REJECTED']),
+  label: z.string(),
+  verification_status: z.string(),
+  generator: z.string(),
+  model: z.string().nullable(),
+  raw_qasm: z.string(),
+  circuit: CircuitSchema.nullable(),
+  canonical_qasm: z.string().nullable(),
+  circuit_hash: z.string().nullable(),
+  summary: z.string().nullable(),
+  explanation: z.string().nullable(),
+  explanation_source: z.enum(['AI', 'TEMPLATE']).nullable(),
+  explanation_note: z.string().nullable(),
+  problems: z.array(z.object({ code: z.string(), message: z.string(), line: z.number().int().nullable() })),
+  constraint_notes: z.array(z.string()),
+})
+export type GenerateCircuitResponse = z.infer<typeof GenerateCircuitResponseSchema>

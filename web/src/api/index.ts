@@ -28,6 +28,7 @@ export type {
   ChallengeConstraints,
   ChallengeEvidence,
   ChallengeSubmission,
+  CircuitProposal,
   DebugReport,
   DebugRequestInput,
   DebugSection,
@@ -40,6 +41,9 @@ export type {
   EquivalenceResult,
   ExecutionMode,
   ExecutionTraceResult,
+  GenerationProblem,
+  GenerationRequestInput,
+  GenerationStatus,
   LabCapability,
   Lesson,
   LessonConceptCheckSection,
@@ -70,7 +74,14 @@ export type {
   VerificationCheckResult,
   VerifyBellStateResult,
 } from './client'
-export { BackendUnavailableError, EndpointNotImplementedError, GradeRejectedError, TraceRejectedError } from './client'
+export {
+  BackendUnavailableError,
+  EndpointNotImplementedError,
+  GenerationFailedError,
+  GenerationUnavailableError,
+  GradeRejectedError,
+  TraceRejectedError,
+} from './client'
 
 let cached: ApiClient | null = null
 

@@ -125,7 +125,7 @@ export function GuidePanel({ screen, onClose }: GuidePanelProps) {
       </section>
 
       <div className="min-h-0 flex-1">
-        <TutorPanel showStarters={false} context={context.tutorContext} />
+        <TutorPanel showStarters={false} showModes={false} context={context.tutorContext} />
       </div>
     </aside>
   )

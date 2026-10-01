@@ -755,3 +755,74 @@ class ExportResponse(BaseModel):
     code: dict[str, str]
     execution: TraceProvenanceResponse | None
     note: str
+
+
+# --------------------------------------------------------------------------- #
+# AI circuit generation                                                       #
+# --------------------------------------------------------------------------- #
+
+
+class GenerationStatusResponse(BaseModel):
+    """Whether this server can generate circuits at all. ``available`` is false unless an LLM is configured in the server's own
+    environment; nothing else in Qentor depends on it, and no substitute generator exists."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    available: bool
+    provider: str | None
+    model: str | None
+    reason: str | None
+
+
+class GenerateCircuitRequest(BaseModel):
+    """A natural-language request, plus identifiers and the learner's current circuit as CONTEXT. There is no field for a quantum
+    number, a result or a verdict, and no field that carries code to run: the only thing the model returns is OpenQASM 3 text, and
+    only the server's parser ever reads it."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    prompt: str = Field(min_length=3, max_length=600)
+    language: Literal["en", "hi", "kn"] = "en"
+    lesson_id: str | None = Field(default=None, min_length=1, max_length=80)
+    section_id: str | None = Field(default=None, min_length=1, max_length=80)
+    challenge_id: str | None = Field(default=None, min_length=1, max_length=80)
+    circuit: Circuit | None = None
+
+    @model_validator(mode="after")
+    def _shape(self) -> "GenerateCircuitRequest":
+        if not self.prompt.strip() or len(self.prompt.strip()) < 3:
+            raise ValueError("prompt must contain at least 3 characters of text")
+        if self.section_id is not None and self.lesson_id is None:
+            raise ValueError("section_id needs a lesson_id")
+        return self
+
+
+class GenerationProblemResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    code: str
+    message: str
+    line: int | None
+
+
+class GenerateCircuitResponse(BaseModel):
+    """The server's reading of one model draft (``qentor.tutor.proposal.Proposal``). ``PROPOSED`` means only that the text parsed and
+    fits the platform's limits: ``verification_status`` is always ``UNVERIFIED_AGAINST_INTENT`` and ``label`` is what the UI shows."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    status: Literal["PROPOSED", "REJECTED"]
+    label: str
+    verification_status: str
+    generator: str
+    model: str | None
+    raw_qasm: str
+    circuit: Circuit | None
+    canonical_qasm: str | None
+    circuit_hash: str | None
+    summary: str | None
+    explanation: str | None
+    explanation_source: Literal["AI", "TEMPLATE"] | None
+    explanation_note: str | None
+    problems: list[GenerationProblemResponse]
+    constraint_notes: list[str]

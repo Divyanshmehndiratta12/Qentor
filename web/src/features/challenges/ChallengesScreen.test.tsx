@@ -569,10 +569,12 @@ describe('the right-hand panel', () => {
   it('has real tabs: Check by default, Results & trace on request', async () => {
     await openList()
     await openChallenge(/Challenge a/)
-    const tabs = screen.getAllByRole('tab')
+    // the tutor below has its own modes (Explain, What changed?, Generate code); these are the right-hand panel's tabs
+    const tabs = screen.getAllByRole('tab').filter((t) => t.id.startsWith('tab-'))
     expect(tabs.map((t) => t.textContent)).toEqual(['Check', 'Results & trace'])
     expect(tabs[0]).toHaveAttribute('aria-selected', 'true')
-    expect(screen.getByRole('tabpanel')).toHaveAttribute('aria-labelledby', 'tab-check')
+    expect(screen.getAllByRole('tabpanel').some((p) => p.getAttribute('aria-labelledby') === 'tab-check')).toBe(true)
+    expect(screen.getAllByRole('tab').filter((t) => !t.id.startsWith('tab-')).map((t) => t.textContent)).toEqual(['Explain', 'What changed?', 'Generate code'])
     fireEvent.click(tabs[1]!)
     expect(tabs[1]).toHaveAttribute('aria-selected', 'true')
     expect(screen.getByRole('heading', { name: 'Trace' })).toBeInTheDocument()

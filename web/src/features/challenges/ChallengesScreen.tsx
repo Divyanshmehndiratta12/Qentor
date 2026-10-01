@@ -261,7 +261,7 @@ export function ChallengesScreen({
 
       {challenge && (
         <footer aria-label="Tutor" className="h-72 shrink-0 border-t border-void-500 bg-void-900 lg:h-56">
-          <TutorPanel />
+          <TutorPanel modes={['explain', 'changed', 'generate']} challengeId={challenge.id} />
         </footer>
       )}
     </div>
