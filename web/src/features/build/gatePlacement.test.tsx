@@ -190,12 +190,12 @@ describe('the canvas', () => {
     fireEvent.click(appendCell(1))
     fireEvent.click(appendCell(2))
     expect(store().circuit.ops[0]).toMatchObject({ gate: 'ccx', controls: [0, 1], targets: [2] })
-    const removeButtons = screen.getAllByTitle(/CCX — controls q0, q1, target q2 · click to remove/)
+    const removeButtons = screen.getAllByTitle(/CCX — controls q0, q1, target q2 · click to pick/)
     expect(removeButtons).toHaveLength(3) // two control dots and the target box
     expect(removeButtons.filter((b) => b.textContent === 'X')).toHaveLength(1)
   })
 
-  it('shows a swap as × on both wires and removes it with one click', () => {
+  it('shows a swap as × on both wires, picks it with one click and deletes it', () => {
     render(
       <>
         <GatePalette />
@@ -205,9 +205,12 @@ describe('the canvas', () => {
     fireEvent.click(screen.getByRole('button', { name: 'SWAP' }))
     fireEvent.click(appendCell(0))
     fireEvent.click(appendCell(2))
-    const boxes = screen.getAllByTitle(/SWAP — q0 and q2 · click to remove/)
+    const boxes = screen.getAllByTitle(/SWAP — q0 and q2 · click to pick/)
     expect(boxes.map((b) => b.textContent)).toEqual(['×', '×'])
     fireEvent.click(boxes[0])
+    expect(store().selectedOpIndex).toBe(0) // picking a gate does not remove it
+    expect(store().circuit.ops).toHaveLength(1)
+    fireEvent.click(screen.getByRole('button', { name: 'Delete the selected gate' }))
     expect(store().circuit.ops).toHaveLength(0)
   })
 
@@ -233,7 +236,7 @@ describe('the canvas', () => {
     )
     fireEvent.click(screen.getByRole('button', { name: 'S†' }))
     fireEvent.click(appendCell(0))
-    expect(screen.getByTitle(/S† on q0 · click to remove/).textContent).toBe('S†')
+    expect(screen.getByTitle(/S† on q0 · click to pick/).textContent).toBe('S†')
   })
 
   it('the wire where a half-placed gate started is highlighted', () => {
@@ -324,7 +327,7 @@ describe('the controlled-phase gate (cp) takes its angle from the palette', () =
     expect(screen.getByText('click a wire to set the control qubit')).toBeInTheDocument()
   })
 
-  it('the canvas shows a dot on the control and P(angle) on the target, and removes it with one click', () => {
+  it('the canvas shows a dot on the control and P(angle) on the target; a click picks the gate and Delete removes it', () => {
     render(
       <>
         <GatePalette />
@@ -335,9 +338,11 @@ describe('the controlled-phase gate (cp) takes its angle from the palette', () =
     fireEvent.click(screen.getByRole('button', { name: 'CP' }))
     fireEvent.click(appendCell(1))
     fireEvent.click(appendCell(0))
-    const parts = screen.getAllByTitle(/CP\(0\.500 rad\) — control q1, target q0 · click to remove/)
+    const parts = screen.getAllByTitle(/CP\(0\.500 rad\) — control q1, target q0 · click to pick/)
     expect(parts.map((b) => b.textContent).sort()).toEqual(['', 'P(0.50)'])
     fireEvent.click(parts[0])
+    expect(store().circuit.ops).toHaveLength(1) // a click on a part picks the whole gate
+    fireEvent.click(screen.getByRole('button', { name: 'Delete the selected gate' }))
     expect(store().circuit.ops).toHaveLength(0)
   })
 

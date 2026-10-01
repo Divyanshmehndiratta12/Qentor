@@ -246,10 +246,10 @@ describe('the circuit editor is operable and named', () => {
     }
   })
 
-  it('a control dot says what it removes — it used to be an unnamed button', () => {
+  it('a control dot says what gate it belongs to — it used to be an unnamed button', () => {
     renderEditor()
-    expect(screen.getByRole('button', { name: /^Remove: CX — control q0, target q1 \(control on q\[0\]\)$/ })).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Remove: H on q0' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /^CX — control q0, target q1, control on q\[0\], step 2 of 2$/ })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'H on q0, step 1 of 2' })).toBeTruthy()
   })
 
   it('qubit + and − say what they do', () => {
@@ -297,8 +297,9 @@ describe('the circuit editor is operable and named', () => {
     fireEvent.click(screen.getByRole('button', { name: 'X' }))
     fireEvent.click(screen.getByRole('button', { name: 'Place x on qubit 0' }))
     expect(useBuildStore.getState().circuit.ops).toHaveLength(1)
-    // ...and removal is a button too
-    fireEvent.click(screen.getByRole('button', { name: 'Remove: X on q0' }))
+    // ...and removal is buttons too: pick the gate, then Delete
+    fireEvent.click(screen.getByRole('button', { name: 'X on q0, step 1 of 1' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Delete the selected gate' }))
     expect(useBuildStore.getState().circuit.ops).toHaveLength(0)
   })
 })

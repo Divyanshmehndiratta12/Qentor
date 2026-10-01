@@ -25,13 +25,23 @@ import type {
   VerifyBellStateResult,
 } from '@/api'
 import type { QuantumValue } from '@/provenance/QuantumValue'
-import { emptyCircuit, gateArityError, type Circuit, type GateName, type GateOp } from '@/circuit/types'
+import { emptyCircuit, type Circuit, type GateName, type GateOp } from '@/circuit/types'
 import { toQasm3 } from '@/circuit/qasmEmitter'
 import { selectedTraceStepContext } from './traceStepContext'
 import { MULTI_QUBIT_PLACEMENT, buildMultiQubitOp } from '@/circuit/gateSpec'
 import { parseQasm3, QasmParseError } from '@/circuit/qasmParser'
+import { deleteOp, insertOp, moveOp, relocateOp, sameCircuit, shiftOpWires, type EditResult } from '@/circuit/edit'
 
 export const ROTATION_DEFAULT_ANGLE = Math.PI / 2
+
+/** How many earlier circuits Undo can step back through. */
+export const HISTORY_LIMIT = 100
+/** Typing in the QASM editor applies a change every pause; changes this close together are ONE undo step. */
+const QASM_COALESCE_MS = 1000
+let lastQasmCommitAt = 0
+
+/** The outcome of an editing action: done, or refused with a reason (the circuit is then exactly as it was). */
+export type EditOutcome = { ok: true } | { ok: false; error: string }
 
 /**
  * One turn in the Tutor panel's conversation. A `tutor` turn's `answer` is
@@ -71,6 +81,24 @@ function toTraceFailure(err: unknown): TraceFailure {
  * the (unchanged) circuit the learner just asked for. */
 const TRACE_CLEARED = { isTracing: false, trace: null, traceError: null, selectedTraceStep: 0 } as const
 
+/**
+ * Everything derived from the circuit on screen. It belongs to ONE circuit, so every change of the circuit (an edit, an undo, a
+ * QASM edit, a loaded lesson, an applied optimisation) resets all of it in one place: a result, trace, verification, tutor
+ * conversation, optimisation report or multi-input test is never shown against a circuit it was not made for.
+ */
+const DERIVED_CLEARED: Partial<BuildState> = {
+  ...TRACE_CLEARED,
+  result: null,
+  verification: null,
+  verificationError: null,
+  tutorTurns: [],
+  isAskingTutor: false,
+  optimization: null,
+  optimizationError: null,
+  multiInputTest: null,
+  multiInputTestError: null,
+}
+
 // Guards against an older, slower trace request resolving after a newer one.
 let traceRequestSeq = 0
 // Same for executions: the newest `runExecution` call is the only one whose
@@ -85,6 +113,15 @@ interface BuildState {
   circuit: Circuit
   qasmText: string
   canvasError: string | null
+
+  /** Circuits before and after the current one, for Undo and Redo. Immutable snapshots of the canonical model, nothing else:
+   * there is no canvas-only state, so undoing restores exactly what the QASM editor and the server would see. */
+  past: Circuit[]
+  future: Circuit[]
+  /** The operation the learner has picked on the canvas (to move or delete it), by its position; `null` when none. */
+  selectedOpIndex: number | null
+  /** Where the next placed gate goes (an operation position); `null` means at the end. */
+  insertAt: number | null
 
   selectedGate: GateName | null
   pendingAngle: number
@@ -150,6 +187,20 @@ interface BuildState {
   setPendingAngle: (angle: number) => void
   onWireClick: (qubitIndex: number) => void
   removeOpAt: (index: number) => void
+  /** Pick (or with `null`, drop) the operation to act on. Selection only: the circuit is not touched. */
+  selectOp: (index: number | null) => void
+  /** Choose where the next placed gate goes; `null` = the end. Selection only. */
+  setInsertAt: (index: number | null) => void
+  /** Put `op` in as operation number `index`. Refused (with a reason, circuit unchanged) if the server would refuse the result. */
+  insertOpAt: (index: number, op: GateOp) => EditOutcome
+  /** Move operation `from` so it becomes operation `to` (earlier or later in time). */
+  moveOpTo: (from: number, to: number) => EditOutcome
+  /** Move an operation to other wires by `delta` (all its wires together). */
+  shiftOp: (index: number, delta: number) => EditOutcome
+  /** Drag an operation to position `to`, and (a single-wire gate) onto wire `qubit`: one edit, one undo step. */
+  dropOp: (from: number, to: number, qubit: number | null) => EditOutcome
+  undo: () => void
+  redo: () => void
   applyQasmEdit: (text: string) => { ok: true } | { ok: false; error: string; line: number | null }
   setMode: (mode: ExecutionMode) => void
   setShots: (shots: number) => void
@@ -211,6 +262,10 @@ function syncFromCircuit(circuit: Circuit) {
 export const useBuildStore = create<BuildState>((set, get) => ({
   ...syncFromCircuit(emptyCircuit(3)),
   canvasError: null,
+  past: [],
+  future: [],
+  selectedOpIndex: null,
+  insertAt: null,
 
   selectedGate: null,
   pendingAngle: ROTATION_DEFAULT_ANGLE,
@@ -255,21 +310,7 @@ export const useBuildStore = create<BuildState>((set, get) => ({
   ...TRACE_CLEARED,
 
   setNumQubits: (n) => {
-    set({
-      ...TRACE_CLEARED,
-      ...syncFromCircuit(emptyCircuit(Math.max(1, Math.min(8, n)))),
-      result: null,
-      canvasError: null,
-      pendingQubits: [],
-      verification: null,
-      verificationError: null,
-      tutorTurns: [],
-      isAskingTutor: false,
-      optimization: null,
-      optimizationError: null,
-      multiInputTest: null,
-      multiInputTestError: null,
-    })
+    commit(set, get, emptyCircuit(Math.max(1, Math.min(8, n))), { extra: { pendingQubits: [] } })
   },
 
   selectGate: (gate) => set({ selectedGate: gate, pendingQubits: [], canvasError: null }),
@@ -317,21 +358,40 @@ export const useBuildStore = create<BuildState>((set, get) => ({
   },
 
   removeOpAt: (index) => {
-    const { circuit } = get()
-    const ops = circuit.ops.filter((_, i) => i !== index)
-    set({
-      ...TRACE_CLEARED,
-      ...syncFromCircuit({ ...circuit, ops }),
-      result: null,
-      verification: null,
-      verificationError: null,
-      tutorTurns: [],
-      isAskingTutor: false,
-      optimization: null,
-      optimizationError: null,
-      multiInputTest: null,
-      multiInputTestError: null,
-    })
+    applyEdit(set, get, deleteOp(get().circuit, index))
+  },
+
+  selectOp: (index) => {
+    const { circuit, selectedOpIndex } = get()
+    const next = index !== null && index >= 0 && index < circuit.ops.length ? index : null
+    if (next === selectedOpIndex) return // nothing to write: no churn for subscribers
+    set({ selectedOpIndex: next })
+  },
+
+  setInsertAt: (index) => {
+    const { circuit, insertAt } = get()
+    const next = index !== null && index >= 0 && index < circuit.ops.length ? index : null // the end is `null`
+    if (next === insertAt) return
+    set({ insertAt: next })
+  },
+
+  insertOpAt: (index, op) => applyEdit(set, get, insertOp(get().circuit, index, op), { insertAt: index + 1 }),
+  moveOpTo: (from, to) => applyEdit(set, get, moveOp(get().circuit, from, to), { selectedOpIndex: to }),
+  shiftOp: (index, delta) => applyEdit(set, get, shiftOpWires(get().circuit, index, delta), { selectedOpIndex: index }),
+  dropOp: (from, to, qubit) => applyEdit(set, get, relocateOp(get().circuit, from, to, qubit), { selectedOpIndex: to }),
+
+  undo: () => {
+    const { past, future, circuit } = get()
+    const previous = past[past.length - 1]
+    if (!previous) return
+    commit(set, get, previous, { history: { past: past.slice(0, -1), future: [circuit, ...future].slice(0, HISTORY_LIMIT) } })
+  },
+
+  redo: () => {
+    const { past, future, circuit } = get()
+    const next = future[0]
+    if (!next) return
+    commit(set, get, next, { history: { past: [...past, circuit].slice(-HISTORY_LIMIT), future: future.slice(1) } })
   },
 
   applyQasmEdit: (text) => {
@@ -342,21 +402,12 @@ export const useBuildStore = create<BuildState>((set, get) => ({
     if (text === get().qasmText) return { ok: true }
     try {
       const circuit = parseQasm3(text)
-      set({
-        ...TRACE_CLEARED,
-        circuit,
-        qasmText: text,
-        canvasError: null,
-        result: null,
-        verification: null,
-        verificationError: null,
-        tutorTurns: [],
-        isAskingTutor: false,
-        optimization: null,
-        optimizationError: null,
-        multiInputTest: null,
-        multiInputTestError: null,
-      })
+      // Different text still counts as an edit (results are re-derived), but text that reads as the SAME canonical circuit makes no
+      // undo step (see `commit`). A person typing makes a change every pause; changes within a second of each other are one step.
+      const now = Date.now()
+      const coalesce = now - lastQasmCommitAt < QASM_COALESCE_MS
+      lastQasmCommitAt = now
+      commit(set, get, circuit, { qasmText: text, history: coalesce ? 'coalesce' : 'record' })
       return { ok: true }
     } catch (err) {
       if (err instanceof QasmParseError) {
@@ -603,20 +654,7 @@ export const useBuildStore = create<BuildState>((set, get) => ({
     // with an actual candidate circuit attached.
     const { optimization } = get()
     if (!optimization || optimization.status !== 'VERIFIED_SHORTER' || !optimization.candidateCircuit) return
-    set({
-      ...TRACE_CLEARED,
-      ...syncFromCircuit(optimization.candidateCircuit),
-      canvasError: null,
-      result: null,
-      verification: null,
-      verificationError: null,
-      tutorTurns: [],
-      isAskingTutor: false,
-      optimization: null,
-      optimizationError: null,
-      multiInputTest: null,
-      multiInputTestError: null,
-    })
+    commit(set, get, optimization.candidateCircuit, {}) // one undo step: the learner can always get the original back
   },
 
   runMultiInputTest: async (inputQubits, outputQubits, cases, backend) => {
@@ -731,50 +769,75 @@ export const useBuildStore = create<BuildState>((set, get) => ({
   setTutorLanguage: (language) => set({ tutorLanguage: language }),
 
   loadCircuit: (circuit) => {
-    set({
-      ...TRACE_CLEARED,
-      ...syncFromCircuit(circuit),
-      canvasError: null,
-      selectedGate: null,
-      pendingQubits: [],
-      result: null,
-      executionError: null,
-      verification: null,
-      verificationError: null,
-      tutorTurns: [],
-      isAskingTutor: false,
-      optimization: null,
-      optimizationError: null,
-      multiInputTest: null,
-      multiInputTestError: null,
-    })
+    // A circuit brought in from outside (a lesson, a challenge's starter, a share link, an AI proposal the learner inserted)
+    // replaces the one on the canvas as ONE undo step, so an accidental replacement is never a loss.
+    commit(set, get, circuit, { extra: { selectedGate: null, pendingQubits: [], executionError: null } })
   },
 }))
 
-function addOp(
-  set: (partial: Partial<BuildState>) => void,
+type StoreSet = (partial: Partial<BuildState>) => void
+
+/**
+ * THE way the circuit changes. Sets the new canonical circuit and its QASM text, resets everything derived from the old circuit,
+ * clears the selection, and keeps the undo history: the old circuit is pushed (and the redo list dropped) unless the circuit is
+ * the same one, in which case nothing is recorded; `history: 'coalesce'` replaces rather than adds a step while the learner is
+ * typing; an explicit `{past, future}` is what undo and redo pass.
+ */
+function commit(
+  set: StoreSet,
   get: () => BuildState,
-  op: GateOp,
-) {
-  const error = gateArityError(op)
-  if (error) {
-    set({ canvasError: error })
-    return
+  circuit: Circuit,
+  options: {
+    qasmText?: string
+    history?: 'record' | 'coalesce' | { past: Circuit[]; future: Circuit[] }
+    selectedOpIndex?: number | null
+    insertAt?: number | null
+    extra?: Partial<BuildState>
+  } = {},
+): void {
+  const { circuit: current, past, future } = get()
+  let nextPast = past
+  let nextFuture = future
+  const history = options.history ?? 'record'
+  if (typeof history === 'object') {
+    nextPast = history.past
+    nextFuture = history.future
+  } else if (!sameCircuit(current, circuit)) {
+    if (history === 'record' || past.length === 0) nextPast = [...past, current].slice(-HISTORY_LIMIT)
+    nextFuture = []
   }
-  const { circuit } = get()
-  const ops = [...circuit.ops, op]
   set({
-    ...TRACE_CLEARED,
-    ...syncFromCircuit({ ...circuit, ops }),
+    ...DERIVED_CLEARED,
+    circuit,
+    qasmText: options.qasmText ?? toQasm3(circuit),
     canvasError: null,
-    result: null,
-    verification: null,
-    verificationError: null,
-    tutorTurns: [],
-    isAskingTutor: false,
-    optimization: null,
-    optimizationError: null,
-    multiInputTest: null,
-    multiInputTestError: null,
+    past: nextPast,
+    future: nextFuture,
+    selectedOpIndex: options.selectedOpIndex ?? null,
+    insertAt: options.insertAt ?? null,
+    ...options.extra,
   })
+}
+
+/** An edit from `qentor/circuit/edit.ts`: committed as one undo step if it was accepted; refused with its reason otherwise (the
+ * circuit, and everything derived from it, is then left exactly as it was). */
+function applyEdit(
+  set: StoreSet,
+  get: () => BuildState,
+  result: EditResult,
+  after: { selectedOpIndex?: number | null; insertAt?: number | null } = {},
+): EditOutcome {
+  if (!result.ok) {
+    set({ canvasError: result.error })
+    return { ok: false, error: result.error }
+  }
+  commit(set, get, result.circuit, { selectedOpIndex: after.selectedOpIndex ?? null, insertAt: after.insertAt ?? null })
+  return { ok: true }
+}
+
+/** Place a gate: at the chosen insertion point, or at the end. The server's model is mirrored by `insertOp`'s checks. */
+function addOp(set: StoreSet, get: () => BuildState, op: GateOp) {
+  const { circuit, insertAt } = get()
+  const index = insertAt === null ? circuit.ops.length : Math.min(insertAt, circuit.ops.length)
+  applyEdit(set, get, insertOp(circuit, index, op), { insertAt: insertAt === null ? null : index + 1 })
 }
