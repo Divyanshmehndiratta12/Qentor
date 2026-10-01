@@ -25,6 +25,7 @@ import type { GateName, GateOp } from '@/circuit/types'
 import { GATE_DISPLAY, MULTI_QUBIT_PLACEMENT, TARGET_SYMBOL, gateTakesAngle } from '@/circuit/gateSpec'
 import { describeOperation } from './traceFormat'
 import { useEditShortcuts } from './useEditShortcuts'
+import { describeAngle } from '@/circuit/angle'
 
 export const OP_DND_MIME = 'application/x-qentor-op'
 
@@ -63,13 +64,22 @@ function GateBox({
       aria-pressed={selected}
       aria-label={`${describeOperation(op)}, step ${index + 1} of ${total}${traced ? ', shown in the trace' : ''}`}
       title={`${describeOperation(op)} · click to pick, then move or delete`}
-      className={`flex h-9 w-9 items-center justify-center rounded-md border font-mono-qasm text-xs font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-glow ${
+      className={`flex h-9 w-9 flex-col items-center justify-center rounded-md border font-mono-qasm text-xs font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-glow ${
         selected
           ? 'border-violet-glow bg-violet-dim text-violet-glow ring-2 ring-violet-glow/70'
           : 'border-cyan-glow/50 bg-cyan-dim text-cyan-glow hover:border-slate-300 hover:text-slate-100'
       } ${traced ? 'outline-2 outline-offset-2 outline-amber-glow' : ''}`}
     >
-      {gateTakesAngle(op.gate) ? `${label}(${op.params[0].toFixed(2)})` : label}
+      {gateTakesAngle(op.gate) ? (
+        <>
+          <span className="leading-none">{label}</span>
+          <span className="mt-0.5 text-[9px] leading-none font-medium" data-testid="gate-angle">
+            {describeAngle(op.params[0])}
+          </span>
+        </>
+      ) : (
+        label
+      )}
     </button>
   )
 }

@@ -203,7 +203,7 @@ describe('the controlled-phase gate (cp) in the web model', () => {
     ['cp q[0], q[1];', 'unrecognised statement'],
     ['cp() q[0], q[1];', 'unrecognised statement'],
     ['cp( ) q[0], q[1];', 'unparsable angle'],
-    ['cp(pi) q[0], q[1];', 'unparsable angle'],
+    ['cp(tau) q[0], q[1];', 'unparsable angle'], // `pi` itself is read since Sprint 4 (angle.test.ts), as the server reads it; other names are not
     ['cp(Infinity) q[0], q[1];', 'unparsable angle'],
     ['cp(0.5) q[1], q[1];', 'must differ'],
     ['cp(0.5) q[0], q[1], q[2];', 'unrecognised statement'],

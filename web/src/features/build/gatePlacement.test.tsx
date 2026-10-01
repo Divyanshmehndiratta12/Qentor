@@ -339,7 +339,8 @@ describe('the controlled-phase gate (cp) takes its angle from the palette', () =
     fireEvent.click(appendCell(1))
     fireEvent.click(appendCell(0))
     const parts = screen.getAllByTitle(/CP\(0\.500 rad\) — control q1, target q0 · click to pick/)
-    expect(parts.map((b) => b.textContent).sort()).toEqual(['', 'P(0.50)'])
+    expect(parts.map((b) => b.textContent).sort()).toEqual(['', 'P0.50']) // the gate letter, then the angle on its own line (two decimals when it is not a simple fraction of pi)
+    expect(parts.flatMap((b) => [...b.querySelectorAll('[data-testid="gate-angle"]')]).map((n) => n.textContent)).toEqual(['0.50'])
     fireEvent.click(parts[0])
     expect(store().circuit.ops).toHaveLength(1) // a click on a part picks the whole gate
     fireEvent.click(screen.getByRole('button', { name: 'Delete the selected gate' }))

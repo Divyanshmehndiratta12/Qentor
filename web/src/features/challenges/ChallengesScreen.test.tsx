@@ -650,3 +650,38 @@ describe('an optimization challenge (shorten without changing)', () => {
     expect(client.submitChallenge.mock.calls[0]![1].ops).toEqual(STARTER.ops)
   })
 })
+
+describe('the palette sits under the canvas on the challenge screen', () => {
+  const four = one('four', { constraints: { ...one('four').constraints, numQubits: 4 }, starterCircuit: emptyCircuit(4, 0) })
+
+  it('is a strip below the canvas, in the same column, never over the wires', async () => {
+    client.listChallenges.mockResolvedValue([one('a')])
+    await openList()
+    await openChallenge(/Challenge a/)
+    const region = screen.getByTestId('challenge-canvas-region')
+    const palette = within(region).getByRole('toolbar', { name: 'Gate palette' })
+    const canvas = within(region).getByRole('group', { name: 'Circuit editor' })
+    expect(canvas.compareDocumentPosition(palette) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(canvas.contains(palette)).toBe(false)
+    expect(palette.closest('[class*="absolute"]')).toBeNull()
+  })
+
+  it('keeps a taller canvas for a register of four or more qubits, and not for fewer', async () => {
+    client.listChallenges.mockResolvedValue([one('a'), four])
+    await openList()
+    await openChallenge(/Challenge a/)
+    expect(screen.getByTestId('challenge-canvas-region').className).not.toContain('min-h-[24rem]')
+    fireEvent.click(listButton(/Challenge four/))
+    await screen.findByRole('heading', { level: 2, name: /Challenge four/ })
+    expect(screen.getByTestId('challenge-canvas-region').className).toContain('min-h-[24rem]')
+  })
+})
+
+describe('the palette stays in view in a tall challenge workspace', () => {
+  it('is sticky at the bottom of the scrolling column on the challenge screen, and not in the Lab', async () => {
+    client.listChallenges.mockResolvedValue([one('a')])
+    await openList()
+    await openChallenge(/Challenge a/)
+    expect(screen.getByRole('toolbar', { name: 'Gate palette' }).parentElement!.className).toContain('sticky')
+  })
+})

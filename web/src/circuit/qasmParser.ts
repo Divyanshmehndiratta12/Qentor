@@ -14,6 +14,7 @@
  */
 import type { Circuit, GateName, GateOp } from './types'
 import { CircuitSchema, gateArityError } from './types'
+import { parseAngle } from './angle'
 
 export class QasmParseError extends Error {
   readonly line: number
@@ -91,9 +92,8 @@ export function parseQasm3(text: string): Circuit {
 
     const phaseMatch = RE_CONTROLLED_PHASE.exec(line)
     if (phaseMatch) {
-      const angleText = phaseMatch[1].trim()
-      const angle = angleText === '' ? Number.NaN : Number(angleText)
-      if (!Number.isFinite(angle)) {
+      const angle = parseAngle(phaseMatch[1])
+      if (angle === null) {
         throw new QasmParseError(`unparsable angle "${phaseMatch[1]}"`, lineNo, line)
       }
       const op: GateOp = {
@@ -130,8 +130,8 @@ export function parseQasm3(text: string): Circuit {
       if (!ROTATION_GATES.has(gate as GateName)) {
         throw new QasmParseError(`unknown rotation gate "${gate}"`, lineNo, line)
       }
-      const angle = Number(rotationMatch[2])
-      if (Number.isNaN(angle)) {
+      const angle = parseAngle(rotationMatch[2])
+      if (angle === null) {
         throw new QasmParseError(`unparsable angle "${rotationMatch[2]}"`, lineNo, line)
       }
       ops.push({

@@ -11,14 +11,17 @@ import { GatePalette } from './GatePalette'
 import { CircuitCanvas } from './CircuitCanvas'
 import { CodePane } from './CodePane'
 import { useAutoRun } from './useAutoRun'
+import { useBuildStore } from './store'
 
 export function BuildScreen() {
   useAutoRun()
+  // A register of four or more qubits (phase estimation, error correction) gets more of the column, so its wires are not all behind a scrollbar.
+  const tall = useBuildStore((s) => s.circuit.num_qubits >= 4)
 
   return (
     <div className="flex h-full flex-col">
       {/* the palette is a strip under the canvas, not a dock over it: it never hides a wire or a gate */}
-      <div className="flex min-h-0 flex-[3] flex-col">
+      <div className={`flex min-h-0 flex-col ${tall ? 'flex-[5]' : 'flex-[3]'}`} data-testid="canvas-region">
         <div className="relative min-h-0 flex-1">
           <CircuitCanvas />
         </div>

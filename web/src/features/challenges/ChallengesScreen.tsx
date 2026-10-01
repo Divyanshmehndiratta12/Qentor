@@ -158,7 +158,7 @@ export function ChallengesScreen({
           </main>
         ) : (
           <Workspace>
-            <main id="main-content" tabIndex={-1} className="flex min-h-0 min-w-0 flex-1 flex-col outline-none">
+            <main id="main-content" tabIndex={-1} className="flex min-h-0 min-w-0 flex-1 flex-col outline-none lg:overflow-y-auto">
               <ChallengeBrief
                 challenge={challenge}
                 hintsRevealed={record.hintsRevealed}
@@ -166,9 +166,15 @@ export function ChallengesScreen({
                 lessonTitle={lessonTitle}
                 onOpenLesson={() => onOpenLesson(challenge.lessonId)}
               />
-              <div className="relative h-[26rem] min-h-0 shrink-0 lg:h-auto lg:flex-1">
-                <CircuitCanvas lockQubits />
-                <GatePalette allowedGates={challenge.constraints.allowedGates} />
+              {/* the canvas, and under it the palette as a strip (it is not a dock over the wires); a register of four or more qubits keeps a taller canvas */}
+              <div
+                className={`flex h-[30rem] min-h-0 shrink-0 flex-col lg:h-auto lg:flex-1 ${challenge.constraints.numQubits >= 4 ? 'lg:min-h-[24rem]' : ''}`}
+                data-testid="challenge-canvas-region"
+              >
+                <div className="relative min-h-0 flex-1">
+                  <CircuitCanvas lockQubits />
+                </div>
+                <GatePalette allowedGates={challenge.constraints.allowedGates} sticky />
               </div>
               <p className="border-t border-void-500 bg-void-900 px-4 py-1.5 text-[11px] text-void-200">
                 Starting a challenge replaces the Lab’s circuit with its starter. Displayed bitstrings read q[n-1] … q[0].

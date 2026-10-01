@@ -10,7 +10,9 @@
  * in sequence — the exact same store actions a click already makes. No new
  * placement logic, no change to the circuit model or arity checking.
  */
-import { useBuildStore, ROTATION_DEFAULT_ANGLE } from './store'
+import { useState } from 'react'
+import { useBuildStore } from './store'
+import { parseAngle } from '@/circuit/angle'
 import type { GateName } from '@/circuit/types'
 import { GATE_DISPLAY, MULTI_QUBIT_PLACEMENT, gateTakesAngle, placementPrompt } from '@/circuit/gateSpec'
 
@@ -82,11 +84,64 @@ function DockButton({
   )
 }
 
-/** `allowedGates`: when given, only those gates can be used (a challenge's constraint); the rest are shown disabled. */
-export function GatePalette({ allowedGates }: { allowedGates?: readonly GateName[] } = {}) {
-  const isAllowed = (gate: GateName) => !allowedGates || allowedGates.includes(gate)
+const ANGLE_PRESETS = ['pi/2', 'pi/4', '-pi/2', '-pi/4', 'pi'] as const
+
+/**
+ * The angle of the next CP or rotation. A person writes an angle the way a textbook does (`pi/4`, `-pi/2`, `0.5`), not as sixteen
+ * digits: the text is read by the same grammar as the server's QASM reader (`circuit/angle.ts`) and the store only ever receives the
+ * number. Text that is not an angle leaves the store's angle as it was and says so; it is never guessed at.
+ */
+function AngleInput() {
   const pendingAngle = useBuildStore((s) => s.pendingAngle)
   const setPendingAngle = useBuildStore((s) => s.setPendingAngle)
+  const [text, setText] = useState('pi/2')
+  const parsed = parseAngle(text)
+  const apply = (next: string) => {
+    setText(next)
+    const value = parseAngle(next)
+    if (value !== null) setPendingAngle(value)
+  }
+  return (
+    <div className="flex flex-wrap items-center gap-2 text-slate-400">
+      <label className="flex items-center gap-2">
+        angle (rad)
+        <input
+          type="text"
+          inputMode="text"
+          autoComplete="off"
+          spellCheck={false}
+          value={text}
+          onChange={(e) => apply(e.target.value)}
+          aria-invalid={parsed === null}
+          aria-describedby="angle-hint"
+          className={`w-24 rounded border bg-void-950 px-2 py-1 font-mono-qasm text-slate-200 focus:outline-none ${
+            parsed === null ? 'border-danger-glow focus:border-danger-glow' : 'border-void-400 focus:border-cyan-glow'
+          }`}
+        />
+      </label>
+      <span id="angle-hint" role={parsed === null ? 'alert' : undefined} className={`font-mono-qasm text-[11px] ${parsed === null ? 'text-danger-glow' : 'text-void-200'}`}>
+        {parsed === null ? 'not an angle: try pi/4, -pi/2 or 0.5' : `= ${pendingAngle} rad`}
+      </span>
+      <span role="group" aria-label="Common angles" className="flex gap-1">
+        {ANGLE_PRESETS.map((preset) => (
+          <button
+            key={preset}
+            type="button"
+            onClick={() => apply(preset)}
+            aria-label={`Set the angle to ${preset}`}
+            className="min-h-6 rounded border border-void-400 px-1.5 font-mono-qasm text-[11px] text-slate-200 hover:border-cyan-glow focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-cyan-glow"
+          >
+            {preset.replace('pi', 'π')}
+          </button>
+        ))}
+      </span>
+    </div>
+  )
+}
+
+/** `allowedGates`: when given, only those gates can be used (a challenge's constraint); the rest are shown disabled. `sticky`: stay at the bottom of a scrolling column (the challenge workspace, where a tall brief and canvas can push it out of view). */
+export function GatePalette({ allowedGates, sticky = false }: { allowedGates?: readonly GateName[]; sticky?: boolean } = {}) {
+  const isAllowed = (gate: GateName) => !allowedGates || allowedGates.includes(gate)
   const selectedGate = useBuildStore((s) => s.selectedGate)
   const pendingQubits = useBuildStore((s) => s.pendingQubits)
   const canvasError = useBuildStore((s) => s.canvasError)
@@ -97,7 +152,7 @@ export function GatePalette({ allowedGates }: { allowedGates?: readonly GateName
     (selectedGate && selectedGate in MULTI_QUBIT_PLACEMENT ? placementPrompt(selectedGate, pendingQubits) : null)
 
   return (
-    <div className="flex shrink-0 flex-col items-center gap-2 border-t border-void-500 bg-void-900 px-3 py-2">
+    <div className={`flex shrink-0 flex-col items-center gap-2 border-t border-void-500 bg-void-900 px-3 py-2 ${sticky ? 'sticky bottom-0 z-10' : ''}`}>
       {(statusText || isRotationSelected) && (
         <div className="flex items-center gap-3 rounded-xl border border-void-400 bg-void-700 px-3 py-2 text-xs">
           {statusText && (
@@ -108,18 +163,7 @@ export function GatePalette({ allowedGates }: { allowedGates?: readonly GateName
               {statusText}
             </span>
           )}
-          {isRotationSelected && (
-            <label className="flex items-center gap-2 text-slate-400">
-              angle (rad)
-              <input
-                type="number"
-                step="0.01"
-                value={pendingAngle}
-                onChange={(e) => setPendingAngle(Number(e.target.value) || ROTATION_DEFAULT_ANGLE)}
-                className="w-20 rounded border border-void-400 bg-void-950 px-2 py-1 font-mono-qasm text-slate-200 focus:border-cyan-glow focus:outline-none"
-              />
-            </label>
-          )}
+          {isRotationSelected && <AngleInput />}
         </div>
       )}
 
