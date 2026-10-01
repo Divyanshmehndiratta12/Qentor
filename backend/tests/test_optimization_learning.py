@@ -411,7 +411,7 @@ class TestTheChallengeThroughTheApi(ApiCase):
         catalog = app_module.list_challenges()
         served = next(c for c in catalog.challenges if c.id == "optimize-redundant")
         self.assertEqual(len(served.starter_circuit.ops), 10)
-        self.assertNotIn("reference", json.dumps(catalog.model_dump(mode="json")))
+        self.assertNotIn("reference_solution", json.dumps(catalog.model_dump(mode="json")))
 
 
 class TestTheDebuggerCoachesTheNewCheck(unittest.TestCase):

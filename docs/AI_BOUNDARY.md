@@ -160,6 +160,13 @@ Two sources, two authorities, kept apart by id:
   and second check) that the circuit model has no mid-circuit measurement or classical control, so its corrections are DEFERRED controlled
   gates, and that this is not the full dynamic protocol. No multi-qubit ket appears in their prose (bit strings are written q1 q0 in words).
   `tests/test_batch1_lessons.py` runs every linked circuit, every variant a lesson asks the learner to build, and every answer key on Aer.
+- Lessons 14 to 16 (`qentor.lessons.content_algorithms`: Quantum Fourier Transform, Quantum Phase Estimation, Quantum Error Correction) follow
+  the same rules, and three statements are tested wherever they matter: the QFT lesson claims no speed; the QPE lesson separates its exact
+  fixed example from the general algorithm; the QEC lesson says the injected error is a fixed gate, NOT a noise model, and that its correction is
+  deferred. Their three challenges (`qft-2qubit`, `qpe-estimate-t`, `qec-correct-flip-q1`) are judged only by the backend: operator equivalence for
+  the QFT, state and per-qubit checks on Aer for the other two (with a substituted re-run for QPE). The Tutor reads the lessons' prose and, with a
+  run, the backend's facts; no lesson prose contains a quantum result and `test_algorithm_lessons.py` checks every statement a lesson makes
+  about the physics on Aer.
 - The three advanced lessons (`qentor.lessons.content_advanced`) use the same section types and the same
   rules. Each is about ONE fixed example and says so; nothing generates an oracle. The Phase Kickback
   lab circuit prepares its target in |−⟩ (X then H on q1), so it is a clean kickback; the lesson has the learner delete the H on q1 and rerun as the contrast case (target |1⟩, not an eigenstate). The Bernstein–Vazirani example's secret

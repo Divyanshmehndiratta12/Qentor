@@ -1,4 +1,4 @@
-"""The fifteen challenges. Data only: every verdict is computed by ``qentor.challenges.evaluate`` from backend statevectors.
+"""The eighteen challenges. Data only: every verdict is computed by ``qentor.challenges.evaluate`` from backend statevectors.
 
 Hints are written to be deterministic and safe to show: they name gates and ideas, never a quantum result the learner has
 not produced (no probabilities or amplitudes appear here).
@@ -22,11 +22,25 @@ One more challenge is about shortening, not about a state: ``optimize-redundant`
 for one of at most three operations that does the same thing. "The same thing" is the platform's operator-equivalence check
 (``EquivalentTo``), so deleting a gate that was doing something does not pass, and the verdict is the backend's.
 
+Sprint 4 adds three algorithm challenges (each a fixed, small, educational example; every verdict is the backend's):
+
+* QFT (``qft-2qubit``): build the 2-qubit quantum Fourier transform. Judged by ``EquivalentTo`` against the reference ladder (``h``,
+  controlled phase, ``h``, swap), so any circuit that is operator-equivalent up to a global phase passes and a QFT without its swap, or
+  with the wrong angle, does not.
+* QPE (``qpe-estimate-t``): estimate the phase of the T gate with three counting qubits. The controlled powers of T are the fixed anchor;
+  the learner prepares the eigenstate, the counting register and the inverse QFT, and measures. It also re-runs the circuit with the S
+  gate's controlled powers (``replace_anchor``) and expects the S answer, so a circuit that hard-codes the T answer fails.
+* QEC (``qec-correct-flip-q1``): the three-qubit bit-flip code with a FIXED injected X error on q1 (the anchor; NOT a noise model).
+  The learner encodes before it, then extracts the syndrome and applies the deferred correction; the server checks the encoding, the
+  injected error, the syndrome, the corrected qubit and the whole restored register.
+
 Every challenge builds its circuit by appending gates (the Lab canvas appends), so the fixed oracle is something the
 learner places, exactly as given, and the evaluator checks it is there once, unchanged and in order.
 """
 
 from __future__ import annotations
+
+import math
 
 from qentor.circuit.model import Circuit, GateName, GateOp
 
@@ -85,6 +99,31 @@ _OPT_STARTER = [
     g("s", 1), g("sdg", 1),
     g("rz", 1, angle=0.5), g("rz", 1, angle=0.25),
 ]
+def swap(a: int, b: int) -> GateOp:
+    return GateOp(gate=GateName.SWAP, targets=[a, b], controls=[], params=[], clbits=[])
+
+
+def ccx(c1: int, c2: int, target: int) -> GateOp:
+    return GateOp(gate=GateName.CCX, targets=[target], controls=[c1, c2], params=[], clbits=[])
+
+
+_PI = math.pi
+# QFT on two qubits (the lesson's 3-qubit ladder, one size down): H on the top qubit, a controlled phase of a quarter turn, H on the other
+# qubit, then the swap that puts the qubits back in order.
+_QFT2 = [g("h", 1), g("cp", 1, 0, _PI / 2), g("h", 0), swap(0, 1)]
+# QPE of the T gate: counting qubits q0 q1 q2, target q3 (prepared in the eigenstate one). The controlled powers of T are T, T twice (= S)
+# and T four times (= Z), written as controlled phases. With S instead, S and S twice are needed and S four times is the identity.
+_QPE_PREPARE = [g("x", 3), g("h", 0), g("h", 1), g("h", 2)]
+_QPE_T_CONTROLLED = [g("cp", 3, 0, _PI / 4), g("cp", 3, 1, _PI / 2), g("cp", 3, 2, _PI)]
+_QPE_S_CONTROLLED = [g("cp", 3, 0, _PI / 2), g("cp", 3, 1, _PI)]
+_INVERSE_QFT3 = [
+    swap(0, 2), g("h", 0), g("cp", 1, 0, -_PI / 2), g("h", 1), g("cp", 2, 0, -_PI / 4), g("cp", 2, 1, -_PI / 2), g("h", 2),
+]
+# QEC: the three-qubit bit-flip code. Data q0 q1 q2, ancillas q3 q4; the logical state is ry(1) on q0; the error is a FIXED injected x on q1.
+_QEC_ENCODE = [g("ry", 0, angle=1.0), g("cx", 1, 0), g("cx", 2, 0)]
+_QEC_ERROR = [g("x", 1)]
+_QEC_SYNDROME = [g("cx", 3, 0), g("cx", 3, 1), g("cx", 4, 1), g("cx", 4, 2)]
+_QEC_FIX_Q1 = [ccx(3, 4, 1)]
 _DJ_ORACLE = [g("cx", 2, 0), g("cx", 2, 1)]
 _BV_ORACLE = [g("cx", 3, 1), g("cx", 3, 2)]
 
@@ -675,5 +714,175 @@ RAW_CHALLENGES: list[Challenge] = [
         ],
         success_message="Same circuit, fewer gates: gates that cancel or merge never needed to be there.",
         reference_solution=circ(2, [g("h", 0), g("cx", 1, 0), g("rz", 1, angle=0.75)]),
+    ),
+    Challenge(
+        id="qft-2qubit",
+        lesson_id="quantum-fourier-transform",
+        title="Build the 2-qubit QFT",
+        goal=(
+            "Build the quantum Fourier transform on two qubits, the lesson's 3-qubit ladder one size down: start from the highest "
+            "qubit, add the controlled phase, finish with the swap that puts the qubits in order. The backend checks that your "
+            "circuit does exactly what the textbook QFT does (operator equivalence up to a global phase), not just on one input."
+        ),
+        difficulty="advanced",
+        success_condition="Your circuit is equivalent to the 2-qubit QFT (the backend's operator-equivalence check says so) and uses a controlled-phase gate.",
+        constraints=Constraints(
+            num_qubits=2,
+            allowed_gates=[GateName.H, GateName.X, GateName.Z, GateName.S, GateName.T, GateName.CX, GateName.CP, GateName.SWAP],
+            max_ops=8,
+            min_gate_counts={GateName.CP: 1},
+        ),
+        starter_circuit=circ(2, []),
+        checks=[
+            EquivalentTo(
+                id="equivalent.to_qft",
+                label="Does exactly what the 2-qubit QFT does",
+                hint_index=1,
+                misconception="The QFT is one specific operation: the Hadamards, the controlled phase of a quarter turn and the final swap together. A wrong angle, a missing swap or the gates in the wrong order give a different operation, even when the outcome odds look the same.",
+                experiment="Build your circuit, then run the trace once from the empty input and once with an X on q[0] placed first: the amplitude view's phase column should step around, and the qubit order of the output depends on the swap.",
+                target=circ(2, _QFT2),
+            )
+        ],
+        hints=[
+            "The QFT works from the highest qubit down: Hadamard on q[1], then a controlled phase from q[0], then Hadamard on q[0].",
+            "The controlled phase (CP) takes its angle from the palette: type pi/2 (a quarter of a full turn), click q[0] as the control and q[1] as the target.",
+            "Finish with SWAP on q[0] and q[1]: the ladder leaves the output in reverse qubit order and the swap puts it right.",
+        ],
+        success_message="Hadamards, one controlled phase and a swap: the same operation as the textbook QFT on two qubits, so the number in the input is written into the phases.",
+        reference_solution=circ(2, _QFT2),
+    ),
+    Challenge(
+        id="qpe-estimate-t",
+        lesson_id="quantum-phase-estimation",
+        title="Estimate the phase of T",
+        goal=(
+            "Estimate the phase of the T gate on its eigenstate (the state one) with three counting qubits q[0] to q[2] and the target "
+            "q[3]. The controlled powers of T are given and fixed: CP(pi/4) from q[0], CP(pi/2) from q[1] and CP(pi) from q[2], each "
+            "onto q[3], back to back. You prepare the target and the counting qubits before them, convert the pattern with the inverse "
+            "QFT after them, and measure q[0], q[1] and q[2]. Read the result as q[2] q[1] q[0]. It is a fixed educational example."
+        ),
+        difficulty="advanced",
+        success_condition="Before the controlled gates the target holds the eigenstate and the counting qubits are in an even superposition; the counting register then reads the phase of T exactly, every time; and with the controlled powers of S instead the same circuit would read the phase of S.",
+        constraints=Constraints(
+            num_qubits=4,
+            num_clbits=3,
+            allowed_gates=[GateName.H, GateName.X, GateName.CP, GateName.SWAP, GateName.MEASURE],
+            max_ops=24,
+            anchor=_QPE_T_CONTROLLED,
+            anchor_name="controlled powers of T",
+            must_measure=[0, 1, 2],
+        ),
+        starter_circuit=circ(4, [], 3),
+        checks=[
+            StateMatches(
+                id="before.prepared",
+                label="Before the controlled gates: the target holds the eigenstate and the counting qubits are in an even superposition",
+                at=Point.BEFORE_ANCHOR,
+                hint_index=1,
+                misconception="Phase estimation needs the target in an eigenstate of the gate (for T, the state one) and every counting qubit in superposition, so that each can pick up a phase.",
+                experiment="Run the trace and look at the state just before the controlled gates: the target should be definite and each counting qubit should lie on the equator of its sphere.",
+                target=circ(4, _QPE_PREPARE),
+            ),
+            StateMatches(
+                id="final.reads_phase",
+                label="The counting register ends in the state that spells the phase of T",
+                hint_index=2,
+                misconception="After the controlled gates the phase is written into the counting qubits as a pattern of phases. The inverse QFT is what turns that pattern into a basis state, so the bit string can be read; a missing swap or a wrong sign gives a different string.",
+                experiment="Step through your inverse QFT in the trace: the counting qubits' arrows should leave the equator and end on the poles.",
+                target=circ(4, [g("x", 3), g("x", 0)]),
+            ),
+            StateMatches(
+                id="final.is_general",
+                label="With the controlled powers of S instead, the same circuit would read the phase of S",
+                hint_index=2,
+                misconception="The inverse QFT must not know which phase it is reading. A circuit that always ends in the same string is a hard-coded answer, not an estimate.",
+                experiment="Build the inverse QFT only from the lesson's reversed ladder (swap, H and controlled phases with their signs turned), with nothing that depends on the gate being T.",
+                target=circ(4, [g("x", 3), g("x", 1)]),
+                replace_anchor=_QPE_S_CONTROLLED,
+            ),
+        ],
+        hints=[
+            "The recipe: prepare the target in the eigenstate, put the counting qubits in superposition, apply the given controlled powers of T, apply the inverse QFT to the counting qubits, measure them.",
+            "The target q[3] starts in zero: an X gate makes it the eigenstate. Then H on each of q[0], q[1] and q[2], then the three given controlled gates.",
+            "The inverse QFT is the QFT backwards with every phase negated: SWAP q[0],q[2]; H q[0]; CP(-pi/2) control q[0] target q[1]; H q[1]; CP(-pi/4) control q[0] target q[2]; CP(-pi/2) control q[1] target q[2]; H q[2]. Then measure q[0], q[1], q[2].",
+        ],
+        success_message="The phase of T, one eighth of a full turn, came out as a bit string: the controlled gates wrote it into the counting qubits and the inverse QFT read it out.",
+        reference_solution=circ(4, [*_QPE_PREPARE, *_QPE_T_CONTROLLED, *_INVERSE_QFT3, m(0, 0), m(1, 1), m(2, 2)], 3),
+    ),
+    Challenge(
+        id="qec-correct-flip-q1",
+        lesson_id="quantum-error-correction",
+        title="Correct the flip on qubit 1",
+        goal=(
+            "A fixed X error is injected on the data qubit q[1] (it is given and fixed: NOT a noise model). Encode the state ry(1.0) of q[0] "
+            "over the three data qubits q[0], q[1], q[2] before it (CX from q[0] to q[1], then to q[2]); after it, collect the syndrome onto "
+            "the ancillas (q[3] holds the parity of q[0] and q[1]: CX from q[0] and from q[1]; q[4] holds the parity of q[1] and q[2]: CX from "
+            "q[1] and from q[2]) and correct the flip with a CCX whose controls are q[3] and q[4] and whose target is q[1]."
+        ),
+        difficulty="advanced",
+        success_condition="The register is encoded before the error; the injected error is on q[1]; the syndrome reads the pattern for q[1]; q[1] is back to its encoded state; and the whole register is the restored encoded state.",
+        constraints=Constraints(
+            num_qubits=5,
+            num_clbits=5,
+            allowed_gates=[GateName.RY, GateName.X, GateName.CX, GateName.CCX, GateName.MEASURE],
+            max_ops=20,
+            anchor=_QEC_ERROR,
+            anchor_name="injected error",
+        ),
+        starter_circuit=circ(5, [], 5),
+        checks=[
+            StateMatches(
+                id="before.encoded",
+                label="Before the error, the register is encoded: the three data qubits carry the state of q[0]",
+                at=Point.BEFORE_ANCHOR,
+                hint_index=1,
+                misconception="Encoding is not copying: the state of q[0] is spread over three qubits by entanglement, with a CX from q[0] to each of the others. Without it the injected error would damage the only copy.",
+                experiment="Run the trace and look at the state just before the injected error: do all three data qubits now agree, either all zero or all one?",
+                target=circ(5, _QEC_ENCODE),
+            ),
+            StateMatches(
+                id="after.error",
+                label="The injected flip is on q[1] and nothing else has changed",
+                at=Point.AFTER_ANCHOR,
+                hint_index=1,
+                misconception="The error is fixed and given: an X on q[1], placed once. Gates between the encoding and the error would change what the code has to repair.",
+                experiment="Compare q[1]'s own sphere before and after the injected X: its arrow should turn around.",
+                target=circ(5, [*_QEC_ENCODE, *_QEC_ERROR]),
+            ),
+            ProbabilitiesMatch(
+                id="final.syndrome",
+                label="The syndrome ancillas q[3] q[4] read the pattern for a flip on q[1]",
+                hint_index=2,
+                misconception="Each ancilla collects the parity of a pair of data qubits: q[3] the pair q[0], q[1] and q[4] the pair q[1], q[2]. A flip on q[1] is seen by both, so the correction can tell it is q[1] and not another qubit.",
+                experiment="Measure q[3] and q[4] at the end and read them as q[4] q[3]: which parity pairs did you wire to which ancilla?",
+                qubits=[3, 4],
+                target=circ(5, [*_QEC_ENCODE, *_QEC_ERROR, *_QEC_SYNDROME, *_QEC_FIX_Q1]),
+            ),
+            QubitStateMatches(
+                id="final.q1_restored",
+                label="q[1] is back to its encoded state",
+                hint_index=3,
+                misconception="The correction is a gate controlled by BOTH ancillas, aimed at q[1]: it flips q[1] back only when both parities report a disagreement. A flip on the wrong qubit, or none, leaves q[1] turned around.",
+                experiment="Open q[1]'s per-qubit sphere at the last step and compare it with the step before the injected error.",
+                qubit=1,
+                target=circ(5, _QEC_ENCODE),
+            ),
+            StateMatches(
+                id="final.restored",
+                label="The whole register is the restored encoded state, with the syndrome still on the ancillas",
+                hint_index=3,
+                misconception="Correcting means the data qubits end exactly where they were before the error, and nothing has been measured or reset on the way. The ancillas still hold the syndrome.",
+                experiment="Compare the amplitude view at your last step with the state after the syndrome: the data part should look as it did right after the encoding.",
+                target=circ(5, [*_QEC_ENCODE, *_QEC_ERROR, *_QEC_SYNDROME, *_QEC_FIX_Q1]),
+            ),
+        ],
+        hints=[
+            "Three stages around the given error: encode the state over the data qubits before it, extract the syndrome onto the ancillas after it, then correct.",
+            "Encoding is RY with the angle 1 on q[0], then CX with control q[0] and target q[1], then CX with control q[0] and target q[2]. Place the given X error after it.",
+            "The syndrome: CX control q[0] target q[3]; CX control q[1] target q[3]; CX control q[1] target q[4]; CX control q[2] target q[4].",
+            "The correction is one CCX with controls q[3] and q[4] and target q[1]. Everything is deferred: no measurement is needed in the middle.",
+        ],
+        success_message="The syndrome pointed at q[1] without revealing the encoded state, and the controlled correction put it back: a fixed injected flip, repaired.",
+        reference_solution=circ(5, [*_QEC_ENCODE, *_QEC_ERROR, *_QEC_SYNDROME, *_QEC_FIX_Q1]),
     ),
 ]

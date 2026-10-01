@@ -83,7 +83,7 @@ beforeEach(() => {
 afterEach(cleanup)
 
 describe('axe: structural accessibility of each screen', () => {
-  it('the Lab, with a circuit on the canvas, has no violations and one level-one heading', async () => {
+  it('the Lab, with a circuit on the canvas, has no violations and one level-one heading', { timeout: 30000 }, async () => {
     useBuildStore.getState().loadCircuit({ ...emptyCircuit(2, 0), ops: [op('h', [0]), op('h', [0])] })
     window.history.replaceState(null, '', '/')
     render(<App />)

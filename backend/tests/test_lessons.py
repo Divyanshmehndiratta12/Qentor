@@ -29,6 +29,9 @@ EXPECTED_LESSON_IDS = {
     "superdense-coding",
     "quantum-teleportation",
     "grovers-search",
+    "quantum-fourier-transform",
+    "quantum-phase-estimation",
+    "quantum-error-correction",
 }
 
 
@@ -48,7 +51,7 @@ def _minimal_lesson(**overrides) -> Lesson:
 
 
 class TestRealRegistryLoadsCleanly(unittest.TestCase):
-    def test_all_thirteen_planned_lessons_are_registered(self) -> None:
+    def test_all_sixteen_planned_lessons_are_registered(self) -> None:
         self.assertEqual({lesson.id for lesson in LESSONS}, EXPECTED_LESSON_IDS)
 
     def test_lesson_ids_are_unique(self) -> None:
@@ -76,7 +79,7 @@ class TestRealRegistryLoadsCleanly(unittest.TestCase):
             if has_lab:
                 self.assertIsNotNone(lesson.linked_circuit, f"{lesson.id} has a lab but no linked_circuit")
 
-    def test_exactly_the_thirteen_planned_lessons_have_a_real_concept_check_question(self) -> None:
+    def test_exactly_the_sixteen_planned_lessons_have_a_real_concept_check_question(self) -> None:
         expected = {
             "qubits-measurement",
             "bloch-sphere",
@@ -91,6 +94,9 @@ class TestRealRegistryLoadsCleanly(unittest.TestCase):
             "superdense-coding",
             "quantum-teleportation",
             "grovers-search",
+            "quantum-fourier-transform",
+            "quantum-phase-estimation",
+            "quantum-error-correction",
         }
         with_question = {
             lesson.id

@@ -991,6 +991,219 @@
         },
         "success_condition": "Your circuit is equivalent to the starting circuit (the backend's operator-equivalence check says so) and has at most 3 operations.",
         "title": "Shorten it without changing it"
+      },
+      {
+        "checks": [
+          {
+            "id": "equivalent.to_qft",
+            "label": "Does exactly what the 2-qubit QFT does"
+          }
+        ],
+        "constraints": {
+          "allowed_gates": [
+            "h",
+            "x",
+            "z",
+            "s",
+            "t",
+            "cx",
+            "cp",
+            "swap"
+          ],
+          "anchor": [],
+          "anchor_name": "oracle",
+          "gate_qubits": {},
+          "max_ops": 8,
+          "min_gate_counts": {
+            "cp": 1
+          },
+          "must_measure": [],
+          "num_clbits": 0,
+          "num_qubits": 2
+        },
+        "difficulty": "advanced",
+        "fixed_oracle": false,
+        "goal": "Build the quantum Fourier transform on two qubits, the lesson's 3-qubit ladder one size down: start from the highest qubit, add the controlled phase, finish with the swap that puts the qubits in order. The backend checks that your circuit does exactly what the textbook QFT does (operator equivalence up to a global phase), not just on one input.",
+        "hints": [
+          "The QFT works from the highest qubit down: Hadamard on q[1], then a controlled phase from q[0], then Hadamard on q[0].",
+          "The controlled phase (CP) takes its angle from the palette: type pi/2 (a quarter of a full turn), click q[0] as the control and q[1] as the target.",
+          "Finish with SWAP on q[0] and q[1]: the ladder leaves the output in reverse qubit order and the swap puts it right."
+        ],
+        "id": "qft-2qubit",
+        "lesson_id": "quantum-fourier-transform",
+        "starter_circuit": {
+          "num_clbits": 0,
+          "num_qubits": 2,
+          "ops": [],
+          "schema": "qentor.circuit/1"
+        },
+        "success_condition": "Your circuit is equivalent to the 2-qubit QFT (the backend's operator-equivalence check says so) and uses a controlled-phase gate.",
+        "title": "Build the 2-qubit QFT"
+      },
+      {
+        "checks": [
+          {
+            "id": "before.prepared",
+            "label": "Before the controlled gates: the target holds the eigenstate and the counting qubits are in an even superposition"
+          },
+          {
+            "id": "final.reads_phase",
+            "label": "The counting register ends in the state that spells the phase of T"
+          },
+          {
+            "id": "final.is_general",
+            "label": "With the controlled powers of S instead, the same circuit would read the phase of S"
+          }
+        ],
+        "constraints": {
+          "allowed_gates": [
+            "h",
+            "x",
+            "cp",
+            "swap",
+            "measure"
+          ],
+          "anchor": [
+            {
+              "clbits": [],
+              "controls": [
+                0
+              ],
+              "gate": "cp",
+              "params": [
+                0.7853981633974483
+              ],
+              "targets": [
+                3
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [
+                1
+              ],
+              "gate": "cp",
+              "params": [
+                1.5707963267948966
+              ],
+              "targets": [
+                3
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [
+                2
+              ],
+              "gate": "cp",
+              "params": [
+                3.141592653589793
+              ],
+              "targets": [
+                3
+              ]
+            }
+          ],
+          "anchor_name": "controlled powers of T",
+          "gate_qubits": {},
+          "max_ops": 24,
+          "min_gate_counts": {},
+          "must_measure": [
+            0,
+            1,
+            2
+          ],
+          "num_clbits": 3,
+          "num_qubits": 4
+        },
+        "difficulty": "advanced",
+        "fixed_oracle": false,
+        "goal": "Estimate the phase of the T gate on its eigenstate (the state one) with three counting qubits q[0] to q[2] and the target q[3]. The controlled powers of T are given and fixed: CP(pi/4) from q[0], CP(pi/2) from q[1] and CP(pi) from q[2], each onto q[3], back to back. You prepare the target and the counting qubits before them, convert the pattern with the inverse QFT after them, and measure q[0], q[1] and q[2]. Read the result as q[2] q[1] q[0]. It is a fixed educational example.",
+        "hints": [
+          "The recipe: prepare the target in the eigenstate, put the counting qubits in superposition, apply the given controlled powers of T, apply the inverse QFT to the counting qubits, measure them.",
+          "The target q[3] starts in zero: an X gate makes it the eigenstate. Then H on each of q[0], q[1] and q[2], then the three given controlled gates.",
+          "The inverse QFT is the QFT backwards with every phase negated: SWAP q[0],q[2]; H q[0]; CP(-pi/2) control q[0] target q[1]; H q[1]; CP(-pi/4) control q[0] target q[2]; CP(-pi/2) control q[1] target q[2]; H q[2]. Then measure q[0], q[1], q[2]."
+        ],
+        "id": "qpe-estimate-t",
+        "lesson_id": "quantum-phase-estimation",
+        "starter_circuit": {
+          "num_clbits": 3,
+          "num_qubits": 4,
+          "ops": [],
+          "schema": "qentor.circuit/1"
+        },
+        "success_condition": "Before the controlled gates the target holds the eigenstate and the counting qubits are in an even superposition; the counting register then reads the phase of T exactly, every time; and with the controlled powers of S instead the same circuit would read the phase of S.",
+        "title": "Estimate the phase of T"
+      },
+      {
+        "checks": [
+          {
+            "id": "before.encoded",
+            "label": "Before the error, the register is encoded: the three data qubits carry the state of q[0]"
+          },
+          {
+            "id": "after.error",
+            "label": "The injected flip is on q[1] and nothing else has changed"
+          },
+          {
+            "id": "final.syndrome",
+            "label": "The syndrome ancillas q[3] q[4] read the pattern for a flip on q[1]"
+          },
+          {
+            "id": "final.q1_restored",
+            "label": "q[1] is back to its encoded state"
+          },
+          {
+            "id": "final.restored",
+            "label": "The whole register is the restored encoded state, with the syndrome still on the ancillas"
+          }
+        ],
+        "constraints": {
+          "allowed_gates": [
+            "ry",
+            "x",
+            "cx",
+            "ccx",
+            "measure"
+          ],
+          "anchor": [
+            {
+              "clbits": [],
+              "controls": [],
+              "gate": "x",
+              "params": [],
+              "targets": [
+                1
+              ]
+            }
+          ],
+          "anchor_name": "injected error",
+          "gate_qubits": {},
+          "max_ops": 20,
+          "min_gate_counts": {},
+          "must_measure": [],
+          "num_clbits": 5,
+          "num_qubits": 5
+        },
+        "difficulty": "advanced",
+        "fixed_oracle": false,
+        "goal": "A fixed X error is injected on the data qubit q[1] (it is given and fixed: NOT a noise model). Encode the state ry(1.0) of q[0] over the three data qubits q[0], q[1], q[2] before it (CX from q[0] to q[1], then to q[2]); after it, collect the syndrome onto the ancillas (q[3] holds the parity of q[0] and q[1]: CX from q[0] and from q[1]; q[4] holds the parity of q[1] and q[2]: CX from q[1] and from q[2]) and correct the flip with a CCX whose controls are q[3] and q[4] and whose target is q[1].",
+        "hints": [
+          "Three stages around the given error: encode the state over the data qubits before it, extract the syndrome onto the ancillas after it, then correct.",
+          "Encoding is RY with the angle 1 on q[0], then CX with control q[0] and target q[1], then CX with control q[0] and target q[2]. Place the given X error after it.",
+          "The syndrome: CX control q[0] target q[3]; CX control q[1] target q[3]; CX control q[1] target q[4]; CX control q[2] target q[4].",
+          "The correction is one CCX with controls q[3] and q[4] and target q[1]. Everything is deferred: no measurement is needed in the middle."
+        ],
+        "id": "qec-correct-flip-q1",
+        "lesson_id": "quantum-error-correction",
+        "starter_circuit": {
+          "num_clbits": 5,
+          "num_qubits": 5,
+          "ops": [],
+          "schema": "qentor.circuit/1"
+        },
+        "success_condition": "The register is encoded before the error; the injected error is on q[1]; the syndrome reads the pattern for q[1]; q[1] is back to its encoded state; and the whole register is the restored encoded state.",
+        "title": "Correct the flip on qubit 1"
       }
     ]
   },
@@ -3285,6 +3498,894 @@
         ],
         "short_description": "Finding one marked item among four with one oracle and one diffusion step; a small educational example, not a scalable search.",
         "title": "Grover's Search"
+      },
+      {
+        "concept": "quantum-fourier-transform",
+        "difficulty": "advanced",
+        "estimated_minutes": 22,
+        "id": "quantum-fourier-transform",
+        "learning_objectives": [
+          "Say what the QFT does to a basis-state input: equal sizes and phases that step around a circle.",
+          "Explain why the controlled-phase gates make the phases depend on the whole input.",
+          "Explain what the basis change means: the information moves from which state to relative phases.",
+          "Say why the circuit ends with a swap.",
+          "Read the fixed 3-qubit example through the trace, the per-qubit spheres and the amplitude view."
+        ],
+        "linked_circuit": {
+          "num_clbits": 3,
+          "num_qubits": 3,
+          "ops": [
+            {
+              "clbits": [],
+              "controls": [],
+              "gate": "x",
+              "params": [],
+              "targets": [
+                0
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [],
+              "gate": "h",
+              "params": [],
+              "targets": [
+                2
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [
+                1
+              ],
+              "gate": "cp",
+              "params": [
+                1.5707963267948966
+              ],
+              "targets": [
+                2
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [
+                0
+              ],
+              "gate": "cp",
+              "params": [
+                0.7853981633974483
+              ],
+              "targets": [
+                2
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [],
+              "gate": "h",
+              "params": [],
+              "targets": [
+                1
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [
+                0
+              ],
+              "gate": "cp",
+              "params": [
+                1.5707963267948966
+              ],
+              "targets": [
+                1
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [],
+              "gate": "h",
+              "params": [],
+              "targets": [
+                0
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [],
+              "gate": "swap",
+              "params": [],
+              "targets": [
+                0,
+                2
+              ]
+            },
+            {
+              "clbits": [
+                0
+              ],
+              "controls": [],
+              "gate": "measure",
+              "params": [],
+              "targets": [
+                0
+              ]
+            },
+            {
+              "clbits": [
+                1
+              ],
+              "controls": [],
+              "gate": "measure",
+              "params": [],
+              "targets": [
+                1
+              ]
+            },
+            {
+              "clbits": [
+                2
+              ],
+              "controls": [],
+              "gate": "measure",
+              "params": [],
+              "targets": [
+                2
+              ]
+            }
+          ],
+          "schema": "qentor.circuit/1"
+        },
+        "prerequisite_lesson_ids": [
+          "phase",
+          "interference"
+        ],
+        "sections": [
+          {
+            "body": "The quantum Fourier transform (QFT) is a change of basis. Fed a basis state, which stands for one whole number, it returns every basis state at the same size, with the number written into how the phases differ. This lesson is ONE fixed 3-qubit example: the input is the number one, made by X on q0. It is a small educational example. It does not claim that the QFT is fast or useful by itself: its main use is as a part of other algorithms.",
+            "id": "s1",
+            "title": "A basis change that stores a number in phases",
+            "type": "explanation"
+          },
+          {
+            "body": "Qentor writes bit strings with the highest-numbered qubit on the left, so the input here is q2 q1 q0 = 001. After the QFT all eight outcomes have the same size, so measuring says nothing about the input. What differs is the phase. This is textbook reasoning, not a run: for an input number x, outcome number y gets a phase of x times y eighths of a full turn, so for the input one the phase grows by one eighth of a turn from each outcome to the next.",
+            "id": "s2",
+            "title": "What comes out",
+            "type": "explanation"
+          },
+          {
+            "body": "An H gate makes an equal superposition, but on its own it cannot make a phase depend on the other qubits. The controlled-phase gates (cp) can: each adds a smaller turn, a quarter or an eighth of a full turn, only when its control qubit is 1. The control qubits hold the digits of the input number, so the phases that come out depend on the whole number. This is textbook reasoning. Without the controlled phases the circuit would treat every qubit separately and could not build this pattern.",
+            "id": "s3",
+            "title": "Why controlled phases matter",
+            "type": "explanation"
+          },
+          {
+            "body": "A basis change writes the same information with a different set of states. Before the QFT the number is which basis state the qubits are in. After it, the number is carried by relative phases and every size is equal. A measurement in the original basis only reads the sizes, so it cannot see the number. This is textbook reasoning. Run backwards, the inverse QFT turns the phase pattern into a basis state again, which is how phase estimation reads a phase out.",
+            "id": "s4",
+            "title": "What the basis change means",
+            "type": "explanation"
+          },
+          {
+            "concept": "quantum-fourier-transform",
+            "id": "s5",
+            "options": [
+              {
+                "id": "a",
+                "text": "The input number every time, because the QFT only relabels the basis states and keeps every size as it was"
+              },
+              {
+                "id": "b",
+                "text": "All eight outcomes about equally often, because the number is now stored in the phases"
+              },
+              {
+                "id": "c",
+                "text": "Only the outcomes that are multiples of the input number"
+              },
+              {
+                "id": "d",
+                "text": "Two outcomes only: the input number and its mirror image"
+              }
+            ],
+            "prompt": "Think about where the information about the input number is stored after the QFT.",
+            "question": "A basis-state input goes through the QFT and all three qubits are then measured, many times. What does the measurement show?",
+            "title": "Check: what a measurement shows after the QFT",
+            "type": "concept_check"
+          },
+          {
+            "capability": "execute",
+            "id": "s6",
+            "instructions": "Open the lab circuit: X on q0 makes the input one, then H and controlled-phase gates build the QFT, a final swap puts the qubits in order, and all three qubits are measured. Run it on the backend in shots mode: the eight outcomes come out about equally often, which hides the phases. Then open the trace and step through it, reading the phase column of the amplitude view and each qubit's own sphere. The QFT of a basis state is not entangled, so each qubit alone has an arrow of full length on the equator of its sphere.",
+            "title": "Lab: the QFT of the input one",
+            "type": "interactive_lab"
+          },
+          {
+            "concept": "quantum-fourier-transform",
+            "id": "s7",
+            "options": [
+              {
+                "id": "a",
+                "text": "The swap measures q0 and q2 so that the phases become visible"
+              },
+              {
+                "id": "b",
+                "text": "The swap cancels the phases that the controlled-phase gates added"
+              },
+              {
+                "id": "c",
+                "text": "The main steps leave the output in reverse qubit order, and the swap puts it in order"
+              },
+              {
+                "id": "d",
+                "text": "Every circuit that computes a transform has to end with a swap, whatever the transform does or how many qubits it uses"
+              }
+            ],
+            "prompt": "Think about the order in which the main steps handle the qubits.",
+            "question": "The H and controlled-phase steps of this QFT are followed by a swap of q0 and q2. Why?",
+            "title": "Check: why the circuit ends with a swap",
+            "type": "concept_check"
+          },
+          {
+            "body": "The ladder of H and controlled-phase gates handles q2 first and q0 last, and it leaves the phase that belongs to q0 on q2 and the other way round. The final swap of q0 and q2 corrects that. In this three-qubit example one swap is enough, because the middle qubit q1 is its own mirror. With more qubits the swaps pair up the qubits from the two ends. The result then matches the textbook definition of the QFT outcome by outcome.",
+            "id": "s8",
+            "title": "Why the final swaps are required",
+            "type": "explanation"
+          },
+          {
+            "body": "The QFT of a basis state is not entangled: each qubit alone is in a state of its own, so each per-qubit sphere shows an arrow of full length. Those arrows lie on the equator and point different ways, and the amplitude view shows eight rows of equal size with phases that step around. In the steps before the swap the same phases sit on the mirrored qubits. Every number you see comes from the backend's trace, not from this text.",
+            "id": "s9",
+            "title": "Reading the trace honestly",
+            "type": "explanation"
+          },
+          {
+            "id": "s10",
+            "prompt": "After the QFT all outcomes are equally likely, yet the input number is still in the state. Where is it, and what would you do to the circuit to read it back as a basis state?",
+            "title": "Reflect",
+            "type": "reflection"
+          }
+        ],
+        "short_description": "A change of basis that stores a number in relative phases, in one fixed 3-qubit example with a basis-state input.",
+        "title": "Quantum Fourier Transform"
+      },
+      {
+        "concept": "quantum-phase-estimation",
+        "difficulty": "advanced",
+        "estimated_minutes": 24,
+        "id": "quantum-phase-estimation",
+        "learning_objectives": [
+          "Say what an eigenstate is and what the phase of a gate on it means.",
+          "Explain how phase kickback writes that phase into the counting qubits.",
+          "Explain what the inverse QFT does to the counting register.",
+          "Say why the measured result is a bit string, and how to read the phase from it.",
+          "Tell this exact fixed example from the general algorithm."
+        ],
+        "linked_circuit": {
+          "num_clbits": 3,
+          "num_qubits": 4,
+          "ops": [
+            {
+              "clbits": [],
+              "controls": [],
+              "gate": "x",
+              "params": [],
+              "targets": [
+                3
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [],
+              "gate": "h",
+              "params": [],
+              "targets": [
+                0
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [],
+              "gate": "h",
+              "params": [],
+              "targets": [
+                1
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [],
+              "gate": "h",
+              "params": [],
+              "targets": [
+                2
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [
+                0
+              ],
+              "gate": "cp",
+              "params": [
+                1.5707963267948966
+              ],
+              "targets": [
+                3
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [
+                1
+              ],
+              "gate": "cp",
+              "params": [
+                3.141592653589793
+              ],
+              "targets": [
+                3
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [],
+              "gate": "swap",
+              "params": [],
+              "targets": [
+                0,
+                2
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [],
+              "gate": "h",
+              "params": [],
+              "targets": [
+                0
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [
+                0
+              ],
+              "gate": "cp",
+              "params": [
+                -1.5707963267948966
+              ],
+              "targets": [
+                1
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [],
+              "gate": "h",
+              "params": [],
+              "targets": [
+                1
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [
+                0
+              ],
+              "gate": "cp",
+              "params": [
+                -0.7853981633974483
+              ],
+              "targets": [
+                2
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [
+                1
+              ],
+              "gate": "cp",
+              "params": [
+                -1.5707963267948966
+              ],
+              "targets": [
+                2
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [],
+              "gate": "h",
+              "params": [],
+              "targets": [
+                2
+              ]
+            },
+            {
+              "clbits": [
+                0
+              ],
+              "controls": [],
+              "gate": "measure",
+              "params": [],
+              "targets": [
+                0
+              ]
+            },
+            {
+              "clbits": [
+                1
+              ],
+              "controls": [],
+              "gate": "measure",
+              "params": [],
+              "targets": [
+                1
+              ]
+            },
+            {
+              "clbits": [
+                2
+              ],
+              "controls": [],
+              "gate": "measure",
+              "params": [],
+              "targets": [
+                2
+              ]
+            }
+          ],
+          "schema": "qentor.circuit/1"
+        },
+        "prerequisite_lesson_ids": [
+          "quantum-fourier-transform",
+          "phase-kickback"
+        ],
+        "sections": [
+          {
+            "body": "Many gates have special states, called eigenstates, that they only multiply by a phase. Phase estimation reads that phase out as a string of bits, using a counting register, controlled gates and the inverse QFT. This lesson is ONE exact fixed example, not the general algorithm: three counting qubits q0 to q2, one target q3, the S gate as the unitary, and the target prepared in its eigenstate, the state one. It is a small educational example.",
+            "id": "s1",
+            "title": "Estimating a phase",
+            "type": "explanation"
+          },
+          {
+            "body": "An eigenstate comes out of its gate unchanged except for a phase. The S gate leaves the state one as it is and multiplies it by a quarter of a full turn. Written as a fraction of a full turn, that phase is one quarter, which is two eighths. This is textbook reasoning, not a run. The target qubit q3 is prepared in that eigenstate with an X gate, and it stays there for the whole circuit.",
+            "id": "s2",
+            "title": "Eigenstates and the phase of a gate",
+            "type": "explanation"
+          },
+          {
+            "body": "When a controlled gate acts on an eigenstate, the phase does not stay on the target: it kicks back onto the control qubit. Counting qubit q0 controls S once and gains a quarter turn. Counting qubit q1 controls S twice, which is a half turn. Counting qubit q2 would control S four times, a full turn, which does nothing, so q2 needs no controlled gate. This is textbook reasoning, and it is why the circuit has only two controlled-phase gates.",
+            "id": "s3",
+            "title": "Phase kickback writes the phase into the counting qubits",
+            "type": "explanation"
+          },
+          {
+            "body": "After the kickbacks the counting register holds the pattern that the QFT would make from the number two, because the phase is two eighths of a turn. The inverse QFT undoes that: it turns the phase pattern into the basis state for the number two. This is textbook reasoning. The inverse QFT is the QFT of the previous lesson run backwards: its gates in reverse order, each phase turned the other way.",
+            "id": "s4",
+            "title": "The inverse QFT reads the phase out",
+            "type": "explanation"
+          },
+          {
+            "concept": "quantum-phase-estimation",
+            "id": "s5",
+            "options": [
+              {
+                "id": "a",
+                "text": "It undoes the phase kickback so that the target returns to its starting state"
+              },
+              {
+                "id": "b",
+                "text": "It entangles the counting qubits with the target so that the phase can be read off by measuring them"
+              },
+              {
+                "id": "c",
+                "text": "It turns the phase pattern into a basis state whose bit string gives the phase"
+              },
+              {
+                "id": "d",
+                "text": "It makes each counting qubit equally likely to read zero or one"
+              }
+            ],
+            "prompt": "Think about what the counting qubits hold just before the inverse QFT.",
+            "question": "Why is the inverse QFT applied to the counting qubits?",
+            "title": "Check: what the inverse QFT does here",
+            "type": "concept_check"
+          },
+          {
+            "capability": "execute",
+            "id": "s6",
+            "instructions": "Open the lab circuit: X prepares the target q3 in the eigenstate, H puts the three counting qubits in superposition, two controlled-phase gates kick the phase of S back onto q0 and q1, the inverse QFT converts the pattern, and the counting qubits are measured. Run it on the backend in shots mode and read the counting register as q2 q1 q0. Then open the trace: after the controlled-phase gates look at each counting qubit's own sphere, and look again after the inverse QFT. The target q3 does not change.",
+            "title": "Lab: estimate the phase of S",
+            "type": "interactive_lab"
+          },
+          {
+            "concept": "quantum-phase-estimation",
+            "id": "s7",
+            "options": [
+              {
+                "id": "a",
+                "text": "The register would still read one bit string every time, but a wrong one that no longer matches the phase"
+              },
+              {
+                "id": "b",
+                "text": "Phase estimation would fail to run on the circuit at all"
+              },
+              {
+                "id": "c",
+                "text": "The target qubit would be measured instead of the counting qubits"
+              },
+              {
+                "id": "d",
+                "text": "The register would read a spread of strings, most likely near the true phase"
+              }
+            ],
+            "prompt": "Think about what three counting qubits can and cannot name.",
+            "question": "In this lesson's example the counting register reads the same bit string every time. What would change if the gate's phase were not a whole number of eighths of a turn?",
+            "title": "Check: this example and the general algorithm",
+            "type": "concept_check"
+          },
+          {
+            "body": "The counting register ends in one basis state, and measuring it gives bits. Read as a number y with three bits, the phase estimate is y eighths of a full turn. For this example the textbook answer, written q2 q1 q0, is zero one zero: the number two, so two eighths, one quarter, which is the phase of S on its eigenstate. The Lab shows what the backend actually returns. This is how a phase becomes something a classical computer can store.",
+            "id": "s8",
+            "title": "Why the result becomes a bit string",
+            "type": "explanation"
+          },
+          {
+            "body": "Here the phase is exactly two eighths, the target is a known eigenstate and the controlled gates are given, so the answer is certain. In general the phase need not be a whole number of eighths, the eigenstate has to be supplied, and the controlled powers of a gate can be costly to build. This lesson shows the structure of phase estimation on four qubits. It does not show a speed-up and is not a general tool.",
+            "id": "s9",
+            "title": "This exact example versus the general algorithm",
+            "type": "explanation"
+          },
+          {
+            "id": "s10",
+            "prompt": "The phase was never measured directly. Which parts of the circuit moved it from the target to the counting qubits, and which part turned it into bits?",
+            "title": "Reflect",
+            "type": "reflection"
+          }
+        ],
+        "short_description": "Reading a phase out as a bit string, in one exact fixed 4-qubit example with the S gate; not the general algorithm.",
+        "title": "Quantum Phase Estimation"
+      },
+      {
+        "concept": "quantum-error-correction",
+        "difficulty": "advanced",
+        "estimated_minutes": 26,
+        "id": "quantum-error-correction",
+        "learning_objectives": [
+          "Explain why the encoding spreads a state by entanglement instead of copying it.",
+          "Say what the syndrome shows and what it does not reveal.",
+          "Follow the fixed circuit: encode, injected X error, syndrome, deferred correction.",
+          "Say plainly that the injected error is a fixed gate and not a physical noise model.",
+          "Say what this code cannot correct."
+        ],
+        "linked_circuit": {
+          "num_clbits": 5,
+          "num_qubits": 5,
+          "ops": [
+            {
+              "clbits": [],
+              "controls": [],
+              "gate": "ry",
+              "params": [
+                1.0
+              ],
+              "targets": [
+                0
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [
+                0
+              ],
+              "gate": "cx",
+              "params": [],
+              "targets": [
+                1
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [
+                0
+              ],
+              "gate": "cx",
+              "params": [],
+              "targets": [
+                2
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [],
+              "gate": "x",
+              "params": [],
+              "targets": [
+                1
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [
+                0
+              ],
+              "gate": "cx",
+              "params": [],
+              "targets": [
+                3
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [
+                1
+              ],
+              "gate": "cx",
+              "params": [],
+              "targets": [
+                3
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [
+                1
+              ],
+              "gate": "cx",
+              "params": [],
+              "targets": [
+                4
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [
+                2
+              ],
+              "gate": "cx",
+              "params": [],
+              "targets": [
+                4
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [
+                3,
+                4
+              ],
+              "gate": "ccx",
+              "params": [],
+              "targets": [
+                1
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [],
+              "gate": "x",
+              "params": [],
+              "targets": [
+                4
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [
+                3,
+                4
+              ],
+              "gate": "ccx",
+              "params": [],
+              "targets": [
+                0
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [],
+              "gate": "x",
+              "params": [],
+              "targets": [
+                4
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [],
+              "gate": "x",
+              "params": [],
+              "targets": [
+                3
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [
+                3,
+                4
+              ],
+              "gate": "ccx",
+              "params": [],
+              "targets": [
+                2
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [],
+              "gate": "x",
+              "params": [],
+              "targets": [
+                3
+              ]
+            },
+            {
+              "clbits": [
+                0
+              ],
+              "controls": [],
+              "gate": "measure",
+              "params": [],
+              "targets": [
+                0
+              ]
+            },
+            {
+              "clbits": [
+                1
+              ],
+              "controls": [],
+              "gate": "measure",
+              "params": [],
+              "targets": [
+                1
+              ]
+            },
+            {
+              "clbits": [
+                2
+              ],
+              "controls": [],
+              "gate": "measure",
+              "params": [],
+              "targets": [
+                2
+              ]
+            },
+            {
+              "clbits": [
+                3
+              ],
+              "controls": [],
+              "gate": "measure",
+              "params": [],
+              "targets": [
+                3
+              ]
+            },
+            {
+              "clbits": [
+                4
+              ],
+              "controls": [],
+              "gate": "measure",
+              "params": [],
+              "targets": [
+                4
+              ]
+            }
+          ],
+          "schema": "qentor.circuit/1"
+        },
+        "prerequisite_lesson_ids": [
+          "entanglement"
+        ],
+        "sections": [
+          {
+            "body": "A classical memory can survive a flipped bit by keeping three copies and taking a majority. A qubit cannot be copied, but its state can be spread over three qubits by entanglement. This lesson is ONE fixed 5-qubit example: three data qubits q0, q1 and q2 and two ancilla qubits q3 and q4. It uses a fixed injected error, an X gate on q1, and NOT a realistic noise model. It is a small educational example of the three-qubit bit-flip code.",
+            "id": "s1",
+            "title": "Redundancy against a flip",
+            "type": "explanation"
+          },
+          {
+            "body": "Encoding applies CX from q0 to q1 and again to q2. A state of q0 that mixes zero and one becomes a state in which all three data qubits agree, either all zero or all one, with the same mixture. That is not three copies of the original state: the three qubits are entangled, and each alone has a shorter arrow on its sphere than a qubit in a state of its own. This is textbook reasoning.",
+            "id": "s2",
+            "title": "Encoding is not copying",
+            "type": "explanation"
+          },
+          {
+            "body": "The error in this lesson is a fixed X gate on q1, chosen by us and applied every time, so that we can follow what the code does. Physical noise is nothing like that: it is random, it comes from the environment, it can strike any qubit at any moment, and it is not always a clean flip. This lesson does not model physical noise and shows no error rate. It does not claim to show how real devices fail or how often.",
+            "id": "s3",
+            "title": "Injected error versus physical noise",
+            "type": "explanation"
+          },
+          {
+            "body": "Ancilla q3 is made to collect whether q0 and q1 agree, and ancilla q4 whether q1 and q2 agree, with two CX gates each. The pair of ancillas is the syndrome. It says where a disagreement is, not what the encoded state is. This is textbook reasoning: a flip on q0 is seen only by q3, a flip on q2 only by q4, and a flip on q1 by both. With no error neither sees anything.",
+            "id": "s4",
+            "title": "What the syndrome represents",
+            "type": "explanation"
+          },
+          {
+            "concept": "quantum-error-correction",
+            "id": "s5",
+            "options": [
+              {
+                "id": "a",
+                "text": "Which data qubit disagrees with the others, without revealing the encoded state"
+              },
+              {
+                "id": "b",
+                "text": "The encoded state itself, so that the decoder can make a copy of it before the error spreads"
+              },
+              {
+                "id": "c",
+                "text": "How likely it is that an error happens again"
+              },
+              {
+                "id": "d",
+                "text": "Whether the data qubits are entangled with one another"
+              }
+            ],
+            "prompt": "Think about what the two ancilla qubits compare.",
+            "question": "After the syndrome is extracted, what do the two ancilla qubits tell the decoder?",
+            "title": "Check: what the syndrome tells the decoder",
+            "type": "concept_check"
+          },
+          {
+            "capability": "execute",
+            "id": "s6",
+            "instructions": "Open the lab circuit: it encodes q0 over three data qubits, injects the X error on q1, extracts the syndrome onto q3 and q4, applies the deferred correction, and measures all five qubits. Run it on the backend in shots mode: read the ancillas as q4 q3 and the data qubits as q2 q1 q0. Then open the trace and watch q1's own sphere: the injected X turns its arrow around and the correction turns it back. Finally remove the CCX whose target is q1 and run again to see the uncorrected result.",
+            "title": "Lab: inject, detect, correct",
+            "type": "interactive_lab"
+          },
+          {
+            "concept": "quantum-error-correction",
+            "id": "s7",
+            "options": [
+              {
+                "id": "a",
+                "text": "A single bit flip on q0, on a state that mixes zero and one"
+              },
+              {
+                "id": "b",
+                "text": "A single bit flip on q1, on a state that mixes zero and one"
+              },
+              {
+                "id": "c",
+                "text": "A phase flip on a data qubit, or two bit flips at once"
+              },
+              {
+                "id": "d",
+                "text": "A single bit flip on q2, on a state that mixes zero and one"
+              }
+            ],
+            "prompt": "Think about which errors the syndrome of this code can and cannot see.",
+            "question": "Which of these errors is NOT fixed by this three-qubit bit-flip code?",
+            "title": "Check: what this code cannot correct",
+            "type": "concept_check"
+          },
+          {
+            "body": "The decoder is a set of gates controlled by the ancillas, applied before any measurement: a CCX from q3 and q4 flips q1, and X gates around a CCX select the other two patterns. This is a deferred correction, the same trick as in the teleportation lesson. Qentor's circuit model has NO mid-circuit measurement and NO classical control, so this is not the full protocol in which the syndrome is measured and a classical computer chooses the correction.",
+            "id": "s8",
+            "title": "Deferred correction",
+            "type": "explanation"
+          },
+          {
+            "body": "After the correction the data qubits are back in the encoded state they were in before the error, and the ancillas still hold the syndrome, because nothing resets them. The encoded state was never measured. Each data qubit alone still looks undetermined, and the sphere of q1 is the one that turned and came back. This is a fixed example with one injected error, not a claim about fault tolerance or about any real device.",
+            "id": "s9",
+            "title": "The restored state, read honestly",
+            "type": "explanation"
+          },
+          {
+            "id": "s10",
+            "prompt": "The syndrome points at the flipped qubit but says nothing about the encoded state. Why is that exactly what makes the correction possible? And what would the decoder do wrongly if two qubits were flipped?",
+            "title": "Reflect",
+            "type": "reflection"
+          }
+        ],
+        "short_description": "Spreading a state over three qubits, finding a bit flip with a syndrome and undoing it, in one fixed example with an injected error.",
+        "title": "Quantum Error Correction"
       }
     ]
   }

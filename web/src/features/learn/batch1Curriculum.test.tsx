@@ -5,7 +5,7 @@
  * Everything here runs against the REAL catalog's wire format: `fixtures/catalog/public_catalog.json` is what `GET /api/lessons` and
  * `GET /api/challenges` serve (a backend test fails if it drifts), and it is parsed by the real client and its schemas. So these
  * tests check that the existing components render the new content, that the lab circuit that reaches the Lab is exactly the
- * server's, that progression, recommendation and Progress treat 13 lessons and 15 challenges correctly, and that the browser
+ * server's, that progression, recommendation and Progress treat the catalog (16 lessons and 18 challenges since Sprint 4: see algorithmCurriculum.test.tsx) correctly, and that the browser
  * computes no quantum quantity anywhere along the way. The server-side verdicts themselves are tested in the backend suite.
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -97,13 +97,13 @@ const solved = (ids: string[]): Record<string, ReturnType<typeof emptyRecord>> =
   Object.fromEntries(ids.map((id) => [id, { ...emptyRecord(), attempts: 1, solved: true }]))
 
 describe('the real catalog, through the real client', () => {
-  it('maps 13 lessons and 15 challenges, the new ones after the original ten and nine, in catalog order', () => {
-    expect(LESSONS).toHaveLength(13)
-    expect(CHALLENGES).toHaveLength(15)
-    expect(LESSONS.slice(10).map((l) => l.id)).toEqual(NEW_LESSON_IDS)
+  it('maps 16 lessons and 18 challenges, batch 1 after the original ten and nine, in catalog order', () => {
+    expect(LESSONS).toHaveLength(16)
+    expect(CHALLENGES).toHaveLength(18)
+    expect(LESSONS.slice(10, 13).map((l) => l.id)).toEqual(NEW_LESSON_IDS)
     expect(CHALLENGES.slice(9, 14).map((c) => c.id)).toEqual(NEW_CHALLENGE_IDS)
     expect(CHALLENGES[14]?.id).toBe('optimize-redundant') // the optimisation challenge follows, in the Interference lesson
-    expect(new Set(LESSONS.map((l) => l.id)).size).toBe(13)
+    expect(new Set(LESSONS.map((l) => l.id)).size).toBe(16)
   })
 
   it('each new lesson has ten sections, its prerequisites, and a linked circuit exactly as the server sent it', () => {
@@ -164,7 +164,7 @@ describe('the real catalog, through the real client', () => {
   })
 })
 
-describe('progression over 13 lessons and 15 challenges', () => {
+describe('progression over 16 lessons and 18 challenges', () => {
   it('a new lesson is locked until every one of its prerequisites is complete', () => {
     const none = new Set<string>()
     for (const id of NEW_LESSON_IDS) expect(getLessonState(lesson(id), none)).toBe('locked')
@@ -220,21 +220,22 @@ describe('progression over 13 lessons and 15 challenges', () => {
     done = [...done, 'grovers-search']
     expect(recommend(done, cleared)).toMatchObject({ kind: 'try_challenge', challengeId: 'grover-find-01' })
     cleared = [...cleared, 'grover-find-01']
-    expect(recommend(done, cleared).kind).toBe('all_done')
+    // everything of batch 1 is done: the next lesson is the first of the algorithm lessons (their prerequisites, phase and interference, are done)
+    expect(recommend(done, cleared)).toMatchObject({ kind: 'next_lesson', lessonId: 'quantum-fourier-transform' })
   })
 
-  it('the overall tally counts 13 lessons and 26 concept checks', () => {
+  it('the overall tally counts 16 lessons and 32 concept checks', () => {
     const everything = progressFor(LESSONS.map((l) => l.id))
     const tally = getOverallLearningProgress(LESSONS, everything, new Set(LESSONS.map((l) => l.id)))
-    expect(tally).toMatchObject({ totalLessons: 13, lessonsCompleted: 13, conceptChecksTotal: 26, conceptChecksCorrect: 26, overallAccuracy: 1 })
+    expect(tally).toMatchObject({ totalLessons: 16, lessonsCompleted: 16, conceptChecksTotal: 32, conceptChecksCorrect: 32, overallAccuracy: 1 })
     expect(LESSONS.every((l) => isLessonComplete(l, everything[l.id]))).toBe(true)
   })
 
-  it('Progress shows challenge completion out of fifteen, with the new challenges listed and openable', () => {
+  it('Progress shows challenge completion out of eighteen, with the new challenges listed and openable', () => {
     const outcomes: ChallengeOutcomes = { ...emptyOutcomes(), records: solved(['create-one', 'bloch-plus-direction', 'grover-find-01']) }
     const open = vi.fn()
     render(<ChallengeProgress challenges={CHALLENGES} outcomes={outcomes} onOpenChallenge={open} />)
-    expect(screen.getByTestId('challenges-solved')).toHaveTextContent('3 of 15 solved')
+    expect(screen.getByTestId('challenges-solved')).toHaveTextContent('3 of 18 solved')
     cleanup()
   })
 })
