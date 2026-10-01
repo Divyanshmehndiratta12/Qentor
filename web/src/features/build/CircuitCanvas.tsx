@@ -171,7 +171,7 @@ export function CircuitCanvas({ lockQubits = false }: { lockQubits?: boolean } =
   return (
     <div ref={root} className="flex h-full flex-col" role="group" aria-label="Circuit editor" onKeyDown={onKeyDown}>
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-void-500 px-4 py-2">
-        <span className="text-xs font-semibold tracking-wider text-slate-500 uppercase">
+        <span className="text-xs font-semibold tracking-wider text-slate-400 uppercase">
           Circuit · {numQubits} qubit{numQubits === 1 ? '' : 's'} · {total} op{total === 1 ? '' : 's'}
         </span>
         <div className="flex items-center gap-1.5">
@@ -248,7 +248,7 @@ export function CircuitCanvas({ lockQubits = false }: { lockQubits?: boolean } =
         )}
       </div>
 
-      <div className="circuit-grid-bg flex-1 overflow-auto p-6 pt-3 pb-28">
+      <div className="circuit-grid-bg flex-1 overflow-auto p-6 pt-3 pb-6">
         <div className="flex flex-col gap-6">
           <div className="flex items-center gap-3">
             <span className="w-8 shrink-0" aria-hidden="true" />
@@ -271,7 +271,7 @@ export function CircuitCanvas({ lockQubits = false }: { lockQubits?: boolean } =
                     onClick={() => setInsertAt(column.index)}
                     aria-label={`Insert before step ${column.index + 1}`}
                     title={`Insert before step ${column.index + 1}`}
-                    className="flex justify-center text-[10px] text-void-300 hover:text-cyan-glow focus-visible:text-cyan-glow focus-visible:outline-2 focus-visible:outline-cyan-glow"
+                    className="flex min-h-6 items-center justify-center text-[10px] text-void-200 hover:text-cyan-glow focus-visible:text-cyan-glow focus-visible:outline-2 focus-visible:outline-cyan-glow"
                   >
                     ▾
                   </button>
@@ -283,7 +283,7 @@ export function CircuitCanvas({ lockQubits = false }: { lockQubits?: boolean } =
                   onClick={() => setInsertAt(null)}
                   aria-label="Insert at the end"
                   title="Insert at the end"
-                  className="flex justify-center text-[10px] text-void-300 hover:text-cyan-glow focus-visible:text-cyan-glow focus-visible:outline-2 focus-visible:outline-cyan-glow"
+                  className="flex min-h-6 items-center justify-center text-[10px] text-void-200 hover:text-cyan-glow focus-visible:text-cyan-glow focus-visible:outline-2 focus-visible:outline-cyan-glow"
                 >
                   ▾
                 </button>
@@ -293,7 +293,7 @@ export function CircuitCanvas({ lockQubits = false }: { lockQubits?: boolean } =
 
           {Array.from({ length: numQubits }, (_, q) => (
             <div key={q} role="group" aria-label={`Qubit ${q}`} className="flex items-center gap-3">
-              <span className="w-8 shrink-0 font-mono-qasm text-xs text-slate-500">q[{q}]</span>
+              <span className="w-8 shrink-0 font-mono-qasm text-xs text-slate-400">q[{q}]</span>
               <div className="relative grid flex-1 items-center gap-2" style={{ gridTemplateColumns: `repeat(${gridColumns}, minmax(2.5rem, 3rem))` }}>
                 <div className="pointer-events-none absolute top-1/2 right-0 left-0 h-px bg-void-200" />
                 {columns.map((column, position) => {
@@ -361,7 +361,7 @@ export function CircuitCanvas({ lockQubits = false }: { lockQubits?: boolean } =
                           isPendingControlHere
                             ? 'border-violet-glow bg-violet-dim/60 text-violet-glow'
                             : selectedGate
-                              ? 'border-void-300 text-slate-600 hover:border-cyan-glow hover:text-cyan-glow'
+                              ? 'border-void-300 text-slate-500 hover:border-cyan-glow hover:text-cyan-glow'
                               : 'border-void-500 text-void-200 hover:border-void-300 hover:text-slate-400'
                         }`}
                       >

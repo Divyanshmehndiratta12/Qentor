@@ -14,7 +14,7 @@
  * state); the only bridge to Lab is `onOpenLab`, called explicitly from an
  * interactive_lab section.
  */
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import type { Circuit } from '@/circuit/types'
 import { useLearnStore } from './store'
 import { isLessonComplete } from './lessonState'
@@ -49,8 +49,14 @@ export function LearnScreen({
   const challengesLoading = useChallengeStore((s) => s.isLoading)
   const challengesError = useChallengeStore((s) => s.error)
   const fetchChallenges = useChallengeStore((s) => s.fetchChallenges)
+  // Asked once per visit: an answer with no challenges at all must not be asked for again and again.
+  const askedChallenges = useRef(false)
   useEffect(() => {
-    if (challengeCount === 0 && !challengesLoading && !challengesError) void fetchChallenges()
+    if (askedChallenges.current) return
+    if (challengeCount === 0 && !challengesLoading && !challengesError) {
+      askedChallenges.current = true
+      void fetchChallenges()
+    }
   }, [challengeCount, challengesLoading, challengesError, fetchChallenges])
 
   const selectedLesson = lessons.find((lesson) => lesson.id === selectedLessonId) ?? null
@@ -127,7 +133,7 @@ export function LearnScreen({
           />
         ) : (
           <div className="flex h-full items-center justify-center p-8 text-center">
-            <p className="max-w-sm font-serif-prose text-[15px] text-slate-500">
+            <p className="max-w-sm font-serif-prose text-[15px] text-slate-400">
               Select a lesson to see its objectives and walk through its sections.
             </p>
           </div>

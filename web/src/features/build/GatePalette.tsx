@@ -71,7 +71,7 @@ function DockButton({
       aria-pressed={active}
       className={`flex h-[38px] min-w-[38px] shrink-0 items-center justify-center rounded-lg px-1.5 font-mono-qasm text-[13px] font-semibold select-none ${
         !allowed
-          ? 'cursor-not-allowed bg-void-700 text-void-300 opacity-40'
+          ? 'cursor-not-allowed bg-void-700 text-void-200 opacity-40'
           : active
           ? 'cursor-grab bg-cyan-glow text-void-950 shadow-[0_0_0_2px_var(--color-void-700),0_0_0_4px_var(--color-cyan-glow)] active:cursor-grabbing'
           : 'cursor-grab bg-void-500 text-slate-100 hover:bg-void-400 active:cursor-grabbing'
@@ -97,9 +97,9 @@ export function GatePalette({ allowedGates }: { allowedGates?: readonly GateName
     (selectedGate && selectedGate in MULTI_QUBIT_PLACEMENT ? placementPrompt(selectedGate, pendingQubits) : null)
 
   return (
-    <div className="pointer-events-none absolute inset-x-0 bottom-4 z-10 flex flex-col items-center gap-2 px-4">
+    <div className="flex shrink-0 flex-col items-center gap-2 border-t border-void-500 bg-void-900 px-3 py-2">
       {(statusText || isRotationSelected) && (
-        <div className="pointer-events-auto flex items-center gap-3 rounded-xl border border-void-400 bg-void-700/95 px-3 py-2 text-xs shadow-lg backdrop-blur">
+        <div className="flex items-center gap-3 rounded-xl border border-void-400 bg-void-700 px-3 py-2 text-xs">
           {statusText && (
             <span
               role={canvasError ? 'alert' : 'status'}
@@ -126,7 +126,7 @@ export function GatePalette({ allowedGates }: { allowedGates?: readonly GateName
       <div
         role="toolbar"
         aria-label="Gate palette"
-        className="pointer-events-auto flex max-w-full items-center gap-1 overflow-x-auto rounded-xl border border-void-400 bg-void-700/95 p-1.5 shadow-lg backdrop-blur"
+        className="flex max-w-full items-center gap-1 overflow-x-auto rounded-xl border border-void-400 bg-void-700 p-1.5"
       >
         <span className="px-2 font-mono-qasm text-[11px] whitespace-nowrap text-void-200">drag or click</span>
         {SINGLE_QUBIT.map((g) => (

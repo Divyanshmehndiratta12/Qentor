@@ -169,7 +169,7 @@ describe('ProgressScreen', () => {
     it('has no needs-attention signals and recommends the first available lesson', () => {
       renderScreen()
       expect(within(region('Needs attention')).getByText('No open signals right now.')).toBeInTheDocument()
-      expect(within(region('Next challenge')).getByText('"Lesson A" is next in your learning path.')).toBeInTheDocument()
+      expect(within(region('Next step')).getByText('"Lesson A" is next in your learning path.')).toBeInTheDocument()
     })
 
     it('shows an empty streak', () => {
@@ -245,7 +245,7 @@ describe('ProgressScreen', () => {
 
     it('recommends addressing the misconception (getNextChallenge priority A)', () => {
       renderScreen()
-      expect(within(region('Next challenge')).getByText('phase: 2 incorrect attempts')).toBeInTheDocument()
+      expect(within(region('Next step')).getByText('phase: 2 incorrect attempts')).toBeInTheDocument()
     })
 
     it('shows per-lesson status, mastery, and section progress as text', () => {
@@ -284,8 +284,8 @@ describe('ProgressScreen', () => {
       expect(within(region('Overall progress')).getByText('100%')).toBeInTheDocument()
       expect(within(region('Concept-check performance')).getByText('100%')).toBeInTheDocument()
       expect(within(region('Mastery')).getByText('Mastered').previousElementSibling).toHaveTextContent('3')
-      expect(within(region('Next challenge')).getByText('Every lesson in the current catalog is complete.')).toBeInTheDocument()
-      expect(within(region('Next challenge')).queryByRole('button')).not.toBeInTheDocument()
+      expect(within(region('Next step')).getByText('Every lesson in the current catalog is complete.')).toBeInTheDocument()
+      expect(within(region('Next step')).queryByRole('button')).not.toBeInTheDocument()
       expect(within(region('Lessons')).getAllByText('Completed')).toHaveLength(3)
       // Nothing is locked any more.
       expect(within(region('Lessons')).getAllByRole('button').every((b) => !(b as HTMLButtonElement).disabled)).toBe(true)
@@ -421,7 +421,7 @@ describe('ProgressScreen', () => {
 
     it('"Go to lesson" opens the recommended next-challenge lesson', () => {
       const onOpenLesson = renderScreen()
-      fireEvent.click(within(region('Next challenge')).getByRole('button', { name: 'Go to lesson' }))
+      fireEvent.click(within(region('Next step')).getByRole('button', { name: 'Go to lesson' }))
       expect(onOpenLesson).toHaveBeenCalledExactlyOnceWith('b')
     })
 
@@ -488,7 +488,7 @@ describe('ProgressScreen', () => {
 
       fireEvent.click(within(region('Lessons')).getByRole('button', { name: /^Lesson A/ }))
       fireEvent.click(within(region('Needs attention')).getByRole('button', { name: /phase/ }))
-      fireEvent.click(within(region('Next challenge')).getByRole('button', { name: 'Go to lesson' }))
+      fireEvent.click(within(region('Next step')).getByRole('button', { name: 'Go to lesson' }))
 
       expect(onOpenLesson).toHaveBeenCalledTimes(3)
       // Same object: not a single Build/Lab field (circuit, result,

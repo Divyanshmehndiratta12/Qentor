@@ -50,7 +50,7 @@ export function ChallengeProgress({
                   <button
                     type="button"
                     onClick={() => onOpenChallenge(c.id)}
-                    className="truncate text-left text-slate-200 underline decoration-void-400 underline-offset-2 hover:decoration-cyan-glow focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-cyan-glow"
+                    className="min-h-6 truncate text-left text-slate-200 underline decoration-void-400 underline-offset-2 hover:decoration-cyan-glow focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-cyan-glow"
                   >
                     {c.title}
                   </button>

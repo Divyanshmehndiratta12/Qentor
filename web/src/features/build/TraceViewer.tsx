@@ -322,7 +322,7 @@ function StepDetail({
                 key={index}
                 data-changed={isChanged ? 'true' : undefined}
                 className={`border-t border-void-600 ${
-                  isChanged ? 'bg-cyan-dim/25 text-slate-100' : displaysAsZero(amplitude) ? 'text-void-300' : 'text-slate-200'
+                  isChanged ? 'bg-cyan-dim/25 text-slate-100' : displaysAsZero(amplitude) ? 'text-void-200' : 'text-slate-200'
                 }`}
               >
                 <td className="py-1.5 font-mono-qasm">

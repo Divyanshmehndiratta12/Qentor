@@ -234,7 +234,7 @@ function LessonDashboard({
 
         <section aria-labelledby="next-heading" className={CARD}>
           <h2 id="next-heading" className={SECTION_HEADING}>
-            Next challenge
+            Next step
           </h2>
           <div className="mt-3 rounded-lg border border-violet-glow/30 bg-violet-dim/20 p-3">
             <p className="font-serif-prose text-[14px] leading-relaxed text-slate-200" data-testid="recommendation-reason" data-kind={recommendation.kind}>

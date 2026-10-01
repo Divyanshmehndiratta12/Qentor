@@ -16,7 +16,7 @@ const GOAL_MAX = 400
 function Section({ title, section, testId }: { title: string; section: DebugSection; testId: string }) {
   return (
     <div data-testid={testId}>
-      <h4 className="text-[11px] font-semibold tracking-wider text-slate-500 uppercase">{title}</h4>
+      <h4 className="text-[11px] font-semibold tracking-wider text-slate-400 uppercase">{title}</h4>
       <p className="mt-0.5 text-[12px] leading-snug text-slate-200">{section.text}</p>
       <FactChips ids={section.factIds} />
     </div>
@@ -117,7 +117,7 @@ export function DebugPanel({
           <Section title="What happened" section={report.observed} testId="debug-observed" />
 
           <div data-testid="debug-evidence">
-            <h4 className="text-[11px] font-semibold tracking-wider text-slate-500 uppercase">Evidence</h4>
+            <h4 className="text-[11px] font-semibold tracking-wider text-slate-400 uppercase">Evidence</h4>
             <ul className="mt-0.5 flex flex-col gap-1.5">
               {report.evidence.map((e, i) => (
                 <li key={i} className="text-[12px] leading-snug text-slate-200">
@@ -139,7 +139,7 @@ export function DebugPanel({
                 <li key={f.id} className="leading-snug">
                   <span className="mr-1.5 font-mono-qasm text-void-200">{f.id}</span>
                   {f.description}
-                  {f.resultId && <span className="ml-1.5 font-mono-qasm text-[10px] text-void-300">[{f.resultId.slice(0, 12)}…]</span>}
+                  {f.resultId && <span className="ml-1.5 font-mono-qasm text-[10px] text-void-200">[{f.resultId.slice(0, 12)}…]</span>}
                 </li>
               ))}
             </ul>

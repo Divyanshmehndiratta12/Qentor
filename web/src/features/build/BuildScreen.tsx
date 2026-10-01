@@ -17,8 +17,11 @@ export function BuildScreen() {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="relative min-h-0 flex-[3]">
-        <CircuitCanvas />
+      {/* the palette is a strip under the canvas, not a dock over it: it never hides a wire or a gate */}
+      <div className="flex min-h-0 flex-[3] flex-col">
+        <div className="relative min-h-0 flex-1">
+          <CircuitCanvas />
+        </div>
         <GatePalette />
       </div>
       <div className="min-h-0 flex-[2] border-t border-void-500">

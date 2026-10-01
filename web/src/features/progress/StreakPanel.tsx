@@ -82,7 +82,7 @@ export function StreakPanel({ summary, todayKey }: { summary: ActivitySummary; t
                   className={`grid h-8 w-full place-items-center rounded-md border text-xs font-semibold ${
                     day.active
                       ? 'border-cyan-glow/60 bg-cyan-dim/50 text-cyan-glow'
-                      : 'border-dashed border-void-400 text-void-300'
+                      : 'border-dashed border-void-400 text-void-200'
                   }`}
                 >
                   {day.active ? '✓' : ''}

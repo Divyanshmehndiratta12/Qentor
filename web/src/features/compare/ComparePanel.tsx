@@ -43,7 +43,7 @@ function RunCard({ label, run }: { label: string; run: ComparisonRun }) {
 function CircuitDiff({ c }: { c: ExperimentComparison['circuit'] }) {
   return (
     <div data-testid="compare-circuit">
-      <h4 className="text-[11px] font-semibold tracking-wider text-slate-500 uppercase">Circuit difference</h4>
+      <h4 className="text-[11px] font-semibold tracking-wider text-slate-400 uppercase">Circuit difference</h4>
       <p className="mt-0.5 text-[12px] text-slate-200">
         {c.sameCircuit
           ? 'The two circuits are identical.'
@@ -73,7 +73,7 @@ function CircuitDiff({ c }: { c: ExperimentComparison['circuit'] }) {
 function Measurements({ m }: { m: ExperimentComparison['measurement'] }) {
   return (
     <div data-testid="compare-measurement">
-      <h4 className="text-[11px] font-semibold tracking-wider text-slate-500 uppercase">Measurement difference</h4>
+      <h4 className="text-[11px] font-semibold tracking-wider text-slate-400 uppercase">Measurement difference</h4>
       {!m.comparable ? (
         <p className="mt-0.5 text-[12px] text-slate-300">Not comparable: {m.reason}</p>
       ) : (
@@ -96,7 +96,7 @@ function Measurements({ m }: { m: ExperimentComparison['measurement'] }) {
                   <td className="py-1 font-mono-qasm text-slate-300">{r.outcome}</td>
                   {[r.a, r.b, r.difference].map((v, i) => (
                     <td key={i} className="py-1">
-                      {v ? <VerifiedValueInline quantum={v} render={(x) => x.toFixed(6)} /> : <span className="text-void-300" title="not reported by this run">—</span>}
+                      {v ? <VerifiedValueInline quantum={v} render={(x) => x.toFixed(6)} /> : <span className="text-void-200" title="not reported by this run">—</span>}
                     </td>
                   ))}
                 </tr>
@@ -122,7 +122,7 @@ function Measurements({ m }: { m: ExperimentComparison['measurement'] }) {
 function States({ s }: { s: ExperimentComparison['state'] }) {
   return (
     <div data-testid="compare-state">
-      <h4 className="text-[11px] font-semibold tracking-wider text-slate-500 uppercase">State difference</h4>
+      <h4 className="text-[11px] font-semibold tracking-wider text-slate-400 uppercase">State difference</h4>
       {!s.comparable ? (
         <p className="mt-0.5 text-[12px] text-slate-300">Not comparable: {s.reason}</p>
       ) : (

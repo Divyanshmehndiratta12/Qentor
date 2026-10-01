@@ -56,7 +56,7 @@ export function AmplitudeChart({ view, numQubits, labelled }: AmplitudeChartProp
             the backend computed them. Only differences between phases are physical: the overall phase of a state cannot
             be observed.
           </p>
-          <div className="max-h-64 overflow-auto">
+          <div className="max-h-64 overflow-auto" tabIndex={0} role="region" aria-label="Amplitude table, scrollable">
             <table className="w-full text-left text-[11px]">
               <thead>
                 <tr className="text-void-200">
@@ -76,7 +76,7 @@ export function AmplitudeChart({ view, numQubits, labelled }: AmplitudeChartProp
                     key={index}
                     data-testid={`amplitude-row-${index}`}
                     data-has-phase={row.phase === null ? 'false' : 'true'}
-                    className={`border-t border-void-600 ${row.phase === null ? 'text-void-300' : 'text-slate-200'}`}
+                    className={`border-t border-void-600 ${row.phase === null ? 'text-void-200' : 'text-slate-200'}`}
                   >
                     <td className="py-1.5 pr-1.5 font-mono-qasm whitespace-nowrap">{labelled ? basisLabel(index, numQubits) : index}</td>
                     <td className="w-10 min-w-10 py-1.5 pr-1.5">
@@ -86,7 +86,7 @@ export function AmplitudeChart({ view, numQubits, labelled }: AmplitudeChartProp
                     </td>
                     <td className="py-1.5 pr-1.5">
                       {row.phase === null ? (
-                        <span className="text-[10px] text-void-300">none</span>
+                        <span className="text-[10px] text-void-200">none</span>
                       ) : (
                         <svg viewBox="0 0 24 24" className="h-5 w-5" role="img" aria-label={`phase ${formatAngle(row.phase)}`}>
                           <circle cx={12} cy={12} r={10} fill="none" className="stroke-void-400" strokeWidth={1} />

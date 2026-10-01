@@ -66,7 +66,7 @@ export function GeneratePanel({
   const unavailable = availability?.available === false || phase === 'unavailable'
 
   return (
-    <section aria-label="Generate code" data-testid="generate-panel" className="flex h-full min-h-0 flex-col gap-3 overflow-auto px-4 py-3">
+    <section aria-label="Generate code" data-testid="generate-panel" tabIndex={0} className="flex h-full min-h-0 flex-col gap-3 overflow-auto px-4 py-3">
       {checking && availability === null && <StateNotice kind="loading" compact title="Checking whether AI code generation is available…" />}
 
       {availabilityError && availability === null && (

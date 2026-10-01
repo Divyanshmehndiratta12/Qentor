@@ -59,7 +59,7 @@ function NavItem({
         type="button"
         onClick={onClick}
         aria-current={active ? 'page' : undefined}
-        className={`rounded-md px-2.5 py-1.5 text-[13px] font-medium focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-cyan-glow ${
+        className={`min-h-9 flex-1 rounded-md px-1 py-1.5 text-center text-[13px] font-medium focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-cyan-glow md:min-h-0 md:flex-none md:px-2.5 ${
           active
             ? 'bg-void-500 text-slate-100 underline decoration-cyan-glow decoration-2 underline-offset-[7px]'
             : 'text-slate-400 hover:bg-void-600 hover:text-slate-200'
@@ -102,32 +102,34 @@ export function TopBar({
   const isExecuting = useBuildStore((s) => s.isExecuting)
   const runExecution = useBuildStore((s) => s.runExecution)
 
+  // One row from `md` up. Below it the bar wraps into two: the logo, the Guide's slot and Run on the first row and the four
+  // destinations on a row of their own, each given an equal share (and a touch-sized height). On a phone the destinations and Run
+  // used to share one row and Run sat on top of "Progress". Everything is a direct child of the header so that only CSS `order`
+  // decides which row it is on; the DOM order (logo, navigation, Lab summary, Guide slot, Lab controls) is the reading order.
   return (
-    <header className="flex h-[52px] shrink-0 items-center justify-between border-b border-void-500 bg-void-900 py-0 pr-3.5 pl-4">
-      <div className="flex min-w-0 items-center gap-4">
-        <Logo />
-        <nav aria-label="Primary" className="flex gap-0.5 text-[13px]">
-          <NavItem label="Lab" active={screen === 'lab'} onClick={() => onNavigate('lab')} />
-          <NavItem label="Learn" active={screen === 'learn'} onClick={() => onNavigate('learn')} />
-          <NavItem label="Challenges" active={screen === 'challenges'} onClick={() => onNavigate('challenges')} />
-          <NavItem label="Progress" active={screen === 'progress'} onClick={() => onNavigate('progress')} />
-        </nav>
-        {screen === 'lab' && (
-          <>
-            <span className="hidden h-4.5 w-px bg-void-400 md:block" />
-            <span className="hidden font-mono-qasm text-xs whitespace-nowrap text-slate-400 md:inline">
-              lab / <span className="text-slate-200">{numQubits}q circuit · {numOps} op{numOps === 1 ? '' : 's'}</span>
-            </span>
-          </>
-        )}
-      </div>
+    <header className="flex shrink-0 flex-wrap items-center gap-x-4 border-b border-void-500 bg-void-900 pt-1.5 pr-3.5 pl-4 md:h-[52px] md:flex-nowrap md:py-0">
+      <Logo />
+      <nav aria-label="Primary" className="order-4 -mx-4 flex basis-full gap-0.5 px-2 pt-1 pb-1.5 text-[13px] md:order-none md:mx-0 md:basis-auto md:p-0">
+        <NavItem label="Lab" active={screen === 'lab'} onClick={() => onNavigate('lab')} />
+        <NavItem label="Learn" active={screen === 'learn'} onClick={() => onNavigate('learn')} />
+        <NavItem label="Challenges" active={screen === 'challenges'} onClick={() => onNavigate('challenges')} />
+        <NavItem label="Progress" active={screen === 'progress'} onClick={() => onNavigate('progress')} />
+      </nav>
+      {screen === 'lab' && (
+        <>
+          <span className="hidden h-4.5 w-px bg-void-400 md:block" />
+          <span className="hidden font-mono-qasm text-xs whitespace-nowrap text-slate-400 md:inline">
+            lab / <span className="text-slate-200">{numQubits}q circuit · {numOps} op{numOps === 1 ? '' : 's'}</span>
+          </span>
+        </>
+      )}
 
-      <div data-testid="guide-slot" className="relative mx-1 h-full min-w-11 flex-1 sm:mx-3">
+      <div data-testid="guide-slot" className="relative order-2 mx-1 h-10 min-w-11 flex-1 sm:mx-3 md:order-none md:h-full">
         {guideSlot}
       </div>
 
       {screen === 'lab' && (
-        <div className="flex items-center gap-2.5">
+        <div className="order-3 flex items-center gap-2.5 md:order-none">
           <div className="hidden items-center gap-1 rounded-lg border border-void-500 bg-void-950 p-[3px] text-xs font-medium lg:flex">
             <ModeChip label="Simulator" dotClassName="bg-void-200" active />
             <ModeChip label="Recorded" dotClassName="bg-violet-glow" soon />
@@ -150,10 +152,10 @@ export function TopBar({
             type="button"
             onClick={() => void runExecution()}
             disabled={isExecuting || numOps === 0}
-            className="flex items-center gap-2 rounded-lg bg-slate-100 px-3.5 py-1.5 text-[13px] font-semibold whitespace-nowrap text-void-950 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-glow disabled:cursor-not-allowed disabled:opacity-40"
+            className="flex min-h-9 items-center gap-2 rounded-lg bg-slate-100 px-3.5 py-1.5 text-[13px] font-semibold whitespace-nowrap text-void-950 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-glow disabled:cursor-not-allowed disabled:opacity-40"
           >
             {isExecuting ? 'Running…' : 'Run'}
-            <span className="font-mono-qasm text-[11px] opacity-55">⌘↵</span>
+            <span aria-hidden="true" className="hidden font-mono-qasm text-[11px] opacity-55 sm:inline">⌘↵</span>
           </button>
 
           <div

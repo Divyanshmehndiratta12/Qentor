@@ -84,6 +84,8 @@ export function QASMEditor() {
     const state = EditorState.create({
       doc: qasmText,
       extensions: [
+        // a name for the editing area (axe: an input field must have one), and a tab stop so it can be reached and scrolled by keyboard
+        EditorView.contentAttributes.of({ 'aria-label': 'OpenQASM 3 source, editable', tabindex: '0' }),
         basicSetup,
         theme,
         errorLineField,

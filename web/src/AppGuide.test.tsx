@@ -192,7 +192,7 @@ describe('where the Guide appears', () => {
   it('does not disturb the top bar: navigation, the Run button and the toolbar are all still there', () => {
     render(<App />)
     for (const name of ['Lab', 'Learn', 'Progress']) expect(screen.getByRole('button', { name })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /^Run\s*⌘↵$/ })).toBeInTheDocument() // the top bar's Run (not "Run trace")
+    expect(screen.getByRole('button', { name: /^Run$/ })).toBeInTheDocument() // the top bar's Run (not "Run trace")
     expect(screen.getByText('Simulator')).toBeInTheDocument()
   })
 })

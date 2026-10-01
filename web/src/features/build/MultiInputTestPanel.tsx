@@ -115,19 +115,21 @@ export function MultiInputTestPanel() {
         {cases.map((c, i) => (
           <div key={i} className="flex items-center gap-2">
             <input
+              aria-label={`Case ${i + 1} input bits`}
               value={c.inputBits}
               onChange={(e) => updateCase(i, { inputBits: e.target.value.replace(/[^01]/g, '') })}
               maxLength={inputQubits.length || undefined}
               placeholder={inputQubits.length ? '0'.repeat(inputQubits.length) : 'input bits'}
-              className="w-24 rounded border border-void-400 bg-void-800 px-2 py-1 font-mono-qasm text-xs text-slate-200 placeholder:text-void-300 focus:border-cyan-glow focus:outline-none"
+              className="w-24 rounded border border-void-400 bg-void-800 px-2 py-1 font-mono-qasm text-xs text-slate-200 placeholder:text-void-200 focus:border-cyan-glow focus:outline-none"
             />
             <span className="text-void-200">→</span>
             <input
+              aria-label={`Case ${i + 1} expected output bits`}
               value={c.expectedOutput}
               onChange={(e) => updateCase(i, { expectedOutput: e.target.value.replace(/[^01]/g, '') })}
               maxLength={outputQubits.length || undefined}
               placeholder={outputQubits.length ? '0'.repeat(outputQubits.length) : 'expected output'}
-              className="w-24 rounded border border-void-400 bg-void-800 px-2 py-1 font-mono-qasm text-xs text-slate-200 placeholder:text-void-300 focus:border-cyan-glow focus:outline-none"
+              className="w-24 rounded border border-void-400 bg-void-800 px-2 py-1 font-mono-qasm text-xs text-slate-200 placeholder:text-void-200 focus:border-cyan-glow focus:outline-none"
             />
             <button
               type="button"
@@ -197,7 +199,7 @@ function QubitPicker({
             type="button"
             onClick={() => onToggle(q)}
             aria-pressed={selected.includes(q)}
-            className={`rounded border px-2 py-0.5 font-mono-qasm ${
+            className={`min-h-6 min-w-8 rounded border px-2 py-0.5 font-mono-qasm ${
               selected.includes(q)
                 ? 'border-cyan-glow/60 bg-cyan-dim/40 text-cyan-glow'
                 : 'border-void-400 bg-void-800 text-void-200 hover:text-slate-200'

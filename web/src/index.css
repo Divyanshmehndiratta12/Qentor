@@ -15,7 +15,7 @@
   --color-void-500: #232830;
   --color-void-400: #2e343d;
   --color-void-300: #3d4450;
-  --color-void-200: #4a525e;
+  --color-void-200: #8590a0; /* muted text: 5.9:1 on void-950, 4.6:1 on void-500 (WCAG AA); it was #4a525e, 2.4:1 */
 
   --color-cyan-glow: oklch(0.8 0.12 215);
   --color-cyan-dim: oklch(0.32 0.05 215);

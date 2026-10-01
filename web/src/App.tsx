@@ -184,8 +184,12 @@ function App() {
             <main
               id="main-content"
               tabIndex={-1}
-              className="h-[34rem] min-w-0 shrink-0 border-b border-void-500 bg-void-950 outline-none lg:h-auto lg:flex-1 lg:shrink lg:border-r lg:border-b-0"
+              aria-labelledby="lab-heading"
+              className="h-[40rem] min-w-0 shrink-0 border-b border-void-500 bg-void-950 outline-none lg:h-auto lg:flex-1 lg:shrink lg:border-r lg:border-b-0"
             >
+              <h1 id="lab-heading" className="sr-only">
+                Lab: build, run and verify a circuit
+              </h1>
               <BuildScreen />
             </main>
 

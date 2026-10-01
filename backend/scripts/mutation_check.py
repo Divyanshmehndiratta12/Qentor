@@ -369,7 +369,7 @@ WEB = [
     Mutant("web: a bar is sized by the outcome weight instead of the amplitude", "web/src/features/build/AmplitudeChart.tsx",
            "{ '--amp': row.magnitude } as CSSProperties", "{ '--amp': row.probability } as CSSProperties", ["src/features/build/AmplitudeChart.test.tsx", "src/features/build/reducedStateTrust.test.ts"]),
     Mutant("web: an amplitude with no phase is drawn with an arrow anyway", "web/src/features/build/AmplitudeChart.tsx",
-           "{row.phase === null ? (\n                        <span className=\"text-[10px] text-void-300\">none</span>", "{false ? (\n                        <span className=\"text-[10px] text-void-300\">none</span>", ["src/features/build/AmplitudeChart.test.tsx"]),
+           "{row.phase === null ? (\n                        <span className=\"text-[10px] text-void-200\">none</span>", "{false ? (\n                        <span className=\"text-[10px] text-void-200\">none</span>", ["src/features/build/AmplitudeChart.test.tsx"]),
     Mutant("web: the outcome weight is computed as the square of the size", "web/src/features/build/AmplitudeChart.tsx",
            "toQuantumValue(row.probability, view.provenance)", "toQuantumValue(row.magnitude * row.magnitude, view.provenance)", ["src/features/build/AmplitudeChart.test.tsx", "src/features/build/reducedStateTrust.test.ts"]),
     # --- server-graded assessments: the browser must never decide, guess or keep a verdict the server did not give ---
@@ -486,6 +486,15 @@ WEB = [
            "candidateProvenance: response.candidate_provenance ? provenanceFromTraceStep(response.candidate_provenance) : null,", "candidateProvenance: null,", ["src/features/build/optimize.test.tsx"]),
     Mutant("web: the Lab's Optimize button shows inside a challenge", "web/src/features/challenges/ChallengesScreen.tsx",
            "<ResultsPanel showOptimize={false} />", "<ResultsPanel />", ["src/features/challenges/ChallengesScreen.test.tsx"]),
+    # --- Sprint 3: accessibility ---
+    Mutant("web: the muted-text colour goes back to the unreadable grey", "web/src/index.css",
+           "--color-void-200: #8590a0;", "--color-void-200: #4a525e;", ["src/a11y/contrast.test.ts"]),
+    Mutant("web: the Lab loses its level-one heading", "web/src/App.tsx",
+           '              <h1 id="lab-heading" className="sr-only">', '              <h1 hidden id="lab-heading" className="sr-only">', ["src/a11y/axe.test.tsx"]),
+    Mutant("web: the Results heading is a span again (heading order breaks)", "web/src/features/build/ResultsPanel.tsx",
+           '<h2 className="text-[13px] font-semibold text-slate-100">Results</h2>', '<span className="text-[13px] font-semibold text-slate-100">Results</span>', ["src/a11y/axe.test.tsx"]),
+    Mutant("web: Run sits on the same row as the destinations again", "web/src/features/shell/TopBar.tsx",
+           'className="order-4 -mx-4 flex basis-full gap-0.5', 'className="-mx-4 flex gap-0.5', ["src/a11y/layout.test.tsx"]),
 ]
 
 

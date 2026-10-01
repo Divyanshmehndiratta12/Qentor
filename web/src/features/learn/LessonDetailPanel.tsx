@@ -117,7 +117,7 @@ export function LessonDetailPanel({
       )}
 
       <div>
-        <h3 className="text-xs font-semibold tracking-wider text-slate-500 uppercase">Objectives</h3>
+        <h3 className="text-xs font-semibold tracking-wider text-slate-400 uppercase">Objectives</h3>
         <ul className="mt-2 flex flex-col gap-1.5">
           {lesson.learningObjectives.map((objective) => (
             <li key={objective} className="flex gap-2 text-sm text-slate-300">

@@ -41,7 +41,7 @@ export function ResultsPanel({ showOptimize = true }: { showOptimize?: boolean }
   return (
     <div className="flex h-full flex-col">
       <div className="flex items-center justify-between border-b border-void-500 px-4 py-2.5">
-        <span className="text-[13px] font-semibold text-slate-100">Results</span>
+        <h2 className="text-[13px] font-semibold text-slate-100">Results</h2>
         {result && <ProvenanceBadge provenance={result.provenance} />}
       </div>
 
@@ -297,7 +297,7 @@ function StatevectorResult({
                       render={(v) => v.toFixed(6)}
                     />
                   ) : (
-                    <span className="text-void-300">—</span>
+                    <span className="text-void-200">—</span>
                   )}
                 </td>
               )}

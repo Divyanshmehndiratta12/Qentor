@@ -90,7 +90,7 @@ export function LearnerSummaryPanel({
       <div>
         <h3 className="text-[11px] font-semibold tracking-wider text-slate-400 uppercase">Needs attention</h3>
         {misconceptions.length === 0 ? (
-          <p className="mt-1.5 text-[11px] text-slate-500">No open signals right now.</p>
+          <p className="mt-1.5 text-[11px] text-slate-400">No open signals right now.</p>
         ) : (
           <ul className="mt-1.5 flex flex-col gap-1">
             {misconceptions.map((signal) => (
@@ -109,14 +109,14 @@ export function LearnerSummaryPanel({
       </div>
 
       <div>
-        <h3 className="text-[11px] font-semibold tracking-wider text-slate-400 uppercase">Next challenge</h3>
+        <h3 className="text-[11px] font-semibold tracking-wider text-slate-400 uppercase">Next step</h3>
         <div className="mt-1.5 rounded-md border border-violet-glow/30 bg-violet-dim/20 p-2">
           <p className="text-[11px] text-slate-200">{nextChallenge.reason}</p>
           {nextChallenge.lessonId && (
             <button
               type="button"
               onClick={() => onSelectLesson(nextChallenge.lessonId as string)}
-              className="mt-1.5 rounded-md bg-violet-glow px-2 py-1 text-[10px] font-semibold text-void-950"
+              className="mt-1.5 min-h-6 rounded-md bg-violet-glow px-2 py-1 text-[11px] font-semibold text-void-950"
             >
               Go to lesson
             </button>
