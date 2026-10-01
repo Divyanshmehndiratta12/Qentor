@@ -50,9 +50,10 @@ export function QubitSpheres({ qubitStates, numQubits }: QubitSpheresProps) {
             by the backend from this step’s statevector. An arrow of length 1 is a qubit in a pure state of its own; an
             arrow of length 0 is a qubit entangled with the rest of the register.
           </p>
-          {/* as many columns as fit at 14rem each: the Lab's results panel is narrow even on a wide screen, so this is by the
-              panel's own width, not the viewport's (two cards squeezed into ~340px clipped their contents) */}
-          <div className="grid grid-cols-[repeat(auto-fit,minmax(14rem,1fr))] gap-3">
+          {/* as many columns as fit at 10.5rem each: the Lab's results panel is narrow even on a wide screen, so this is by the panel's
+              own width, not the viewport's. Each card lays itself out by ITS width (a container query): a wide card puts the sphere
+              beside its readout, a narrow one stacks them, so two cards fit side by side on a phone without clipping. */}
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(10.5rem,1fr))] gap-2" data-testid="qubit-card-grid">
             {qubitStates.map((state) => (
               <QubitCard key={state.qubit} state={state} />
             ))}
@@ -81,7 +82,7 @@ function NotProvided({ numQubits }: { numQubits: number }) {
 
 function QubitCard({ state }: { state: TraceQubitState }) {
   const name = qubitLabel(state.qubit)
-  const common = 'flex flex-col gap-2 rounded-md border border-void-500 bg-void-900/60 p-2.5'
+  const common = '@container flex flex-col gap-1.5 rounded-md border border-void-500 bg-void-900/60 p-2'
 
   if (state.status !== 'OK' || !state.bloch || !state.blochLength || !state.purity) {
     return (
@@ -111,8 +112,25 @@ function QubitCard({ state }: { state: TraceQubitState }) {
         <ProvenanceBadge provenance={bloch.provenance} />
       </div>
 
-      <div className="flex justify-center">
-        <SphereSvg x={x} y={y} z={z} drawable={drawable} label={label} />
+      <div className="flex flex-col items-center gap-2 @[15rem]:flex-row @[15rem]:items-start" data-testid={`qubit-compact-${state.qubit}`}>
+        {/* a small sphere (about 6rem): the arrow and its colour carry the state, the numbers beside it carry the values */}
+        <div className="w-24 shrink-0">
+          <SphereSvg x={x} y={y} z={z} drawable={drawable} label={label} />
+        </div>
+        <dl
+          aria-label={`Bloch vector coordinates of qubit ${state.qubit}`}
+          data-testid={`qubit-readout-${state.qubit}`}
+          className="grid w-full grid-cols-3 gap-1 font-mono-qasm text-xs @[15rem]:grid-cols-1"
+        >
+          {(['x', 'y', 'z'] as const).map((axis) => (
+            <div key={axis} className="flex items-baseline justify-between gap-1 rounded border border-void-500 bg-void-900 px-1.5 py-0.5 @[15rem]:justify-start">
+              <dt className="text-[10px] text-void-200">{axis} =</dt>
+              <dd className="text-xs text-slate-100" title={`exact value from the backend: ${bloch.value[axis]}`}>
+                <VerifiedValueInline quantum={toQuantumValue(bloch.value[axis], bloch.provenance)} render={formatComponent} />
+              </dd>
+            </div>
+          ))}
+        </dl>
       </div>
 
       {!drawable && (
@@ -121,22 +139,7 @@ function QubitCard({ state }: { state: TraceQubitState }) {
         </p>
       )}
 
-      <dl
-        aria-label={`Bloch vector coordinates of qubit ${state.qubit}`}
-        data-testid={`qubit-readout-${state.qubit}`}
-        className="grid grid-cols-3 gap-1.5 font-mono-qasm text-xs"
-      >
-        {(['x', 'y', 'z'] as const).map((axis) => (
-          <div key={axis} className="rounded border border-void-500 bg-void-900 px-1.5 py-1">
-            <dt className="text-[10px] text-void-200">{axis} =</dt>
-            <dd className="text-xs text-slate-100" title={`exact value from the backend: ${bloch.value[axis]}`}>
-              <VerifiedValueInline quantum={toQuantumValue(bloch.value[axis], bloch.provenance)} render={formatComponent} />
-            </dd>
-          </div>
-        ))}
-      </dl>
-
-      <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 font-mono-qasm text-[11px] text-void-200">
+      <dl className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-0.5 font-mono-qasm text-[11px] text-void-200">
         <dt>length</dt>
         <dd className="text-slate-200" data-testid={`qubit-length-${state.qubit}`} title={`exact value from the backend: ${blochLength.value}`}>
           <VerifiedValueInline quantum={blochLength} render={formatComponent} />

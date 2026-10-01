@@ -226,13 +226,21 @@ describe('roaming', () => {
     expect(onToggle).toHaveBeenCalledTimes(ROAM_ANCHORS.length)
   })
 
-  it('never sits over the page: it is positioned inside its strip (absolute) with a fixed corner fallback on small screens only', () => {
+  it('never sits over the page: it is positioned inside its strip in the top bar at EVERY width, and is never fixed to the screen', () => {
     render(<GuideLauncher open={false} onToggle={vi.fn()} />)
     const cls = launcher().className
     expect(cls).toContain('absolute')
-    expect(cls).toContain('max-md:fixed') // <768px: parked bottom-right, no roaming space needed
+    // On a phone it stops roaming and rests at the start of its own strip (the top bar's first row). It used to be `fixed` to the
+    // bottom-right corner of the viewport there, over the page's controls and content.
+    expect(cls).toContain('max-md:left-0')
     expect(cls).toContain('max-md:[transform:none]')
-    expect(cls).toContain('max-md:bottom-4')
+    for (const bad of ['fixed', 'sticky', 'bottom-', 'right-', 'inset-']) expect(cls).not.toContain(bad)
+  })
+
+  it('shows no bubble on a phone, where it would cover the destinations row', () => {
+    render(<GuideLauncher open={false} onToggle={vi.fn()} />)
+    advance(BUBBLE_DELAY_MS)
+    expect(screen.getByTestId('guide-bubble').className).toContain('max-md:hidden')
   })
 })
 

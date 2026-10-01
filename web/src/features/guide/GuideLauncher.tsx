@@ -9,8 +9,10 @@
  * per 10 s, each a ~4 s slide), bobs a few pixels while idle, and shows a
  * "Need help?" bubble once, several seconds in, for a few seconds — never
  * again this session and never while the panel is open. Below the `md`
- * breakpoint the top bar is too tight, so it parks in the bottom-right corner
- * (no roaming there) and stays clickable.
+ * breakpoint it stops roaming and rests in its own place in the top bar's first
+ * row (the slot is a flexible spacer there too), and shows no bubble. It used to
+ * park in a fixed corner of the screen on a phone, where it sat over the page's
+ * own controls and content; nothing about it is fixed to the viewport now.
  *
  * It stops moving while the learner hovers or focuses it (so it is never a
  * moving target under the pointer), while the panel is open, and while the tab
@@ -74,7 +76,7 @@ export function GuideLauncher({ open, onToggle, buttonRef }: GuideLauncherProps)
       data-testid="guide-launcher"
       data-motion={reduced ? 'reduced' : 'allowed'}
       style={{ '--guide-x': `${percent}%` } as CSSProperties}
-      className={`absolute top-1/2 z-30 -mt-5 left-[var(--guide-x)] [transform:translateX(calc(var(--guide-x)*-1))] max-md:fixed max-md:top-auto max-md:right-4 max-md:bottom-4 max-md:left-auto max-md:mt-0 max-md:[transform:none] ${
+      className={`absolute top-1/2 z-30 -mt-5 left-[var(--guide-x)] [transform:translateX(calc(var(--guide-x)*-1))] max-md:left-0 max-md:[transform:none] ${
         reduced ? '' : 'qentor-guide-roam'
       }`}
     >
@@ -103,7 +105,7 @@ export function GuideLauncher({ open, onToggle, buttonRef }: GuideLauncherProps)
         <span
           data-testid="guide-bubble"
           aria-hidden="true"
-          className="pointer-events-none absolute top-full left-1/2 mt-1 -translate-x-1/2 rounded-lg border border-void-400 bg-void-800 px-2 py-1 text-[11px] whitespace-nowrap text-slate-200 shadow-lg max-md:top-auto max-md:bottom-full max-md:mt-0 max-md:mb-1"
+          className="pointer-events-none absolute top-full left-1/2 mt-1 -translate-x-1/2 rounded-lg border border-void-400 bg-void-800 px-2 py-1 text-[11px] whitespace-nowrap text-slate-200 shadow-lg max-md:hidden"
         >
           Need help?
         </span>

@@ -6,7 +6,8 @@
  * (`SubmissionPanel`) is the server's, computed from its own statevectors. Selecting a different challenge loads its starter
  * circuit into that workspace; the Lab's previous circuit is replaced, and the brief says so.
  */
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type CSSProperties } from 'react'
+import { challengeCanvasRem } from '@/features/build/canvasHeight'
 import { CircuitCanvas } from '@/features/build/CircuitCanvas'
 import { GatePalette } from '@/features/build/GatePalette'
 import { ResultsPanel } from '@/features/build/ResultsPanel'
@@ -168,7 +169,8 @@ export function ChallengesScreen({
               />
               {/* the canvas, and under it the palette as a strip (it is not a dock over the wires); a register of four or more qubits keeps a taller canvas */}
               <div
-                className={`flex h-[30rem] min-h-0 shrink-0 flex-col lg:h-auto lg:flex-1 ${challenge.constraints.numQubits >= 4 ? 'lg:min-h-[24rem]' : ''}`}
+                className={`flex h-[var(--canvas-h)] min-h-0 shrink-0 flex-col lg:h-auto lg:flex-1 ${challenge.constraints.numQubits >= 4 ? 'lg:min-h-[24rem]' : ''}`}
+                style={{ '--canvas-h': `${challengeCanvasRem(challenge.constraints.numQubits)}rem` } as CSSProperties}
                 data-testid="challenge-canvas-region"
               >
                 <div className="relative min-h-0 flex-1">

@@ -58,6 +58,9 @@ export function AmplitudeChart({ view, numQubits, labelled }: AmplitudeChartProp
           </p>
           <div className="max-h-64 overflow-auto" tabIndex={0} role="region" aria-label="Amplitude table, scrollable">
             <table className="w-full text-left text-[11px]">
+              <caption className="sr-only">
+                Amplitude and phase of each basis state at this step, as the backend computed them: size, phase, amplitude, angle and outcome weight.
+              </caption>
               <thead>
                 <tr className="text-void-200">
                   <th className="pr-1.5 pb-1.5 font-medium">{labelled ? 'basis state' : 'index'}</th>

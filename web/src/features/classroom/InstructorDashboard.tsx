@@ -146,7 +146,7 @@ export function InstructorDashboard({ classCode, instructorKey }: { classCode: s
             {lessons.length === 0 ? (
               <p className="mt-2 text-sm text-slate-400">No lesson activity yet.</p>
             ) : (
-              <div className="mt-2 overflow-x-auto">
+              <div className="mt-2 overflow-x-auto" tabIndex={0} role="region" aria-label="Lesson progress table, scrollable">
                 <table className="w-full min-w-[34rem] border-collapse" data-testid="lessons-table">
                   <caption className="sr-only">Lesson progress for this class. Counts are learners.</caption>
                   <thead>
@@ -206,7 +206,7 @@ export function InstructorDashboard({ classCode, instructorKey }: { classCode: s
             {challenges.length === 0 ? (
               <p className="mt-2 text-sm text-slate-400">No challenge activity yet.</p>
             ) : (
-              <div className="mt-2 overflow-x-auto">
+              <div className="mt-2 overflow-x-auto" tabIndex={0} role="region" aria-label="Challenge attempts table, scrollable">
                 <table className="w-full min-w-[34rem] border-collapse" data-testid="challenges-table">
                   <caption className="sr-only">Challenge attempts for this class. Counts are learners or attempts as labelled.</caption>
                   <thead>

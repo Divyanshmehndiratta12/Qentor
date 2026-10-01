@@ -697,6 +697,31 @@ WEB += [
 ]
 
 
+# --- Sprint 5: polish (Results groups, chart alternatives, phone layout, the Guide) ---
+WEB += [
+    Mutant("web: the Guide is pinned to a corner of the screen on a phone again", "web/src/features/guide/GuideLauncher.tsx",
+           "max-md:left-0 max-md:[transform:none] ${", "max-md:fixed max-md:right-4 max-md:bottom-4 max-md:[transform:none] ${", ["src/features/guide/GuideLauncher.test.tsx"]),
+    Mutant("web: the Guide's bubble shows on a phone", "web/src/features/guide/GuideLauncher.tsx",
+           "shadow-lg max-md:hidden", "shadow-lg", ["src/features/guide/GuideLauncher.test.tsx"]),
+    Mutant("web: the trace group starts folded", "web/src/features/build/ResultsPanel.tsx",
+           'id="trace" title="Step-by-step trace" hint="state after each operation" defaultOpen', 'id="trace" title="Step-by-step trace" hint="state after each operation"', ["src/features/build/resultsOrganization.test.tsx"]),
+    Mutant("web: a tool is dropped from the Results column instead of folded", "web/src/features/build/ResultsPanel.tsx",
+           "          <ExportPanel />\n        </ResultsGroup>", "        </ResultsGroup>", ["src/features/build/resultsOrganization.test.tsx"]),
+    Mutant("web: the probability chart loses its text alternative", "web/src/features/build/ResultsPanel.tsx",
+           '      role="img"\n      data-testid="outcome-chart"', '      data-testid="outcome-chart"', ["src/features/build/resultsOrganization.test.tsx"]),
+    Mutant("web: the chart's own description quotes a number", "web/src/features/build/ResultsPanel.tsx",
+           "The same values are listed in the table that follows.`}", "The same values are listed in the table that follows. Highest: ${Math.max(...Object.values(values)).toFixed(2)}.`}", ["src/features/build/resultsOrganization.test.tsx"]),
+    Mutant("web: the phone canvas ignores the size of the register", "web/src/features/build/canvasHeight.ts",
+           "  return Math.max(30, (box + 168 + MARGIN_PX) / PX_PER_REM)", "  return 30", ["src/features/build/canvasHeight.test.ts"]),
+    Mutant("web: the Lab's phone column stops growing with the register", "web/src/features/build/canvasHeight.ts",
+           "  return Math.max(40, own, fromThree)", "  return 40", ["src/features/build/canvasHeight.test.ts"]),
+    Mutant("web: the per-qubit sphere is full width again", "web/src/features/build/QubitSpheres.tsx",
+           '<div className="w-24 shrink-0">', '<div className="w-full shrink-0">', ["src/features/build/QubitSpheres.test.tsx"]),
+    Mutant("web: a dashboard table that scrolls sideways cannot be reached by keyboard", "web/src/features/classroom/InstructorDashboard.tsx",
+           '<div className="mt-2 overflow-x-auto" tabIndex={0} role="region" aria-label="Lesson progress table, scrollable">', '<div className="mt-2 overflow-x-auto">', ["src/features/classroom/classroom.test.tsx"]),
+]
+
+
 def run(cmd: list[str], cwd: Path) -> int:
     return subprocess.run(cmd, cwd=cwd, capture_output=True, text=True).returncode
 

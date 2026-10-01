@@ -637,6 +637,19 @@ describe('the instructor dashboard', () => {
     expect(table.querySelectorAll('th[scope="row"]').length).toBe(1)
   })
 
+  it('a table that scrolls sideways on a phone is a named, keyboard-focusable region', async () => {
+    client.getClassDashboard.mockResolvedValue(populated())
+    show()
+    const lessons = (await screen.findByTestId('lessons-table')).parentElement!
+    const challenges = screen.getByTestId('challenges-table').parentElement!
+    for (const box of [lessons, challenges]) {
+      expect(box).toHaveAttribute('role', 'region')
+      expect(box).toHaveAttribute('tabindex', '0')
+      expect(box.getAttribute('aria-label')).toMatch(/scrollable/)
+      expect(box.className).toContain('overflow-x-auto')
+    }
+  })
+
   it('a refused key says so and offers no retry that could be used to guess', async () => {
     client.getClassDashboard.mockRejectedValue(new ClassroomRejectedError('NOT_AUTHORIZED', 'x', 403))
     show()

@@ -364,3 +364,30 @@ describe('no quantum calculation happens while rendering the spheres', () => {
     expect(readout(0)).toEqual([`${MINUS}0.500`, '0.000', `${MINUS}0.250`])
   })
 })
+
+describe('compact cards', () => {
+  it('each card is a container and lays itself out by its own width, with a small sphere beside the readout', () => {
+    show()
+    for (const q of [0, 1]) {
+      expect(screen.getByTestId(`qubit-card-${q}`).className).toContain('@container')
+      const compact = screen.getByTestId(`qubit-compact-${q}`)
+      expect(compact.className).toContain('@[15rem]:flex-row') // wide card: sphere beside the numbers
+      expect(compact.className).toContain('flex-col') // narrow card: stacked
+      expect(within(compact).getByTestId('bloch-svg').parentElement!.className).toContain('w-24') // about 6rem, not a full-width drawing
+      expect(compact.contains(screen.getByTestId(`qubit-readout-${q}`))).toBe(true)
+    }
+    expect(screen.getByTestId('qubit-card-grid').className).toContain('minmax(10.5rem,1fr)') // two cards fit side by side on a phone
+  })
+
+  it('drops nothing: coordinates, length, purity, entanglement, provenance and the source line are all still on the card', () => {
+    show()
+    const c = within(screen.getByTestId('qubit-card-1'))
+    expect(readout(1)).toHaveLength(3)
+    expect(screen.getByTestId('qubit-length-1')).toBeInTheDocument()
+    expect(screen.getByTestId('qubit-purity-1')).toBeInTheDocument()
+    expect(screen.getByTestId('qubit-entanglement-1')).toBeInTheDocument()
+    expect(screen.getByTestId('qubit-source-1')).toBeInTheDocument()
+    expect(c.getByText(/Simulated/)).toBeInTheDocument() // the provenance badge
+    expect(c.getByRole('img', { name: /Bloch sphere of qubit 1/ })).toBeInTheDocument()
+  })
+})

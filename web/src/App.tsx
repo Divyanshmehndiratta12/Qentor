@@ -23,7 +23,8 @@
  * computes anything itself. Progress's only bridge is `openLesson`, which
  * selects a lesson in the Learn store and switches to Learn.
  */
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type CSSProperties } from 'react'
+import { labColumnRem } from '@/features/build/canvasHeight'
 import type { Circuit } from '@/circuit/types'
 import { BuildScreen } from '@/features/build/BuildScreen'
 import { ResultsPanel } from '@/features/build/ResultsPanel'
@@ -59,6 +60,7 @@ function App() {
   const guideButtonRef = useRef<HTMLButtonElement>(null)
   const isFirstScreen = useRef(true)
   const loadCircuit = useBuildStore((s) => s.loadCircuit)
+  const labQubits = useBuildStore((s) => s.circuit.num_qubits) // on a phone the Lab's canvas column is as tall as its register needs
   // A share link (`/#c=…`) carries a circuit and nothing else. It is validated, loaded onto the canvas WITHOUT any result, and the
   // fragment is removed so a reload does not silently replace the learner's work again.
   // First-visit welcome on the Lab: until dismissed, or until the learner has started a lesson.
@@ -207,7 +209,8 @@ function App() {
               id="main-content"
               tabIndex={-1}
               aria-labelledby="lab-heading"
-              className="h-[40rem] min-w-0 shrink-0 border-b border-void-500 bg-void-950 outline-none lg:h-auto lg:flex-1 lg:shrink lg:border-r lg:border-b-0"
+              className="h-[var(--lab-h)] min-w-0 shrink-0 border-b border-void-500 bg-void-950 outline-none lg:h-auto lg:flex-1 lg:shrink lg:border-r lg:border-b-0"
+              style={{ '--lab-h': `${labColumnRem(labQubits)}rem` } as CSSProperties}
             >
               <h1 id="lab-heading" className="sr-only">
                 Lab: build, run and verify a circuit

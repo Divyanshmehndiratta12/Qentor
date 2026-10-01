@@ -6,6 +6,7 @@
  * `statevector` mode this renders the backend's own amplitude components
  * (re, im) as given, with no client-side arithmetic on them.
  */
+import type { ReactNode } from 'react'
 import createPlotlyComponent from 'react-plotly.js/factory'
 import Plotly from 'plotly.js-basic-dist-min'
 import { useBuildStore } from './store'
@@ -120,24 +121,70 @@ export function ResultsPanel({ showOptimize = true }: { showOptimize?: boolean }
           />
         )}
 
-        <TracePanel />
-        <ComparePanel />
-        <ExportPanel />
-        <VerificationPanel />
-        {showOptimize && <OptimizePanel />}
-        <MultiInputTestPanel />
-        <AgreementPanel />
-        <EquivalencePanel />
+        {/* The tools below the result, grouped so the column is a short list of named sections instead of one long scroll. Native
+            disclosure elements: keyboard and screen-reader operable with no script, every panel stays in the page (closed groups only
+            fold it away), and a group's own state (a run, an error) is kept while it is folded. */}
+        <ResultsGroup id="trace" title="Step-by-step trace" hint="state after each operation" defaultOpen>
+          <TracePanel />
+        </ResultsGroup>
+        <ResultsGroup id="verify" title="Verify and optimise" hint="checks the server makes" defaultOpen>
+          <VerificationPanel />
+          {showOptimize && <OptimizePanel />}
+        </ResultsGroup>
+        <ResultsGroup id="compare" title="Compare runs and backends" hint="two runs, or three simulators">
+          <ComparePanel />
+          <AgreementPanel />
+        </ResultsGroup>
+        <ResultsGroup id="test" title="Equivalence and multi-input tests" hint="is it the same circuit; does it do the right thing">
+          <EquivalencePanel />
+          <MultiInputTestPanel />
+        </ResultsGroup>
+        <ResultsGroup id="share" title="Share and export" hint="read-only page, link, files">
+          <ExportPanel />
+        </ResultsGroup>
       </div>
     </div>
   )
 }
 
-/** One bar chart of backend-supplied values keyed by bitstring. The values are plotted as given; nothing is derived here. */
+/**
+ * One named, foldable section of the Results column (a native `<details>`). The summary is the control and the name; `hint` says in a few
+ * words what is inside. Nothing here reads or changes a result.
+ */
+function ResultsGroup({ id, title, hint, defaultOpen, children }: { id: string; title: string; hint: string; defaultOpen?: boolean; children: ReactNode }) {
+  return (
+    <details
+      open={defaultOpen}
+      data-testid={`results-group-${id}`}
+      className="group mt-4 rounded-lg border border-void-500 bg-void-950/40 [&[open]>summary]:border-b"
+    >
+      <summary className="flex min-h-10 cursor-pointer list-none items-center justify-between gap-2 border-void-500 px-3 py-2 text-[13px] font-semibold text-slate-100 hover:bg-void-800 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-cyan-glow [&::-webkit-details-marker]:hidden">
+        <span>
+          {title} <span className="ml-1 text-[11px] font-normal text-void-200">{hint}</span>
+        </span>
+        <span aria-hidden="true" className="text-void-200 transition-transform group-open:rotate-90">
+          ▸
+        </span>
+      </summary>
+      <div className="px-3 pb-3">{children}</div>
+    </details>
+  )
+}
+
+/**
+ * One bar chart of backend-supplied values keyed by bitstring. The values are plotted as given; nothing is derived here. The chart is a drawing:
+ * for a screen reader it is ONE image with a name that says what it shows and where the same values are as text (the table that follows it).
+ * It states no value of its own, so no number reaches a reader except through the table's provenance-carrying cells.
+ */
 function OutcomeChart({ values, yTitle, color }: { values: Record<string, number>; yTitle: string; color: string }) {
   const bitstrings = Object.keys(values).sort()
   return (
-    <Plot
+    <div
+      role="img"
+      data-testid="outcome-chart"
+      aria-label={`Bar chart of the ${yTitle} of each of ${bitstrings.length} measurement outcome${bitstrings.length === 1 ? '' : 's'}. Bitstrings are written q[n-1] … q[0]. The same values are listed in the table that follows.`}
+    >
+      <Plot
       data={[{ x: bitstrings, y: bitstrings.map((b) => values[b]), type: 'bar', marker: { color } }]}
       layout={{
         paper_bgcolor: 'transparent',
@@ -152,6 +199,7 @@ function OutcomeChart({ values, yTitle, color }: { values: Record<string, number
       config={{ displayModeBar: false, responsive: true }}
       style={{ width: '100%' }}
     />
+    </div>
   )
 }
 
@@ -200,6 +248,9 @@ export function ShotsResult({
       </p>
       <OutcomeChart values={frequencies} yTitle="sampled frequency" color="oklch(0.8 0.12 215)" />
       <table className="w-full text-left text-xs">
+        <caption className="sr-only">
+          Sampled frequency of each measurement outcome{shots !== undefined ? `, from ${shots} shots` : ''}, with its count. Bitstrings are q[n-1] … q[0].
+        </caption>
         <thead>
           <tr className="text-void-200">
             <th className="pb-1.5 font-medium">bitstring</th>
@@ -270,6 +321,10 @@ export function StatevectorResult({
         </div>
       )}
       <table className="w-full text-left text-xs">
+        <caption className="sr-only">
+          The statevector the backend returned: the real and imaginary part of the amplitude of each basis state
+          {theoretical ? ', and its theoretical probability' : ''}. Basis states are q[n-1] … q[0].
+        </caption>
         <thead>
           <tr className="text-void-200">
             <th className="pb-1.5 font-medium">basis state</th>
