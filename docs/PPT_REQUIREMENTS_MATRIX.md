@@ -12,9 +12,9 @@ Demo importance: **Critical** (the story breaks without it) · **High** · **Med
 
 | # | Requirement | Source | Priority | Current status | Required backend | Verification method | Demo importance |
 |---|---|---|---|---|---|---|---|
-| L1 | Guided lesson per algorithm with short explainers and guided examples | Deck p2 (1 Learn), p3 step 1 | P0 | Built (10 lessons) | Content files + Aer for example circuits | Example circuits executed on load. No probability is written into lesson prose. A content test runs every lesson circuit. | High |
+| L1 | Guided lesson per algorithm with short explainers and guided examples | Deck p2 (1 Learn), p3 step 1 | P0 | Built (13 lessons) | Content files + Aer for example circuits | Example circuits executed on load. No probability is written into lesson prose. A content test runs every lesson circuit. | High |
 | L2 | Interactive visuals in lessons | Deck p3 step 1 | P0 | Built (trace, Bloch, charts) | Aer (statevector, per-step states) | Visuals render only backend results | High |
-| L3 | Focused algorithm library that can grow | Deck p4 "Scalable product" | P0 (Bell primer, phase kickback, DJ, BV) · P1 (Grover-2) · P2 (QFT/QPE) | Built (Bell, kickback, DJ, BV; Grover/QFT not built) | Aer | Each algorithm's reference solution passes its own test spec in CI | High |
+| L3 | Focused algorithm library that can grow | Deck p4 "Scalable product" | P0 (Bell primer, phase kickback, DJ, BV) · P1 (Grover-2) · P2 (QFT/QPE) | Built (Bell, kickback, DJ, BV, superdense coding, teleportation with deferred corrections, a fixed 2-qubit Grover; QFT/QPE not built) | Aer | Each algorithm's reference solution passes its own test spec in CI | High |
 
 ## Build
 
@@ -112,7 +112,7 @@ Demo importance: **Critical** (the story breaks without it) · **High** · **Med
 
 | # | Capability | Status | Where the trust rule is enforced |
 |---|---|---|---|
-| E1 | Challenge system: nine backend-owned challenges, server-side deterministic verdicts, structured feedback, deterministic hints | Built | `challenges/evaluate.py`; no LLM in any verdict (import-graph and no-call tests) |
+| E1 | Challenge system: fourteen backend-owned challenges, server-side deterministic verdicts, structured feedback, deterministic hints | Built | `challenges/evaluate.py`; no LLM in any verdict (import-graph and no-call tests) |
 | E2 | Fixed Deutsch-Jozsa and Bernstein-Vazirani challenges (one oracle each, no synthesis) | Built | Anchor check requires the oracle exactly, once, in order |
 | E3 | "Debug my circuit": observed / evidence / mismatch / next experiment / hint | Built | `tutor/debugger.py`: evidence and hint never model output; claim guard plus verdict-consistency check |
 | E4 | Experiment comparison (circuit diff, measurement difference, state difference) and "Ask Tutor about this difference" | Built | `verification/experiment_compare.py`; comparison stored as a provenance record |

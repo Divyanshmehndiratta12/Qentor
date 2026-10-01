@@ -1,0 +1,170 @@
+{
+  "name": "grovers_search_lab",
+  "description": "The Grover's Search lesson's lab: H, the fixed oracle for the item 01 (X, CZ, X on q1), one diffusion, both qubits measured.",
+  "circuit": {
+    "schema": "qentor.circuit/1",
+    "num_qubits": 2,
+    "num_clbits": 2,
+    "ops": [
+      {
+        "gate": "h",
+        "targets": [
+          0
+        ],
+        "controls": [],
+        "params": [],
+        "clbits": []
+      },
+      {
+        "gate": "h",
+        "targets": [
+          1
+        ],
+        "controls": [],
+        "params": [],
+        "clbits": []
+      },
+      {
+        "gate": "x",
+        "targets": [
+          1
+        ],
+        "controls": [],
+        "params": [],
+        "clbits": []
+      },
+      {
+        "gate": "cz",
+        "targets": [
+          1
+        ],
+        "controls": [
+          0
+        ],
+        "params": [],
+        "clbits": []
+      },
+      {
+        "gate": "x",
+        "targets": [
+          1
+        ],
+        "controls": [],
+        "params": [],
+        "clbits": []
+      },
+      {
+        "gate": "h",
+        "targets": [
+          0
+        ],
+        "controls": [],
+        "params": [],
+        "clbits": []
+      },
+      {
+        "gate": "h",
+        "targets": [
+          1
+        ],
+        "controls": [],
+        "params": [],
+        "clbits": []
+      },
+      {
+        "gate": "x",
+        "targets": [
+          0
+        ],
+        "controls": [],
+        "params": [],
+        "clbits": []
+      },
+      {
+        "gate": "x",
+        "targets": [
+          1
+        ],
+        "controls": [],
+        "params": [],
+        "clbits": []
+      },
+      {
+        "gate": "cz",
+        "targets": [
+          1
+        ],
+        "controls": [
+          0
+        ],
+        "params": [],
+        "clbits": []
+      },
+      {
+        "gate": "x",
+        "targets": [
+          0
+        ],
+        "controls": [],
+        "params": [],
+        "clbits": []
+      },
+      {
+        "gate": "x",
+        "targets": [
+          1
+        ],
+        "controls": [],
+        "params": [],
+        "clbits": []
+      },
+      {
+        "gate": "h",
+        "targets": [
+          0
+        ],
+        "controls": [],
+        "params": [],
+        "clbits": []
+      },
+      {
+        "gate": "h",
+        "targets": [
+          1
+        ],
+        "controls": [],
+        "params": [],
+        "clbits": []
+      },
+      {
+        "gate": "measure",
+        "targets": [
+          0
+        ],
+        "controls": [],
+        "params": [],
+        "clbits": [
+          0
+        ]
+      },
+      {
+        "gate": "measure",
+        "targets": [
+          1
+        ],
+        "controls": [],
+        "params": [],
+        "clbits": [
+          1
+        ]
+      }
+    ]
+  },
+  "qasm": "OPENQASM 3.0;\ninclude \"stdgates.inc\";\nqubit[2] q;\nbit[2] c;\nh q[0];\nh q[1];\nx q[1];\ncz q[0], q[1];\nx q[1];\nh q[0];\nh q[1];\nx q[0];\nx q[1];\ncz q[0], q[1];\nx q[0];\nx q[1];\nh q[0];\nh q[1];\nc[0] = measure q[0];\nc[1] = measure q[1];\n",
+  "hash": "be5359faf19bc3d35a9ebc0bee8167c2ac2dd85e3546dc3107b347ff79499d03",
+  "code": {
+    "qiskit": "from qiskit import QuantumCircuit\n\nqc = QuantumCircuit(2, 2)\nqc.h(0)\nqc.h(1)\nqc.x(1)\nqc.cz(0, 1)\nqc.x(1)\nqc.h(0)\nqc.h(1)\nqc.x(0)\nqc.x(1)\nqc.cz(0, 1)\nqc.x(0)\nqc.x(1)\nqc.h(0)\nqc.h(1)\nqc.measure(0, 0)\nqc.measure(1, 1)\n",
+    "cirq": "import cirq\n\nq = cirq.LineQubit.range(2)\n# Cirq lists q[0] first in a state; Qiskit lists qubit 0 last. The circuit is the same.\ncircuit = cirq.Circuit(\n    cirq.H(q[0]),\n    cirq.H(q[1]),\n    cirq.X(q[1]),\n    cirq.CZ(q[0], q[1]),\n    cirq.X(q[1]),\n    cirq.H(q[0]),\n    cirq.H(q[1]),\n    cirq.X(q[0]),\n    cirq.X(q[1]),\n    cirq.CZ(q[0], q[1]),\n    cirq.X(q[0]),\n    cirq.X(q[1]),\n    cirq.H(q[0]),\n    cirq.H(q[1]),\n    cirq.measure(q[0], key=\"c0\"),\n    cirq.measure(q[1], key=\"c1\"),\n)\n",
+    "pennylane": "import pennylane as qml\n\ndev = qml.device(\"default.qubit\", wires=2)\n\n\n@qml.qnode(dev)\ndef circuit():\n    qml.Hadamard(wires=0)\n    qml.Hadamard(wires=1)\n    qml.PauliX(wires=1)\n    qml.CZ(wires=[0, 1])\n    qml.PauliX(wires=1)\n    qml.Hadamard(wires=0)\n    qml.Hadamard(wires=1)\n    qml.PauliX(wires=0)\n    qml.PauliX(wires=1)\n    qml.CZ(wires=[0, 1])\n    qml.PauliX(wires=0)\n    qml.PauliX(wires=1)\n    qml.Hadamard(wires=0)\n    qml.Hadamard(wires=1)\n    # measured: q0 -> c0, q1 -> c1\n    return qml.probs(wires=[0, 1])\n"
+  }
+}

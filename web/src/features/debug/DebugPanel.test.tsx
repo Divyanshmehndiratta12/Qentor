@@ -267,7 +267,7 @@ describe('on the challenge screen', () => {
     difficulty: 'beginner',
     successCondition: 'Solved when a.',
     fixedOracle: false,
-    constraints: { numQubits: 1, numClbits: 0, allowedGates: ['h', 'x'], maxOps: 6, minGateCounts: {}, anchor: [], mustMeasure: [] },
+    constraints: { numQubits: 1, numClbits: 0, allowedGates: ['h', 'x'], maxOps: 6, minGateCounts: {}, anchor: [], anchorName: 'oracle', mustMeasure: [], gateQubits: {} },
     starterCircuit: emptyCircuit(1, 0),
     checks: [{ id: 'state.x', label: 'The state is right' }],
     hints: ['one', 'two'],

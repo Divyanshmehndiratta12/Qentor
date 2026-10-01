@@ -668,6 +668,8 @@ export const ChallengeConstraintsSchema = z.object({
   min_gate_counts: z.record(z.string(), z.number().int().positive()),
   anchor: z.array(GateOpSchema),
   must_measure: z.array(z.number().int().nonnegative()),
+  gate_qubits: z.record(z.string(), z.array(z.number().int().nonnegative())),
+  anchor_name: z.string(),
 })
 
 // backend/qentor/challenges/models.py::PublicChallenge — deliberately has no reference solution and no target circuit.

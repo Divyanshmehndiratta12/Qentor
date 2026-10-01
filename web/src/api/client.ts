@@ -800,7 +800,11 @@ export interface ChallengeConstraints {
   minGateCounts: Record<string, number>
   /** The fixed oracle (or other locked gates) the circuit must contain exactly once, in order. Empty when none. */
   anchor: GateOp[]
+  /** What the locked gates are called in the brief: "oracle", "decoder", "corrections". */
+  anchorName: string
   mustMeasure: number[]
+  /** Gates limited to certain qubits (e.g. an encoding gate that may only act on Alice's qubit). */
+  gateQubits: Record<string, number[]>
 }
 
 export interface Challenge {

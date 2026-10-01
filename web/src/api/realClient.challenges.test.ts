@@ -45,7 +45,9 @@ const CATALOG = {
         max_ops: 6,
         min_gate_counts: { h: 1 },
         anchor: [],
+        anchor_name: 'oracle',
         must_measure: [],
+        gate_qubits: {},
       },
       starter_circuit: CIRCUIT,
       checks: [{ id: 'state.is_plus', label: 'The final state is |+⟩' }],
@@ -105,7 +107,7 @@ describe('RealApiClient — challenges', () => {
         successCondition: 'State is |+⟩.',
         fixedOracle: false,
         hints: ['one', 'two', 'three'],
-        constraints: { numQubits: 1, allowedGates: ['h', 'x'], maxOps: 6, minGateCounts: { h: 1 }, anchor: [], mustMeasure: [] },
+        constraints: { numQubits: 1, allowedGates: ['h', 'x'], maxOps: 6, minGateCounts: { h: 1 }, anchor: [], anchorName: 'oracle', mustMeasure: [], gateQubits: {} },
       })
       expect(c!.starterCircuit.ops).toHaveLength(1)
     })

@@ -130,6 +130,23 @@ def qubit_reduced_state(
     return _derive(statevector, qubit, num_qubits, source=source, parsed=None)
 
 
+def qubit_bloch(
+    statevector: Sequence[Sequence[float]] | None, qubit: int, num_qubits: int
+) -> tuple[float, float, float, float] | None:
+    """``(x, y, z, purity)`` of ``qubit``'s own reduced state, or ``None`` when the state is unusable (same rules and the
+    same arithmetic as ``qubit_reduced_state``, without a provenance tag). For a verifier that compares one qubit of two
+    backend states and reports its own provenance."""
+    state = qubit_reduced_state(
+        statevector,
+        qubit,
+        num_qubits,
+        source=BlochSource(step_index=0, result_id=None, execution_id="", circuit_hash="", backend="", backend_version=""),
+    )
+    if state.status != "OK" or state.bloch is None or state.purity is None:
+        return None
+    return state.bloch.x, state.bloch.y, state.bloch.z, state.purity
+
+
 def derive_qubit_states(
     statevector: Sequence[Sequence[float]] | None, num_qubits: int, *, source: BlochSource
 ) -> list[QubitReducedState]:

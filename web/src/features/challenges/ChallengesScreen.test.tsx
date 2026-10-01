@@ -42,7 +42,7 @@ const one = (id: string, over: Partial<Challenge> = {}): Challenge => ({
   difficulty: 'beginner',
   successCondition: `Solved when ${id}.`,
   fixedOracle: false,
-  constraints: { numQubits: 1, numClbits: 0, allowedGates: ['h', 'x'], maxOps: 6, minGateCounts: {}, anchor: [], mustMeasure: [] },
+  constraints: { numQubits: 1, numClbits: 0, allowedGates: ['h', 'x'], maxOps: 6, minGateCounts: {}, anchor: [], anchorName: 'oracle', mustMeasure: [], gateQubits: {} },
   starterCircuit: emptyCircuit(1, 0),
   checks: [{ id: 'state.x', label: 'The state is right' }],
   hints: [`${id} hint one`, `${id} hint two`],
@@ -62,7 +62,9 @@ const ORACLE: Challenge = one('oracle', {
       { gate: 'cx', targets: [2], controls: [0], params: [], clbits: [] },
       { gate: 'cx', targets: [2], controls: [1], params: [], clbits: [] },
     ],
+    anchorName: 'oracle',
     mustMeasure: [0, 1],
+    gateQubits: {},
   },
   starterCircuit: emptyCircuit(3, 3),
 })

@@ -324,11 +324,6 @@ FOUNDATION_LESSONS: list[Lesson] = [
             ),
         ],
         prerequisite_lesson_ids=["qubits-measurement"],
-        no_challenge_reason=(
-            "This lesson is about reading where a single qubit's state sits on the sphere, which the Trace shows; "
-            "it has no one circuit to build, and the single-qubit goals that can be checked already have challenges "
-            "under Superposition and Phase."
-        ),
     ),
     # ------------------------------------------------------------------ 3
     Lesson(
@@ -887,10 +882,6 @@ FOUNDATION_LESSONS: list[Lesson] = [
             ),
         ],
         prerequisite_lesson_ids=["superposition"],
-        no_challenge_reason=(
-            "Its lab builds the same two-qubit entangling circuit that the Bell State lesson's challenge checks, "
-            "so a challenge here would repeat that one."
-        ),
     ),
     # ------------------------------------------------------------------ 7
     Lesson(

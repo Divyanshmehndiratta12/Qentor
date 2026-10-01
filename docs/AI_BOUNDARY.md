@@ -140,7 +140,7 @@ Two sources, two authorities, kept apart by id:
   so a number that appears in neither is still rejected.
 - Only the current section is included, not the whole lesson. For a quiz, lab or reflection that is
   the section itself plus the (up to two) explanation sections closest before it, in lesson order
-  (the first explanation if none precede it); a foundation lesson has nine sections and an advanced one ten, and a prompt
+  (the first explanation if none precede it); a foundation lesson has nine sections and every later lesson ten, and a prompt
   never carries all of them. A quiz's correct option and answer rationale are never included, so a
   hint cannot give the answer away. "Simpler" and "hint" quote the nearest of those explanations. The
   answer key and the explanation are kept out of `GET /api/lessons` too: a client sends its selection to
@@ -155,6 +155,11 @@ Two sources, two authorities, kept apart by id:
   Hindi or Kannada. Only the wrapper text is localised; lesson prose, gate names, ids and numbers are
   interpolated verbatim. A circuit or result question with no result attached says there is nothing to
   explain yet.
+- Lessons 11 to 13 (`qentor.lessons.content_batch1`: Superdense Coding, Quantum Teleportation, Grover's Search) use the same section types and the
+  same prose rules. Each is ONE small fixed example and says so. The teleportation lesson says plainly (section s2, repeated in its lab
+  and second check) that the circuit model has no mid-circuit measurement or classical control, so its corrections are DEFERRED controlled
+  gates, and that this is not the full dynamic protocol. No multi-qubit ket appears in their prose (bit strings are written q1 q0 in words).
+  `tests/test_batch1_lessons.py` runs every linked circuit, every variant a lesson asks the learner to build, and every answer key on Aer.
 - The three advanced lessons (`qentor.lessons.content_advanced`) use the same section types and the same
   rules. Each is about ONE fixed example and says so; nothing generates an oracle. The Phase Kickback
   lab circuit prepares its target in |−⟩ (X then H on q1), so it is a clean kickback; the lesson has the learner delete the H on q1 and rerun as the contrast case (target |1⟩, not an eigenstate). The Bernstein–Vazirani example's secret

@@ -101,8 +101,12 @@ _STRUCTURE_COACHING: dict[str, tuple[str, str]] = {
         "Remove a gate that the trace shows changes nothing, then submit again.",
     ),
     "structure.oracle": (
-        "The oracle is fixed by the challenge: it must appear exactly as given, once, with nothing between its gates.",
-        "Read the fixed oracle in the brief gate by gate and compare it with your circuit; add or remove gates until they match.",
+        "The locked gates (the fixed oracle, decoder or corrections) are set by the challenge: they must appear exactly as given, once, with nothing between them.",
+        "Read the fixed gates in the brief one by one and compare them with your circuit; add or remove gates until they match.",
+    ),
+    "structure.gate_qubits": (
+        "Some gates are limited to particular qubits on purpose: in a protocol, each party may only act on the qubit they hold.",
+        "Find the gate the message names on the canvas and move it to the qubit the brief allows.",
     ),
     "structure.measure": (
         "The answer is read out by measuring, and a measurement must be the last thing done: no gate may follow it.",

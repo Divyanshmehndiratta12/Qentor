@@ -47,7 +47,20 @@ class _Check(BaseModel):
     experiment: str = Field(min_length=1)
 
 
-class StateMatches(_Check):
+class _Substitutable(_Check):
+    """A check that can be run on a SUBSTITUTED circuit: ``replace_anchor`` swaps the locked ``anchor`` ops (the fixed oracle or
+    the fixed input) for different ones, the learner's circuit is run again that way, and the check judges THAT run.
+
+    This is what tells a circuit that does the work from one that merely hard-codes the answer: a Grover circuit that finds |01⟩
+    must find |10⟩ when the oracle marks |10⟩, and a teleportation circuit must deliver whatever state it is given. A circuit that
+    pre-loads the answer passes the plain check and fails the substituted one. ``replace_anchor`` needs an anchor, is only
+    meaningful at the final state, and never reaches a learner (``PublicCheck`` carries no coaching or target).
+    """
+
+    replace_anchor: list[GateOp] | None = None
+
+
+class StateMatches(_Substitutable):
     """The state at ``at`` equals the state of ``target`` (run from |0…0⟩ on the backend) up to global phase."""
 
     kind: Literal["state_matches"] = "state_matches"
@@ -64,7 +77,7 @@ class StateDiffers(_Check):
     other: Circuit
 
 
-class ProbabilitiesMatch(_Check):
+class ProbabilitiesMatch(_Substitutable):
     """The measurement distribution of the state at ``at`` over ``qubits`` (all qubits when omitted) equals that of
     ``target``'s state. Two different states can pass this - that is the point of the phase challenge."""
 
@@ -72,6 +85,18 @@ class ProbabilitiesMatch(_Check):
     at: Point = Point.FINAL
     target: Circuit
     qubits: list[int] | None = None
+
+
+class QubitStateMatches(_Substitutable):
+    """ONE qubit's own state at ``at`` equals that qubit's state in ``target``'s run: the two Bloch vectors (computed by the
+    backend from each state's reduced density matrix) agree. The other qubits are not looked at, so this is "does Bob's qubit
+    hold the state" rather than "is the whole register this state". A qubit that is entangled with the rest has a shorter Bloch
+    vector than a qubit in a pure state, so an uncorrected or half-corrected qubit does not pass."""
+
+    kind: Literal["qubit_state_matches"] = "qubit_state_matches"
+    at: Point = Point.FINAL
+    qubit: int = Field(ge=0)
+    target: Circuit
 
 
 class PassesThroughSuperposition(_Check):
@@ -88,7 +113,7 @@ class EndsInBasisState(_Check):
 
 
 Check = Annotated[
-    Union[StateMatches, StateDiffers, ProbabilitiesMatch, PassesThroughSuperposition, EndsInBasisState],
+    Union[StateMatches, StateDiffers, ProbabilitiesMatch, QubitStateMatches, PassesThroughSuperposition, EndsInBasisState],
     Field(discriminator="kind"),
 ]
 
@@ -106,8 +131,12 @@ class Constraints(BaseModel):
     min_gate_counts: dict[GateName, int] = Field(default_factory=dict)
     # Ops that must appear, in order and back to back, exactly once (the fixed oracle). Never alterable by the learner.
     anchor: list[GateOp] = Field(default_factory=list)
+    # What the anchor IS, in a word, for messages ("oracle" for DJ/BV and Grover, "decoder", "corrections"): shown to the learner.
+    anchor_name: str = "oracle"
     # Qubits that must be measured (terminal measurements only).
     must_measure: list[int] = Field(default_factory=list)
+    # Gates that may only touch these qubits (as target or control): "Alice's encoding gates act on Alice's qubit only".
+    gate_qubits: dict[GateName, list[int]] = Field(default_factory=dict)
 
 
 class Challenge(BaseModel):
@@ -147,11 +176,27 @@ class Challenge(BaseModel):
             qubits = getattr(check, "qubits", None)
             if qubits is not None and any(not 0 <= q < self.constraints.num_qubits for q in qubits):
                 raise ValueError(f"challenge '{self.id}': check '{check.id}' names a qubit outside the circuit")
+            qubit = getattr(check, "qubit", None)
+            if qubit is not None and qubit >= self.constraints.num_qubits:
+                raise ValueError(f"challenge '{self.id}': check '{check.id}' names qubit {qubit}, outside the circuit")
+            replacement = getattr(check, "replace_anchor", None)
+            if replacement is not None:
+                if not self.constraints.anchor:
+                    raise ValueError(f"challenge '{self.id}': check '{check.id}' replaces the anchor but the challenge has none")
+                if at is not Point.FINAL:
+                    raise ValueError(f"challenge '{self.id}': check '{check.id}' replaces the anchor, so it can only judge the final state")
+                if any(q >= self.constraints.num_qubits for op in replacement for q in (*op.targets, *op.controls)):
+                    raise ValueError(f"challenge '{self.id}': check '{check.id}' replaces the anchor with ops outside the circuit")
         for circuit in (self.starter_circuit, self.reference_solution):
             if circuit.num_qubits != self.constraints.num_qubits:
                 raise ValueError(f"challenge '{self.id}': starter/reference circuit width differs from the constraints")
         if any(q >= self.constraints.num_qubits for q in self.constraints.must_measure):
             raise ValueError(f"challenge '{self.id}': must_measure names a qubit outside the circuit")
+        for gate, allowed_qubits in self.constraints.gate_qubits.items():
+            if gate not in self.constraints.allowed_gates:
+                raise ValueError(f"challenge '{self.id}': gate_qubits restricts {gate.value}, which is not an allowed gate")
+            if not allowed_qubits or any(not 0 <= q < self.constraints.num_qubits for q in allowed_qubits):
+                raise ValueError(f"challenge '{self.id}': gate_qubits for {gate.value} must name qubits inside the circuit")
         return self
 
 

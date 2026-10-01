@@ -45,7 +45,7 @@ def outcome(evaluation, check_id: str):
 
 
 class TestCatalog(unittest.TestCase):
-    def test_the_nine_required_challenges_exist(self) -> None:
+    def test_the_fourteen_challenges_exist_in_catalog_order(self) -> None:
         self.assertEqual(
             [c.id for c in CHALLENGES],
             [
@@ -58,6 +58,11 @@ class TestCatalog(unittest.TestCase):
                 "phase-kickback",
                 "deutsch-jozsa-fixed",
                 "bernstein-vazirani-fixed",
+                "bloch-plus-direction",
+                "entangle-bell-pair",
+                "superdense-encode-10",
+                "teleport-ry-fixed",
+                "grover-find-01",
             ],
         )
 
@@ -74,8 +79,10 @@ class TestCatalog(unittest.TestCase):
                 self.assertIn(challenge.difficulty, ("beginner", "intermediate", "advanced"))
                 self.assertTrue(challenge.success_condition.strip())
 
-    def test_only_the_two_oracle_challenges_are_fixed_oracle(self) -> None:
-        self.assertEqual({c.id for c in CHALLENGES if c.fixed_oracle}, {"deutsch-jozsa-fixed", "bernstein-vazirani-fixed"})
+    def test_only_the_oracle_challenges_are_fixed_oracle(self) -> None:
+        # DJ and BV (one fixed oracle each) and Grover (one fixed oracle marking one item); the decoder of superdense coding and the
+        # corrections of teleportation are locked too, but they are not oracles and are not flagged as one.
+        self.assertEqual({c.id for c in CHALLENGES if c.fixed_oracle}, {"deutsch-jozsa-fixed", "bernstein-vazirani-fixed", "grover-find-01"})
         for challenge in CHALLENGES:
             self.assertEqual(bool(challenge.constraints.anchor) and challenge.fixed_oracle, challenge.fixed_oracle)
 
@@ -511,7 +518,7 @@ class TestSubmitEndpoint(ApiCase):
 
     def test_catalog_endpoint_lists_all_without_answers(self) -> None:
         catalog = app_module.list_challenges()
-        self.assertEqual(len(catalog.challenges), 9)
+        self.assertEqual(len(catalog.challenges), 14)
         self.assertNotIn("reference_solution", json.dumps(catalog.model_dump(mode="json")))
         one = app_module.get_challenge_definition("create-one")
         self.assertEqual(one.id, "create-one")

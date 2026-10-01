@@ -1,0 +1,102 @@
+{
+  "name": "quantum_teleportation_lab",
+  "description": "The Quantum Teleportation lesson's lab: a fixed RY message on q0, a pair on q1/q2, Alice's CX and H, the DEFERRED corrections (CX, CZ), q2 measured.",
+  "circuit": {
+    "schema": "qentor.circuit/1",
+    "num_qubits": 3,
+    "num_clbits": 1,
+    "ops": [
+      {
+        "gate": "ry",
+        "targets": [
+          0
+        ],
+        "controls": [],
+        "params": [
+          1.0
+        ],
+        "clbits": []
+      },
+      {
+        "gate": "h",
+        "targets": [
+          1
+        ],
+        "controls": [],
+        "params": [],
+        "clbits": []
+      },
+      {
+        "gate": "cx",
+        "targets": [
+          2
+        ],
+        "controls": [
+          1
+        ],
+        "params": [],
+        "clbits": []
+      },
+      {
+        "gate": "cx",
+        "targets": [
+          1
+        ],
+        "controls": [
+          0
+        ],
+        "params": [],
+        "clbits": []
+      },
+      {
+        "gate": "h",
+        "targets": [
+          0
+        ],
+        "controls": [],
+        "params": [],
+        "clbits": []
+      },
+      {
+        "gate": "cx",
+        "targets": [
+          2
+        ],
+        "controls": [
+          1
+        ],
+        "params": [],
+        "clbits": []
+      },
+      {
+        "gate": "cz",
+        "targets": [
+          2
+        ],
+        "controls": [
+          0
+        ],
+        "params": [],
+        "clbits": []
+      },
+      {
+        "gate": "measure",
+        "targets": [
+          2
+        ],
+        "controls": [],
+        "params": [],
+        "clbits": [
+          0
+        ]
+      }
+    ]
+  },
+  "qasm": "OPENQASM 3.0;\ninclude \"stdgates.inc\";\nqubit[3] q;\nbit[1] c;\nry(1.0) q[0];\nh q[1];\ncx q[1], q[2];\ncx q[0], q[1];\nh q[0];\ncx q[1], q[2];\ncz q[0], q[2];\nc[0] = measure q[2];\n",
+  "hash": "5fe9c0a8a8acc99494e917004280aa60daecc0bbf1eb476e3977b97292a188d0",
+  "code": {
+    "qiskit": "from qiskit import QuantumCircuit\n\nqc = QuantumCircuit(3, 1)\nqc.ry(1.0, 0)\nqc.h(1)\nqc.cx(1, 2)\nqc.cx(0, 1)\nqc.h(0)\nqc.cx(1, 2)\nqc.cz(0, 2)\nqc.measure(2, 0)\n",
+    "cirq": "import cirq\n\nq = cirq.LineQubit.range(3)\n# Cirq lists q[0] first in a state; Qiskit lists qubit 0 last. The circuit is the same.\ncircuit = cirq.Circuit(\n    cirq.ry(1.0)(q[0]),\n    cirq.H(q[1]),\n    cirq.CNOT(q[1], q[2]),\n    cirq.CNOT(q[0], q[1]),\n    cirq.H(q[0]),\n    cirq.CNOT(q[1], q[2]),\n    cirq.CZ(q[0], q[2]),\n    cirq.measure(q[2], key=\"c0\"),\n)\n",
+    "pennylane": "import pennylane as qml\n\ndev = qml.device(\"default.qubit\", wires=3)\n\n\n@qml.qnode(dev)\ndef circuit():\n    qml.RY(1.0, wires=0)\n    qml.Hadamard(wires=1)\n    qml.CNOT(wires=[1, 2])\n    qml.CNOT(wires=[0, 1])\n    qml.Hadamard(wires=0)\n    qml.CNOT(wires=[1, 2])\n    qml.CZ(wires=[0, 2])\n    # measured: q2 -> c0\n    return qml.probs(wires=[2])\n"
+  }
+}

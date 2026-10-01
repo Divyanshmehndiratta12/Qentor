@@ -13,6 +13,8 @@ const EVIDENCE_LABEL: Record<string, string> = {
   largest_probability_difference: 'Largest difference in outcome probability',
   lowest_top_outcome_probability: 'Lowest top-outcome probability along the way',
   top_outcome_probability: 'Probability of the top outcome',
+  bloch_vector_distance: 'Distance between the qubit’s Bloch vector and the required one (zero: the same arrow)',
+  qubit_purity: 'Purity of the qubit’s own state (one: a definite state of its own; one half: entangled with the rest)',
 }
 
 function CheckRow({ check }: { check: ChallengeCheckOutcome }) {

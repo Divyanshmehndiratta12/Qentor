@@ -63,15 +63,28 @@ export function ChallengeBrief({
         </div>
       </dl>
 
+      {Object.keys(constraints.gateQubits).length > 0 && (
+        <p className="mt-2 text-[12px] text-slate-400" data-testid="gate-qubit-rule">
+          <span className="font-semibold text-slate-300">Only on certain qubits: </span>
+          {Object.entries(constraints.gateQubits)
+            .map(([gate, qubits]) => `${gate} acts only on ${qubits.map((q) => `q[${q}]`).join(', ')}`)
+            .join('; ')}
+        </p>
+      )}
+
       {constraints.anchor.length > 0 && (
         <div className="mt-2 rounded-md border border-violet-glow/30 bg-violet-dim/20 px-3 py-2 text-[12px] text-slate-300">
-          <p className="font-semibold text-violet-glow">The fixed oracle — place these gates exactly, once, back to back:</p>
+          <p className="font-semibold text-violet-glow">The fixed {constraints.anchorName} — place these gates exactly, once, back to back:</p>
           <ol className="mt-1 list-decimal pl-5 font-mono-qasm text-slate-200">
             {constraints.anchor.map((op, i) => (
               <li key={i}>{describeOperation(op)}</li>
             ))}
           </ol>
-          <p className="mt-1 text-slate-400">There is one oracle for this challenge. It is given, not something to design.</p>
+          <p className="mt-1 text-slate-400">
+            {constraints.anchorName === 'oracle'
+              ? 'There is one oracle for this challenge. It is given, not something to design.'
+              : `These ${constraints.anchorName} gates are given, not something to design.`}
+          </p>
         </div>
       )}
 

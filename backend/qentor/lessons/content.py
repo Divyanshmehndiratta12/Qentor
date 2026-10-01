@@ -3,7 +3,8 @@
 The seven foundation lessons (Qubits & Measurement through Bell State) live in
 ``qentor.lessons.content_foundations``; the three advanced lessons (Phase Kickback,
 Deutsch–Jozsa, Bernstein–Vazirani) live in ``qentor.lessons.content_advanced``. All
-ten are full mini-lessons. Every ``linked_circuit`` is a single, fixed, hand-written
+ten are full mini-lessons; lessons 11-13 (Superdense Coding, Quantum Teleportation, Grover's Search) live in
+``qentor.lessons.content_batch1``. Every ``linked_circuit`` is a single, fixed, hand-written
 circuit (plain data through the existing canonical ``Circuit``/``GateOp`` model),
 never a new algorithm or oracle-family generator.
 
@@ -16,8 +17,9 @@ the read-only route that serves this content.
 from __future__ import annotations
 
 from .content_advanced import ADVANCED_LESSONS
+from .content_batch1 import BATCH1_LESSONS
 from .content_foundations import FOUNDATION_LESSONS
 from .models import Lesson
 
 # Declaration order is the catalog order the API serves.
-RAW_LESSONS: list[Lesson] = [*FOUNDATION_LESSONS, *ADVANCED_LESSONS]
+RAW_LESSONS: list[Lesson] = [*FOUNDATION_LESSONS, *ADVANCED_LESSONS, *BATCH1_LESSONS]

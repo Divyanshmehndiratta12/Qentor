@@ -95,9 +95,9 @@ def _section(lesson_id: str, section_id: str):
 
 
 class TestAdvancedLessonStructure(unittest.TestCase):
-    def test_they_are_the_last_three_lessons_with_unchanged_ids_and_prerequisites(self) -> None:
-        self.assertEqual([lesson.id for lesson in LESSONS][7:], ADVANCED_IDS)
-        self.assertEqual(len(LESSONS), 10)
+    def test_they_are_lessons_eight_to_ten_with_unchanged_ids_and_prerequisites(self) -> None:
+        self.assertEqual([lesson.id for lesson in LESSONS][7:10], ADVANCED_IDS)  # batch 1 follows them (test_batch1_lessons.py)
+        self.assertEqual(len(LESSONS), 13)
         self.assertEqual(
             {lesson.id: lesson.prerequisite_lesson_ids for lesson in ADVANCED},
             {

@@ -56,7 +56,7 @@ The deck defines six stages. The owner's eight-stage brief maps onto them as fol
 ## 6. Scope
 
 ### In scope for the 48-hour build
-- Guided lessons for a focused algorithm library: Bell/superposition primer, phase kickback, Deutsch–Jozsa, Bernstein–Vazirani. Grover (2 qubits) is P1.
+- Guided lessons for a focused algorithm library: Bell/superposition primer, phase kickback, Deutsch–Jozsa, Bernstein–Vazirani. Superdense coding, teleportation (deferred corrections) and a fixed 2-qubit Grover were added in Sprint 2 as small fixed examples; none is a scalable algorithm.
 - Canvas circuit builder synced two-way with an OpenQASM 3 editor. Read-only Qiskit, Cirq and PennyLane code views.
 - Execution on Qiskit Aer (primary), Cirq and PennyLane, with a cross-backend agreement view.
 - Gate-by-gate state stepping, probability charts (Plotly) and a Bloch sphere (Three.js).

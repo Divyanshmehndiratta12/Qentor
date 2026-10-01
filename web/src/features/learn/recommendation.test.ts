@@ -41,7 +41,7 @@ const challenge = (id: string, lessonId: string, hints = 3): Challenge => ({
   difficulty: 'beginner',
   successCondition: 's',
   fixedOracle: false,
-  constraints: { numQubits: 1, numClbits: 0, allowedGates: ['h'], maxOps: 4, minGateCounts: {}, anchor: [], mustMeasure: [] },
+  constraints: { numQubits: 1, numClbits: 0, allowedGates: ['h'], maxOps: 4, minGateCounts: {}, anchor: [], anchorName: 'oracle', mustMeasure: [], gateQubits: {} },
   starterCircuit: emptyCircuit(1, 0),
   checks: [{ id: 'c', label: 'c' }],
   hints: Array.from({ length: hints }, (_, i) => `h${i}`),

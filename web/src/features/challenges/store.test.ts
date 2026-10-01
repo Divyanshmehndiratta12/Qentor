@@ -30,7 +30,7 @@ const challenge = (id: string, starter: Circuit, hints = ['h1', 'h2', 'h3']): Ch
   difficulty: 'beginner',
   successCondition: 'done',
   fixedOracle: false,
-  constraints: { numQubits: starter.num_qubits, numClbits: starter.num_clbits, allowedGates: ['h', 'x'], maxOps: 6, minGateCounts: {}, anchor: [], mustMeasure: [] },
+  constraints: { numQubits: starter.num_qubits, numClbits: starter.num_clbits, allowedGates: ['h', 'x'], maxOps: 6, minGateCounts: {}, anchor: [], anchorName: 'oracle', mustMeasure: [], gateQubits: {} },
   starterCircuit: starter,
   checks: [{ id: 'c', label: 'c' }],
   hints,

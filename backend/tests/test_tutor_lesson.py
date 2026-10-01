@@ -230,14 +230,16 @@ class TestResolveLessonContext(unittest.TestCase):
         self.assertEqual(ctx.exception.code, SECTION_NOT_FOUND)
 
     def test_section_belonging_to_another_lesson_is_a_mismatch(self) -> None:
-        # A foundation lesson has s1..s9; s10 exists only in the three advanced lessons.
+        # A foundation lesson has s1..s9; s10 exists only in the six ten-section lessons (the three advanced ones and the
+        # three batch-1 lessons), so the message names the first three owners and then truncates.
         with self.assertRaises(LessonContextError) as ctx:
             resolve_lesson_context("phase", "s10")
         self.assertEqual(ctx.exception.code, SECTION_MISMATCH)
         self.assertIn("'phase'", ctx.exception.message)
         for owner in ("phase-kickback", "deutsch-jozsa", "bernstein-vazirani"):
             self.assertIn(owner, ctx.exception.message)
-        self.assertNotIn("…", ctx.exception.message)
+        self.assertIn("…", ctx.exception.message)
+        self.assertNotIn("superdense-coding", ctx.exception.message)  # the fourth owner onward is left out, not listed
 
     def test_the_mismatch_message_names_a_few_owners_not_the_whole_catalog(self) -> None:
         # The real catalog no longer has a section id owned by more than three other

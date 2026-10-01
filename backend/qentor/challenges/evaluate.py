@@ -25,6 +25,7 @@ from pydantic import BaseModel, ConfigDict
 from qentor.circuit.hashing import circuit_hash
 from qentor.circuit.model import Circuit, GateName, GateOp
 from qentor.execution.adapter import ExecutionAdapter, ExecutionResult
+from qentor.execution.reduced_state import qubit_bloch
 from qentor.execution.trace import (
     ExecutionTrace,
     TraceNotSupported,
@@ -39,6 +40,7 @@ from .models import (
     PassesThroughSuperposition,
     Point,
     ProbabilitiesMatch,
+    QubitStateMatches,
     StateDiffers,
     StateMatches,
 )
@@ -136,11 +138,25 @@ def describe_ops(ops: list[GateOp]) -> str:
     return ", then ".join(describe_op(op) for op in ops)
 
 
+def _same_op(a: GateOp, b: GateOp) -> bool:
+    """Equal ops. CZ is symmetric (it phases |11> whichever qubit is called the control), so a CZ with its two qubits named the
+    other way round is the same gate; nothing else is treated as interchangeable."""
+    if a == b:
+        return True
+    if a.gate is GateName.CZ and b.gate is GateName.CZ:
+        return {*a.controls, *a.targets} == {*b.controls, *b.targets} and a.params == b.params and a.clbits == b.clbits
+    return False
+
+
 def _find_anchor(ops: list[GateOp], anchor: list[GateOp]) -> list[int]:
     """Start indexes where ``anchor`` occurs back to back."""
     if not anchor:
         return []
-    return [i for i in range(len(ops) - len(anchor) + 1) if ops[i : i + len(anchor)] == anchor]
+    return [
+        i
+        for i in range(len(ops) - len(anchor) + 1)
+        if all(_same_op(have, want) for have, want in zip(ops[i : i + len(anchor)], anchor))
+    ]
 
 
 def _structure_checks(challenge: Challenge, circuit: Circuit) -> tuple[list[CheckOutcome], int | None]:
@@ -186,19 +202,40 @@ def _structure_checks(challenge: Challenge, circuit: Circuit) -> tuple[list[Chec
             f"This challenge needs at least {needed} {gate.value.upper()} gate{'s' if needed != 1 else ''}; the circuit has {have}.",
         )
 
+    if rules.gate_qubits:
+        offences: list[str] = []
+        for op in circuit.ops:
+            permitted = rules.gate_qubits.get(op.gate)
+            if permitted is None:
+                continue
+            strays = sorted({q for q in (*op.targets, *op.controls) if q not in permitted})
+            if strays:
+                offences.append(
+                    f"{op.gate.value} may only act on {', '.join(f'q[{q}]' for q in sorted(permitted))}, but one acts on "
+                    f"{', '.join(f'q[{q}]' for q in strays)}"
+                )
+        add(
+            "structure.gate_qubits",
+            "Keeps each gate on the qubits it is allowed to touch",
+            not offences,
+            "Every restricted gate acts only on its allowed qubits.",
+            f"{offences[0]}." if offences else "",
+        )
+
     anchor_start: int | None = None
     if rules.anchor:
         starts = _find_anchor(list(circuit.ops), list(rules.anchor))
         anchor_start = starts[0] if len(starts) == 1 else None
+        name = rules.anchor_name
         add(
             "structure.oracle",
-            "Keeps the fixed oracle exactly as given",
+            f"Keeps the fixed {name} exactly as given",
             len(starts) == 1,
-            "The fixed oracle is present once, unchanged and in order.",
+            f"The fixed {name} is present once, unchanged and in order.",
             (
-                f"The fixed oracle is exactly these gates, once, back to back and in this order: {describe_ops(rules.anchor)}."
+                f"The fixed {name} is exactly these gates, once, back to back and in this order: {describe_ops(rules.anchor)}."
                 if not starts
-                else "The fixed oracle appears more than once; it must appear exactly once."
+                else f"The fixed {name} appears more than once; it must appear exactly once."
             ),
         )
 
@@ -257,20 +294,74 @@ def _step_index(point: Point, anchor_start: int | None, anchor_len: int, last: i
     return anchor_start if point is Point.BEFORE_ANCHOR else anchor_start + anchor_len
 
 
+def _substituted_circuit(circuit: Circuit, anchor_start: int, anchor_len: int, replacement: list[GateOp]) -> Circuit:
+    """``circuit`` with its locked anchor ops swapped for ``replacement`` (everything else untouched, order kept)."""
+    ops = [*circuit.ops[:anchor_start], *replacement, *circuit.ops[anchor_start + anchor_len :]]
+    return Circuit(num_qubits=circuit.num_qubits, num_clbits=circuit.num_clbits, ops=ops)
+
+
 def _judge_states(
-    challenge: Challenge, adapter: ExecutionAdapter, trace: ExecutionTrace, anchor_start: int | None
+    challenge: Challenge,
+    adapter: ExecutionAdapter,
+    trace: ExecutionTrace,
+    anchor_start: int | None,
+    circuit: Circuit,
+    run_trace: Callable[[Circuit], ExecutionTrace],
 ) -> list[CheckOutcome]:
     steps = trace.steps
     last = len(steps) - 1
     anchor_len = len(challenge.constraints.anchor)
     n = trace.num_qubits
     outcomes: list[CheckOutcome] = []
+    substituted: dict[str, ExecutionTrace] = {}
+
+    def judged_step(check, default_index: int):
+        """The learner's step a check reads: from the plain trace, or, when the check substitutes the anchor, the final step of
+        the learner's circuit run again with the anchor swapped (traced and recorded like the plain run)."""
+        replacement = getattr(check, "replace_anchor", None)
+        if replacement is None:
+            return steps[default_index]
+        assert anchor_start is not None  # validated: a replacing check requires an anchor
+        key = describe_ops(replacement)
+        if key not in substituted:
+            substituted[key] = run_trace(_substituted_circuit(circuit, anchor_start, anchor_len, list(replacement)))
+        return substituted[key].steps[-1]
 
     for check in challenge.checks:
         base = {"id": check.id, "label": check.label, "hint_index": check.hint_index}
 
-        if isinstance(check, (StateMatches, StateDiffers, ProbabilitiesMatch)):
-            step = steps[_step_index(check.at, anchor_start, anchor_len, last)]
+        if isinstance(check, QubitStateMatches):
+            step = judged_step(check, _step_index(check.at, anchor_start, anchor_len, last))
+            mine = qubit_bloch(step.statevector, check.qubit, n)
+            theirs = qubit_bloch(_reference_state(adapter, check.target), check.qubit, n)
+            if mine is None or theirs is None:
+                outcomes.append(
+                    CheckOutcome(
+                        **base,
+                        passed=False,
+                        detail="The qubit's own state could not be worked out from the backend's state, so it is not accepted.",
+                        result_id=step.result_id,
+                    )
+                )
+                continue
+            distance = sum((a - b) ** 2 for a, b in zip(mine[:3], theirs[:3])) ** 0.5
+            ok = distance <= TOLERANCE
+            outcomes.append(
+                CheckOutcome(
+                    **base,
+                    passed=ok,
+                    detail=(
+                        "The qubit's own state is the required state."
+                        if ok
+                        else "The qubit's own state is not the required state (it may be entangled with the others, or hold a different state)."
+                    ),
+                    evidence=[Evidence(name="bloch_vector_distance", value=distance), Evidence(name="qubit_purity", value=mine[3])],
+                    result_id=step.result_id,
+                )
+            )
+
+        elif isinstance(check, (StateMatches, StateDiffers, ProbabilitiesMatch)):
+            step = judged_step(check, _step_index(check.at, anchor_start, anchor_len, last))
             state = step.statevector
             common = {**base, "result_id": step.result_id}
 
@@ -402,7 +493,12 @@ def evaluate_challenge(
         max_operations=max_operations,
         record_execution=record_execution,
     )
-    states = _judge_states(challenge, adapter, trace, anchor_start)
+    def run_trace(variant: Circuit) -> ExecutionTrace:
+        return trace_circuit(
+            variant, adapter, max_qubits=max_qubits, max_operations=max_operations, record_execution=record_execution
+        )
+
+    states = _judge_states(challenge, adapter, trace, anchor_start, circuit, run_trace)
     checks = [*structure, *states]
     return ChallengeEvaluation(
         challenge_id=challenge.id,

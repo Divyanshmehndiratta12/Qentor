@@ -78,6 +78,12 @@ def raw_op(gate, targets, controls=(), params=()):
     return GateOp.model_construct(gate=gate, targets=list(targets), controls=list(controls), params=list(params), clbits=[])
 
 
+def without_entanglement() -> list:
+    """The challenge catalog minus the entanglement lesson's challenge: a lesson with none, for the failure-path tests (every
+    shipped lesson now has one)."""
+    return [c for c in CHALLENGES if c.lesson_id != "entanglement"]
+
+
 class TestTheShippedContentPassesEveryCheck(unittest.TestCase):
     def test_the_whole_catalog_validates_clean(self) -> None:
         aer_or_skip(self)
@@ -88,13 +94,13 @@ class TestTheShippedContentPassesEveryCheck(unittest.TestCase):
     def test_it_looked_at_everything_so_a_pass_is_not_vacuous(self) -> None:
         aer_or_skip(self)
         report = validate_content(known_routes=ROUTES)
-        self.assertEqual(report.checked["lessons"], 10)
+        self.assertEqual(report.checked["lessons"], 13)
         self.assertEqual(report.checked["sections"], sum(len(l.sections) for l in LESSONS))
-        self.assertEqual(report.checked["concept_checks"], 20)
-        self.assertEqual(report.checked["labs"], 10)
-        self.assertEqual(report.checked["linked_circuits"], 10)
-        self.assertEqual(report.checked["circuits_executed"], 10)
-        self.assertEqual(report.checked["challenges"], 9)
+        self.assertEqual(report.checked["concept_checks"], 26)
+        self.assertEqual(report.checked["labs"], 13)
+        self.assertEqual(report.checked["linked_circuits"], 13)
+        self.assertEqual(report.checked["circuits_executed"], 13)
+        self.assertEqual(report.checked["challenges"], 14)
 
     def test_every_lesson_has_valid_prerequisites(self) -> None:
         self.assertEqual(check_prerequisites(list(LESSONS)), [])
@@ -113,7 +119,7 @@ class TestTheShippedContentPassesEveryCheck(unittest.TestCase):
     def test_every_concept_check_is_graded_and_has_an_explanation(self) -> None:
         self.assertEqual(check_concept_checks(list(LESSONS)), [])  # strict: no prompt-only checks allowed
         checks = [(l, s) for l in LESSONS for s in l.sections if isinstance(s, ConceptCheckSection)]
-        self.assertEqual(len(checks), 20)
+        self.assertEqual(len(checks), 26)
         for lesson, section in checks:
             self.assertTrue(section.explanation and section.explanation.strip(), (lesson.id, section.id))
             self.assertIn(section.correct_option_id, [o.id for o in section.options], (lesson.id, section.id))
@@ -130,7 +136,7 @@ class TestTheShippedContentPassesEveryCheck(unittest.TestCase):
         adapter = aer_or_skip(self)
         problems, skipped, ran = check_linked_circuits_execute(list(LESSONS), adapter)
         self.assertEqual((problems, skipped), ([], []), problem_text(problems))
-        self.assertEqual(ran, 10)
+        self.assertEqual(ran, 13)
 
     def test_every_lab_capability_exists_and_is_served(self) -> None:
         self.assertEqual(check_lab_capabilities(list(LESSONS), known_routes=ROUTES), [])
@@ -147,24 +153,15 @@ class TestTheShippedContentPassesEveryCheck(unittest.TestCase):
         ids = {l.id for l in LESSONS}
         referenced = {c.lesson_id for c in CHALLENGES}
         self.assertTrue(referenced <= ids)
-        without = {l.id for l in LESSONS if l.id not in referenced}
-        self.assertEqual(without, {"bloch-sphere", "entanglement"})  # the two lessons the catalog has no challenge for
+        # Sprint 2 gave bloch-sphere and entanglement a challenge each: every lesson now has one, so none may still claim it has none.
+        self.assertEqual({l.id for l in LESSONS if l.id not in referenced}, set())
         for lesson in LESSONS:
-            if lesson.id in without:
-                self.assertTrue(lesson.no_challenge_reason and lesson.no_challenge_reason.strip(), lesson.id)
-            else:
-                self.assertIsNone(lesson.no_challenge_reason, f"{lesson.id} has a challenge, so it should not claim it has none")
+            self.assertIsNone(lesson.no_challenge_reason, f"{lesson.id} has a challenge, so it should not claim it has none")
 
     def test_the_reasons_are_plain_text_like_the_rest_of_the_lesson_prose(self) -> None:
         for lesson in LESSONS:
             if lesson.no_challenge_reason:
                 self.assertFalse(DECIMAL_OR_PERCENT.search(lesson.no_challenge_reason), lesson.id)
-
-    def test_the_reason_for_entanglement_is_true_of_the_content(self) -> None:
-        """It says the lab repeats the Bell State challenge; check that the lab circuit IS that challenge's reference solution."""
-        lab = LESSON_BY_ID["entanglement"].linked_circuit
-        bell = next(c for c in CHALLENGES if c.id == "create-bell")
-        self.assertEqual([(o.gate, o.controls, o.targets) for o in lab.ops], [(o.gate, o.controls, o.targets) for o in bell.reference_solution.ops])
 
     def test_the_registry_is_consistent(self) -> None:
         self.assertEqual(check_registry(list(LESSONS), list(CHALLENGES), lesson_index=LESSON_BY_ID, challenge_index=CHALLENGE_BY_ID), [])
@@ -186,11 +183,11 @@ class TestTheShippedContentPassesEveryCheck(unittest.TestCase):
 
 class TestPrerequisitesFailMeaningfully(unittest.TestCase):
     def test_an_unknown_prerequisite_is_named(self) -> None:
-        broken = replace_lesson(LESSONS, "phase", prerequisite_lesson_ids=["superposition", "quantum-teleportation"])
+        broken = replace_lesson(LESSONS, "phase", prerequisite_lesson_ids=["superposition", "quantum-annealing"])
         found = check_prerequisites(broken)
         self.assertEqual([p.code for p in found], ["PREREQUISITE_UNKNOWN"])
         self.assertIn("'phase'", str(found[0]))
-        self.assertIn("quantum-teleportation", str(found[0]))
+        self.assertIn("quantum-annealing", str(found[0]))
 
     def test_a_lesson_that_requires_itself(self) -> None:
         found = check_prerequisites(replace_lesson(LESSONS, "phase", prerequisite_lesson_ids=["phase"]))
@@ -442,14 +439,20 @@ class TestChallengeReferencesFailMeaningfully(unittest.TestCase):
         self.assertIn("CHALLENGE_MISSING", {p.code for p in found})
 
     def test_a_lesson_with_no_challenge_and_no_explanation(self) -> None:
-        found = check_challenge_references(replace_lesson(LESSONS, "entanglement", no_challenge_reason=None), list(CHALLENGES))
+        found = check_challenge_references(replace_lesson(LESSONS, "entanglement", no_challenge_reason=None), without_entanglement())
         self.assertEqual([p.code for p in found], ["CHALLENGE_MISSING"])
         self.assertEqual(found[0].lesson_id, "entanglement")
         self.assertIn("no_challenge_reason", found[0].message)
 
     def test_a_blank_explanation_is_not_an_explanation(self) -> None:
-        found = check_challenge_references(replace_lesson(LESSONS, "entanglement", no_challenge_reason="   "), list(CHALLENGES))
+        found = check_challenge_references(replace_lesson(LESSONS, "entanglement", no_challenge_reason="   "), without_entanglement())
         self.assertEqual([p.code for p in found], ["CHALLENGE_REASON_BLANK"])
+
+    def test_a_lesson_without_a_challenge_is_fine_when_it_says_why(self) -> None:
+        found = check_challenge_references(
+            replace_lesson(LESSONS, "entanglement", no_challenge_reason="Its lab has no single circuit to build."), without_entanglement()
+        )
+        self.assertEqual(found, [])
 
     def test_an_explanation_that_contradicts_an_existing_challenge_is_stale(self) -> None:
         found = check_challenge_references(replace_lesson(LESSONS, "phase", no_challenge_reason="Nothing to build here."), list(CHALLENGES))
@@ -520,7 +523,7 @@ class TestTheReportAndTheCommand(unittest.TestCase):
         broken = replace_lesson(LESSONS, "phase", prerequisite_lesson_ids=["x"])
         broken = replace_section(broken, "bell-state", "s5", explanation="")
         broken = replace_lesson(broken, "entanglement", no_challenge_reason=None)
-        report = validate_content(broken, list(CHALLENGES), execute=False)
+        report = validate_content(broken, without_entanglement(), execute=False)
         self.assertTrue({"PREREQUISITE_UNKNOWN", "CONCEPT_CHECK_NO_EXPLANATION", "CHALLENGE_MISSING"} <= report.codes())
 
     def test_the_command_exits_zero_on_the_shipped_content_and_one_on_broken_content(self) -> None:

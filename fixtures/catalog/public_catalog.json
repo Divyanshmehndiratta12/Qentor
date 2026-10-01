@@ -1,0 +1,3143 @@
+{
+  "challenges": {
+    "challenges": [
+      {
+        "checks": [
+          {
+            "id": "state.is_one",
+            "label": "The final state is |1⟩"
+          }
+        ],
+        "constraints": {
+          "allowed_gates": [
+            "h",
+            "x",
+            "y",
+            "z",
+            "s",
+            "sdg",
+            "t",
+            "tdg"
+          ],
+          "anchor": [],
+          "anchor_name": "oracle",
+          "gate_qubits": {},
+          "max_ops": 6,
+          "min_gate_counts": {},
+          "must_measure": [],
+          "num_clbits": 0,
+          "num_qubits": 1
+        },
+        "difficulty": "beginner",
+        "fixed_oracle": false,
+        "goal": "Start from a qubit in |0⟩ and put it in the state |1⟩.",
+        "hints": [
+          "Every qubit starts in |0⟩. You need a gate that swaps the roles of |0⟩ and |1⟩.",
+          "The X gate flips |0⟩ to |1⟩ and |1⟩ to |0⟩.",
+          "Place a single X on the qubit, then run the circuit and look at the trace."
+        ],
+        "id": "create-one",
+        "lesson_id": "qubits-measurement",
+        "starter_circuit": {
+          "num_clbits": 0,
+          "num_qubits": 1,
+          "ops": [],
+          "schema": "qentor.circuit/1"
+        },
+        "success_condition": "The qubit's final state is |1⟩.",
+        "title": "Create |1⟩"
+      },
+      {
+        "checks": [
+          {
+            "id": "state.is_plus",
+            "label": "The final state is |+⟩"
+          }
+        ],
+        "constraints": {
+          "allowed_gates": [
+            "h",
+            "x",
+            "y",
+            "z",
+            "s",
+            "sdg",
+            "t",
+            "tdg"
+          ],
+          "anchor": [],
+          "anchor_name": "oracle",
+          "gate_qubits": {},
+          "max_ops": 6,
+          "min_gate_counts": {},
+          "must_measure": [],
+          "num_clbits": 0,
+          "num_qubits": 1
+        },
+        "difficulty": "beginner",
+        "fixed_oracle": false,
+        "goal": "Put a qubit that starts in |0⟩ into the equal superposition |+⟩ = (|0⟩ + |1⟩)/√2.",
+        "hints": [
+          "You need a gate that turns a definite state into an equal mix of |0⟩ and |1⟩.",
+          "The Hadamard gate (H) does that from |0⟩.",
+          "Place one H on the qubit and run it: the trace shows the state after the gate."
+        ],
+        "id": "create-plus",
+        "lesson_id": "superposition",
+        "starter_circuit": {
+          "num_clbits": 0,
+          "num_qubits": 1,
+          "ops": [],
+          "schema": "qentor.circuit/1"
+        },
+        "success_condition": "The qubit's final state is |+⟩.",
+        "title": "Create |+⟩"
+      },
+      {
+        "checks": [
+          {
+            "id": "state.is_minus",
+            "label": "The final state is |−⟩"
+          }
+        ],
+        "constraints": {
+          "allowed_gates": [
+            "h",
+            "x",
+            "y",
+            "z",
+            "s",
+            "sdg",
+            "t",
+            "tdg"
+          ],
+          "anchor": [],
+          "anchor_name": "oracle",
+          "gate_qubits": {},
+          "max_ops": 6,
+          "min_gate_counts": {},
+          "must_measure": [],
+          "num_clbits": 0,
+          "num_qubits": 1
+        },
+        "difficulty": "beginner",
+        "fixed_oracle": false,
+        "goal": "Prepare the state |−⟩ = (|0⟩ − |1⟩)/√2 from |0⟩. It looks like |+⟩ when measured, but its phase differs.",
+        "hints": [
+          "|−⟩ is like |+⟩ but with a minus sign between the two parts. Which gate changes a sign?",
+          "H makes the superposition; something must flip the sign of the |1⟩ part. Try flipping to |1⟩ first.",
+          "X then H: H applied to |1⟩ gives |−⟩. (H then Z reaches it too.)"
+        ],
+        "id": "create-minus",
+        "lesson_id": "phase",
+        "starter_circuit": {
+          "num_clbits": 0,
+          "num_qubits": 1,
+          "ops": [],
+          "schema": "qentor.circuit/1"
+        },
+        "success_condition": "The qubit's final state is |−⟩.",
+        "title": "Create |−⟩"
+      },
+      {
+        "checks": [
+          {
+            "id": "state.is_bell",
+            "label": "The final state is (|00⟩ + |11⟩)/√2"
+          }
+        ],
+        "constraints": {
+          "allowed_gates": [
+            "h",
+            "x",
+            "y",
+            "z",
+            "s",
+            "sdg",
+            "t",
+            "tdg",
+            "cx"
+          ],
+          "anchor": [],
+          "anchor_name": "oracle",
+          "gate_qubits": {},
+          "max_ops": 8,
+          "min_gate_counts": {},
+          "must_measure": [],
+          "num_clbits": 0,
+          "num_qubits": 2
+        },
+        "difficulty": "intermediate",
+        "fixed_oracle": false,
+        "goal": "Entangle two qubits into the Bell state (|00⟩ + |11⟩)/√2.",
+        "hints": [
+          "Entanglement needs a superposition first, then a gate that ties the second qubit to the first.",
+          "Put q[0] in superposition with H, then use it as the control of a CX whose target is q[1].",
+          "H on q[0], then CX with control q[0] and target q[1]."
+        ],
+        "id": "create-bell",
+        "lesson_id": "bell-state",
+        "starter_circuit": {
+          "num_clbits": 0,
+          "num_qubits": 2,
+          "ops": [],
+          "schema": "qentor.circuit/1"
+        },
+        "success_condition": "The two-qubit final state is the Bell state (|00⟩ + |11⟩)/√2.",
+        "title": "Create a Bell state"
+      },
+      {
+        "checks": [
+          {
+            "id": "odds.match_plus",
+            "label": "Measurement odds match |+⟩"
+          },
+          {
+            "id": "state.not_plus",
+            "label": "But the state is not |+⟩"
+          }
+        ],
+        "constraints": {
+          "allowed_gates": [
+            "h",
+            "x",
+            "y",
+            "z",
+            "s",
+            "sdg",
+            "t",
+            "tdg"
+          ],
+          "anchor": [],
+          "anchor_name": "oracle",
+          "gate_qubits": {},
+          "max_ops": 6,
+          "min_gate_counts": {},
+          "must_measure": [],
+          "num_clbits": 0,
+          "num_qubits": 1
+        },
+        "difficulty": "beginner",
+        "fixed_oracle": false,
+        "goal": "Make a qubit whose measurement odds are exactly those of |+⟩, yet whose state is not |+⟩: a change measurement alone cannot see.",
+        "hints": [
+          "Start by making the equal superposition, so both outcomes are equally likely.",
+          "After H the odds match |+⟩. Now change something that measurement does not see.",
+          "A Z (or S, or T) after H changes the relative phase without changing the odds."
+        ],
+        "id": "phase-change",
+        "lesson_id": "phase",
+        "starter_circuit": {
+          "num_clbits": 0,
+          "num_qubits": 1,
+          "ops": [],
+          "schema": "qentor.circuit/1"
+        },
+        "success_condition": "Measuring gives the same outcomes as |+⟩, but the state is a different state.",
+        "title": "Change the phase"
+      },
+      {
+        "checks": [
+          {
+            "id": "mid.superposition",
+            "label": "Passes through a superposition"
+          },
+          {
+            "id": "end.definite",
+            "label": "Ends in one definite outcome"
+          }
+        ],
+        "constraints": {
+          "allowed_gates": [
+            "h",
+            "x",
+            "y",
+            "z",
+            "s",
+            "sdg",
+            "t",
+            "tdg"
+          ],
+          "anchor": [],
+          "anchor_name": "oracle",
+          "gate_qubits": {},
+          "max_ops": 6,
+          "min_gate_counts": {
+            "h": 2
+          },
+          "must_measure": [],
+          "num_clbits": 0,
+          "num_qubits": 1
+        },
+        "difficulty": "intermediate",
+        "fixed_oracle": false,
+        "goal": "Put a qubit into a superposition, then bring it back so a measurement gives one outcome for certain: the two paths interfere.",
+        "hints": [
+          "Interference needs two steps that can cancel or reinforce each other.",
+          "The first H creates a superposition; a second H makes the two parts recombine.",
+          "H, H returns to |0⟩. Put a Z between them (H, Z, H) and see which outcome you get instead."
+        ],
+        "id": "interference",
+        "lesson_id": "interference",
+        "starter_circuit": {
+          "num_clbits": 0,
+          "num_qubits": 1,
+          "ops": [],
+          "schema": "qentor.circuit/1"
+        },
+        "success_condition": "The circuit passes through a superposition and ends in one definite basis state, using at least two H gates.",
+        "title": "Interfere to a certain outcome"
+      },
+      {
+        "checks": [
+          {
+            "id": "before.eigenstate",
+            "label": "Before the CX: q[0] is |+⟩ and q[1] is |−⟩"
+          },
+          {
+            "id": "final.kicked_back",
+            "label": "At the end: q[0] is |1⟩ and q[1] is |−⟩"
+          }
+        ],
+        "constraints": {
+          "allowed_gates": [
+            "h",
+            "x",
+            "z",
+            "cx"
+          ],
+          "anchor": [
+            {
+              "clbits": [],
+              "controls": [
+                0
+              ],
+              "gate": "cx",
+              "params": [],
+              "targets": [
+                1
+              ]
+            }
+          ],
+          "anchor_name": "oracle",
+          "gate_qubits": {},
+          "max_ops": 8,
+          "min_gate_counts": {},
+          "must_measure": [],
+          "num_clbits": 0,
+          "num_qubits": 2
+        },
+        "difficulty": "advanced",
+        "fixed_oracle": false,
+        "goal": "Use kickback to flip the control qubit: prepare q[0] in |+⟩ and q[1] in |−⟩, apply CX (control q[0], target q[1]), then rotate q[0] back so it ends in |1⟩ while q[1] stays in |−⟩.",
+        "hints": [
+          "Kickback needs the target in an eigenstate of X: |−⟩. The control must be in superposition.",
+          "Put q[0] in |+⟩ with H, and q[1] in |−⟩ with X then H, before the CX.",
+          "After the CX, q[0] has picked up a phase. An H on q[0] turns that phase into a definite |1⟩."
+        ],
+        "id": "phase-kickback",
+        "lesson_id": "phase-kickback",
+        "starter_circuit": {
+          "num_clbits": 0,
+          "num_qubits": 2,
+          "ops": [],
+          "schema": "qentor.circuit/1"
+        },
+        "success_condition": "Just before the CX, q[0] is |+⟩ and q[1] is |−⟩; at the end, q[0] is |1⟩ and q[1] is |−⟩.",
+        "title": "Phase kickback"
+      },
+      {
+        "checks": [
+          {
+            "id": "before.superposed_inputs",
+            "label": "Before the oracle: inputs in |+⟩, ancilla in |−⟩"
+          },
+          {
+            "id": "final.balanced_answer",
+            "label": "Measuring the inputs gives the balanced-oracle answer"
+          }
+        ],
+        "constraints": {
+          "allowed_gates": [
+            "h",
+            "x",
+            "z",
+            "cx",
+            "measure"
+          ],
+          "anchor": [
+            {
+              "clbits": [],
+              "controls": [
+                0
+              ],
+              "gate": "cx",
+              "params": [],
+              "targets": [
+                2
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [
+                1
+              ],
+              "gate": "cx",
+              "params": [],
+              "targets": [
+                2
+              ]
+            }
+          ],
+          "anchor_name": "oracle",
+          "gate_qubits": {},
+          "max_ops": 16,
+          "min_gate_counts": {},
+          "must_measure": [
+            0,
+            1
+          ],
+          "num_clbits": 3,
+          "num_qubits": 3
+        },
+        "difficulty": "advanced",
+        "fixed_oracle": true,
+        "goal": "One fixed oracle: f(x) = x₀ ⊕ x₁ on inputs q[0], q[1], with ancilla q[2]. The oracle is exactly these two gates, in this order, back to back: CX q[0]→q[2], then CX q[1]→q[2]. Build the whole algorithm around it and measure the input qubits: the result must not be 00, because f is balanced.",
+        "hints": [
+          "The algorithm is: prepare, ask the oracle once, undo the preparation on the inputs, measure the inputs.",
+          "Before the oracle: H on both inputs, and put the ancilla q[2] in |−⟩ (X then H).",
+          "After the oracle, apply H to each input qubit again, then measure q[0] and q[1] at the end."
+        ],
+        "id": "deutsch-jozsa-fixed",
+        "lesson_id": "deutsch-jozsa",
+        "starter_circuit": {
+          "num_clbits": 3,
+          "num_qubits": 3,
+          "ops": [],
+          "schema": "qentor.circuit/1"
+        },
+        "success_condition": "The fixed oracle is present once; before it the inputs are in |+⟩ and the ancilla in |−⟩; measuring the inputs gives the balanced answer.",
+        "title": "Deutsch–Jozsa (fixed example)"
+      },
+      {
+        "checks": [
+          {
+            "id": "before.superposed_inputs",
+            "label": "Before the oracle: inputs in |+⟩, ancilla in |−⟩"
+          },
+          {
+            "id": "final.hidden_string",
+            "label": "Measuring the inputs reads out the hidden string"
+          }
+        ],
+        "constraints": {
+          "allowed_gates": [
+            "h",
+            "x",
+            "z",
+            "cx",
+            "measure"
+          ],
+          "anchor": [
+            {
+              "clbits": [],
+              "controls": [
+                1
+              ],
+              "gate": "cx",
+              "params": [],
+              "targets": [
+                3
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [
+                2
+              ],
+              "gate": "cx",
+              "params": [],
+              "targets": [
+                3
+              ]
+            }
+          ],
+          "anchor_name": "oracle",
+          "gate_qubits": {},
+          "max_ops": 20,
+          "min_gate_counts": {},
+          "must_measure": [
+            0,
+            1,
+            2
+          ],
+          "num_clbits": 4,
+          "num_qubits": 4
+        },
+        "difficulty": "advanced",
+        "fixed_oracle": true,
+        "goal": "One fixed oracle hides a string. It is exactly these two gates, in this order, back to back: CX q[1]→q[3], then CX q[2]→q[3] (inputs q[0], q[1], q[2]; ancilla q[3]). Build the algorithm around it and measure the inputs: one oracle call reveals the hidden string.",
+        "hints": [
+          "Same shape as Deutsch-Jozsa: prepare, one oracle call, undo the preparation on the inputs, measure the inputs.",
+          "Before the oracle: H on all three inputs, and put the ancilla q[3] in |−⟩ (X then H).",
+          "After the oracle, apply H to q[0], q[1] and q[2], then measure those three qubits at the end."
+        ],
+        "id": "bernstein-vazirani-fixed",
+        "lesson_id": "bernstein-vazirani",
+        "starter_circuit": {
+          "num_clbits": 4,
+          "num_qubits": 4,
+          "ops": [],
+          "schema": "qentor.circuit/1"
+        },
+        "success_condition": "The fixed oracle is present once; before it the inputs are in |+⟩ and the ancilla in |−⟩; measuring the inputs reads out the hidden string.",
+        "title": "Bernstein–Vazirani (fixed example)"
+      },
+      {
+        "checks": [
+          {
+            "id": "odds.equator",
+            "label": "Measuring gives |0⟩ and |1⟩ equally often (the vector lies on the equator)"
+          },
+          {
+            "id": "bloch.points_plus_x",
+            "label": "The Bloch vector points along +x"
+          }
+        ],
+        "constraints": {
+          "allowed_gates": [
+            "h",
+            "x",
+            "y",
+            "z",
+            "s",
+            "sdg",
+            "t",
+            "tdg"
+          ],
+          "anchor": [],
+          "anchor_name": "oracle",
+          "gate_qubits": {},
+          "max_ops": 6,
+          "min_gate_counts": {},
+          "must_measure": [],
+          "num_clbits": 0,
+          "num_qubits": 1
+        },
+        "difficulty": "beginner",
+        "fixed_oracle": false,
+        "goal": "A qubit starts at the north pole of the Bloch sphere, |0⟩. Move it so that its Bloch vector points along +x: the state |+⟩. Then open the trace and read the vector the backend computed, to confirm the direction.",
+        "hints": [
+          "On the Bloch sphere |0⟩ is the north pole and |1⟩ the south pole. |+⟩ lies on the equator.",
+          "You need a gate that moves the arrow from the pole to the equator.",
+          "H takes |0⟩ to the +x direction. Place it, run the circuit, and read the arrow in the trace."
+        ],
+        "id": "bloch-plus-direction",
+        "lesson_id": "bloch-sphere",
+        "starter_circuit": {
+          "num_clbits": 0,
+          "num_qubits": 1,
+          "ops": [],
+          "schema": "qentor.circuit/1"
+        },
+        "success_condition": "The qubit's Bloch vector, computed by the backend from the final state, points along +x (the state |+⟩).",
+        "title": "Create |+⟩ and verify its Bloch direction"
+      },
+      {
+        "checks": [
+          {
+            "id": "odds.correlated",
+            "label": "Measuring both qubits gives only 00 or 11, equally often"
+          },
+          {
+            "id": "q0.mixed",
+            "label": "q[0] on its own has no definite state (entangled with q[1])"
+          },
+          {
+            "id": "q1.mixed",
+            "label": "q[1] on its own has no definite state (entangled with q[0])"
+          },
+          {
+            "id": "state.is_bell",
+            "label": "The final state is (|00⟩ + |11⟩)/√2"
+          }
+        ],
+        "constraints": {
+          "allowed_gates": [
+            "h",
+            "x",
+            "y",
+            "z",
+            "s",
+            "sdg",
+            "t",
+            "tdg",
+            "cx"
+          ],
+          "anchor": [],
+          "anchor_name": "oracle",
+          "gate_qubits": {},
+          "max_ops": 8,
+          "min_gate_counts": {},
+          "must_measure": [],
+          "num_clbits": 0,
+          "num_qubits": 2
+        },
+        "difficulty": "intermediate",
+        "fixed_oracle": false,
+        "goal": "Entangle two qubits into the Bell state (|00⟩ + |11⟩)/√2. Then check, in the trace, what entanglement looks like from each qubit's own point of view: neither qubit alone has a definite state.",
+        "hints": [
+          "Entanglement needs a superposition first, then a gate that ties the second qubit to the first.",
+          "Put q[0] in superposition with H, then use it as the control of a CX whose target is q[1].",
+          "H on q[0], then CX with control q[0] and target q[1]. Then open the per-qubit spheres at the last step."
+        ],
+        "id": "entangle-bell-pair",
+        "lesson_id": "entanglement",
+        "starter_circuit": {
+          "num_clbits": 0,
+          "num_qubits": 2,
+          "ops": [],
+          "schema": "qentor.circuit/1"
+        },
+        "success_condition": "The final state is (|00⟩ + |11⟩)/√2, and each qubit on its own is in a maximally mixed state: entangled with the other.",
+        "title": "Create a Bell state and show it is entangled"
+      },
+      {
+        "checks": [
+          {
+            "id": "before.encoded_pair",
+            "label": "Before decoding, the shared pair carries message 10"
+          },
+          {
+            "id": "final.decoded",
+            "label": "Decoding gives the message 10 with certainty"
+          }
+        ],
+        "constraints": {
+          "allowed_gates": [
+            "h",
+            "x",
+            "z",
+            "cx",
+            "measure"
+          ],
+          "anchor": [
+            {
+              "clbits": [],
+              "controls": [
+                0
+              ],
+              "gate": "cx",
+              "params": [],
+              "targets": [
+                1
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [],
+              "gate": "h",
+              "params": [],
+              "targets": [
+                0
+              ]
+            }
+          ],
+          "anchor_name": "decoder",
+          "gate_qubits": {
+            "x": [
+              0
+            ],
+            "z": [
+              0
+            ]
+          },
+          "max_ops": 10,
+          "min_gate_counts": {
+            "cx": 2,
+            "h": 2
+          },
+          "must_measure": [
+            0,
+            1
+          ],
+          "num_clbits": 2,
+          "num_qubits": 2
+        },
+        "difficulty": "intermediate",
+        "fixed_oracle": false,
+        "goal": "Alice holds q[0] and Bob holds q[1] of a shared Bell pair. Alice sends the two-bit message 10 by acting on her qubit q[0] only; Bob then decodes with exactly the gates given below and measures both qubits. The message is read as q[1] q[0]: build the pair, choose Alice's encoding, add the decoder and measure.",
+        "hints": [
+          "Three stages: share a Bell pair, Alice encodes on her qubit q[0], Bob decodes with the fixed gates.",
+          "Create the pair with H on q[0], then CX from q[0] to q[1]. Alice's X gate and Z gate each stand for one bit of the message: try each on q[0] and read the decoded result.",
+          "After the decoder, measure q[0] and q[1] at the end. The result is written q[1] q[0]."
+        ],
+        "id": "superdense-encode-10",
+        "lesson_id": "superdense-coding",
+        "starter_circuit": {
+          "num_clbits": 2,
+          "num_qubits": 2,
+          "ops": [],
+          "schema": "qentor.circuit/1"
+        },
+        "success_condition": "Before decoding, the pair carries message 10 (Alice acted only on q[0]); after the fixed decoder, measuring q[1] q[0] gives 10 every time.",
+        "title": "Encode message 10"
+      },
+      {
+        "checks": [
+          {
+            "id": "before.protocol_state",
+            "label": "Before the corrections, the message, the pair and Alice's gates have produced the protocol's state"
+          },
+          {
+            "id": "before.bob_blind",
+            "label": "Before the corrections, Bob's qubit q[2] alone has no definite state"
+          },
+          {
+            "id": "final.delivered",
+            "label": "After the corrections, q[2] holds the message state"
+          }
+        ],
+        "constraints": {
+          "allowed_gates": [
+            "h",
+            "ry",
+            "cx",
+            "cz",
+            "measure"
+          ],
+          "anchor": [
+            {
+              "clbits": [],
+              "controls": [
+                1
+              ],
+              "gate": "cx",
+              "params": [],
+              "targets": [
+                2
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [
+                0
+              ],
+              "gate": "cz",
+              "params": [],
+              "targets": [
+                2
+              ]
+            }
+          ],
+          "anchor_name": "corrections",
+          "gate_qubits": {},
+          "max_ops": 14,
+          "min_gate_counts": {},
+          "must_measure": [
+            2
+          ],
+          "num_clbits": 1,
+          "num_qubits": 3
+        },
+        "difficulty": "advanced",
+        "fixed_oracle": false,
+        "goal": "Teleport the state ry(1.0)|0⟩ from q[0] (Alice's message qubit) to q[2] (Bob's qubit), using q[1] and q[2] as the shared pair. The circuit model has no mid-circuit measurement or classical control, so the corrections are deferred: controlled gates stand in for measure-then-correct. They are given below; you build everything before them, put the corrections after, and measure q[2].",
+        "hints": [
+          "The recipe: prepare the message on q[0]; make a Bell pair on q[1] and q[2]; Alice entangles q[0] with q[1] (CX) and applies H to q[0]; then the corrections; then Bob's qubit is the message.",
+          "Prepare the message with RY on q[0] with the angle 1 (radians). The pair is H on q[1], then CX with control q[1] and target q[2].",
+          "Alice's step is CX with control q[0] and target q[1], then H on q[0]. Place the given corrections after it, and measure q[2] at the end."
+        ],
+        "id": "teleport-ry-fixed",
+        "lesson_id": "quantum-teleportation",
+        "starter_circuit": {
+          "num_clbits": 1,
+          "num_qubits": 3,
+          "ops": [],
+          "schema": "qentor.circuit/1"
+        },
+        "success_condition": "Before the corrections Bob's qubit alone shows nothing of the message; after the fixed corrections q[2] holds the state ry(1.0)|0⟩.",
+        "title": "Teleport the fixed ry(1.0) state"
+      },
+      {
+        "checks": [
+          {
+            "id": "before.uniform",
+            "label": "Before the oracle: both qubits in |+⟩ (every item equally likely)"
+          },
+          {
+            "id": "final.finds_01",
+            "label": "The circuit ends in |01⟩"
+          },
+          {
+            "id": "final.is_general",
+            "label": "With an oracle marking |10⟩ instead, the same circuit would end in |10⟩"
+          }
+        ],
+        "constraints": {
+          "allowed_gates": [
+            "h",
+            "x",
+            "z",
+            "cx",
+            "cz",
+            "measure"
+          ],
+          "anchor": [
+            {
+              "clbits": [],
+              "controls": [],
+              "gate": "x",
+              "params": [],
+              "targets": [
+                1
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [
+                0
+              ],
+              "gate": "cz",
+              "params": [],
+              "targets": [
+                1
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [],
+              "gate": "x",
+              "params": [],
+              "targets": [
+                1
+              ]
+            }
+          ],
+          "anchor_name": "oracle",
+          "gate_qubits": {},
+          "max_ops": 24,
+          "min_gate_counts": {},
+          "must_measure": [
+            0,
+            1
+          ],
+          "num_clbits": 2,
+          "num_qubits": 2
+        },
+        "difficulty": "advanced",
+        "fixed_oracle": true,
+        "goal": "A search over four items, written as two qubits. One fixed oracle marks the item |01⟩ (q[1] = 0, q[0] = 1). It is exactly these three gates, in this order, back to back: X q[1], CZ q[0],q[1], X q[1]. Build one Grover iteration around it (prepare, oracle, diffusion) and measure both qubits: |01⟩ must come out every time.",
+        "hints": [
+          "Grover's search has three parts: spread the amplitude evenly, mark the target with the oracle, then reflect all amplitudes about their average (diffusion).",
+          "Before the oracle: H on both qubits.",
+          "After the oracle, diffusion is H on both, X on both, CZ, X on both, H on both. Then measure both qubits at the end."
+        ],
+        "id": "grover-find-01",
+        "lesson_id": "grovers-search",
+        "starter_circuit": {
+          "num_clbits": 2,
+          "num_qubits": 2,
+          "ops": [],
+          "schema": "qentor.circuit/1"
+        },
+        "success_condition": "The fixed oracle is present once; before it both qubits are in |+⟩; the circuit ends in |01⟩; and with an oracle marking |10⟩ the same circuit would end in |10⟩.",
+        "title": "Find |01⟩"
+      }
+    ]
+  },
+  "lessons": {
+    "lessons": [
+      {
+        "concept": "qubits-measurement",
+        "difficulty": "beginner",
+        "estimated_minutes": 16,
+        "id": "qubits-measurement",
+        "learning_objectives": [
+          "Contrast a classical bit with a qubit's state, written as two amplitudes.",
+          "Name the computational basis states |0⟩ and |1⟩ and say what they mean.",
+          "Use the Born rule to relate amplitudes to measurement probabilities.",
+          "Explain why a measurement returns a classical bit and leaves the qubit in that outcome's state."
+        ],
+        "linked_circuit": {
+          "num_clbits": 1,
+          "num_qubits": 1,
+          "ops": [
+            {
+              "clbits": [],
+              "controls": [],
+              "gate": "x",
+              "params": [],
+              "targets": [
+                0
+              ]
+            },
+            {
+              "clbits": [
+                0
+              ],
+              "controls": [],
+              "gate": "measure",
+              "params": [],
+              "targets": [
+                0
+              ]
+            }
+          ],
+          "schema": "qentor.circuit/1"
+        },
+        "prerequisite_lesson_ids": [],
+        "sections": [
+          {
+            "body": "A classical bit is always exactly 0 or 1. A qubit is a physical system with two distinguishable states, written |0⟩ and |1⟩, but its state can be a blend of both. Think of the state as a recipe saying how much of |0⟩ and how much of |1⟩ is present, rather than a hidden 0 or 1 that you just have not looked at yet.",
+            "id": "s1",
+            "title": "A bit, and a qubit",
+            "type": "explanation"
+          },
+          {
+            "body": "A qubit's state is written α|0⟩ + β|1⟩. The numbers α and β are called amplitudes: they can be negative or even complex, and together they must satisfy |α|² + |β|² = 1. The states |0⟩ and |1⟩ form the computational basis: the two outcomes a standard measurement can report. Amplitudes describe the state, but you can never read them off directly.",
+            "id": "s2",
+            "title": "State vectors and amplitudes",
+            "type": "explanation"
+          },
+          {
+            "body": "Measuring a qubit in the computational basis gives a classical bit. The Born rule says you get 0 with probability |α|² and 1 with probability |β|². Afterwards the qubit is left in the basis state you saw, so measuring it again straight away repeats the same answer. Only these outcomes ever leave the quantum system, which is why one run reveals so little about the amplitudes.",
+            "id": "s3",
+            "title": "Measurement and the Born rule",
+            "type": "explanation"
+          },
+          {
+            "body": "Start from |0⟩ and apply the X gate, which swaps |0⟩ and |1⟩. In textbook terms the state becomes |1⟩, so α = 0 and β = 1, and the Born rule says the outcome is 1 every time. That is the special case where one amplitude has full size: a definite outcome, with nothing left to be random.",
+            "id": "s4",
+            "title": "Example: X, then measure",
+            "type": "explanation"
+          },
+          {
+            "concept": "qubits-measurement",
+            "id": "s5",
+            "options": [
+              {
+                "id": "a",
+                "text": "Always 0, because the amplitude for 0 is the larger one and so it wins every time"
+              },
+              {
+                "id": "b",
+                "text": "Three 0s followed by one 1, in a repeating pattern that never varies"
+              },
+              {
+                "id": "c",
+                "text": "0 in roughly three quarters of the runs and 1 in roughly one quarter, each single run giving a definite bit"
+              },
+              {
+                "id": "d",
+                "text": "A fractional value between 0 and 1 on every run, weighted by the two amplitudes"
+              }
+            ],
+            "prompt": "Predict what repeated measurements of a state with unequal amplitudes will show.",
+            "question": "A qubit is prepared in the same state α|0⟩ + β|1⟩ again and again, where |α|² = 3/4 and |β|² = 1/4, and measured each time. What should you expect to see?",
+            "title": "Check: predicting outcomes",
+            "type": "concept_check"
+          },
+          {
+            "capability": "execute",
+            "id": "s6",
+            "instructions": "Open the lab circuit — X on qubit 0, then a measurement — and run it in the Lab. The outcome you see comes from a real backend execution, not from this text; compare it with what the Born rule predicts for the state described above. Then open the trace to see the qubit's state after the X gate.",
+            "title": "Try it: X, then measure",
+            "type": "interactive_lab"
+          },
+          {
+            "concept": "qubits-measurement",
+            "id": "s7",
+            "options": [
+              {
+                "id": "a",
+                "text": "1 again, because the measurement left the qubit in the state |1⟩"
+              },
+              {
+                "id": "b",
+                "text": "0 or 1 with the original probabilities, as if the first measurement had never happened"
+              },
+              {
+                "id": "c",
+                "text": "0, because the outcome 1 has been used up"
+              },
+              {
+                "id": "d",
+                "text": "No result at all, because measuring destroys the qubit"
+              }
+            ],
+            "prompt": "Predict what a second measurement gives after a first one.",
+            "question": "You measure a qubit and read 1. Without applying any gate, you immediately measure the same qubit again. What do you expect?",
+            "title": "Check: measuring twice",
+            "type": "concept_check"
+          },
+          {
+            "body": "You now have the core vocabulary: state, amplitude, basis state, measurement. What is missing is a picture. Next, the Bloch sphere places every one-qubit state on a single sphere, so you can see where |0⟩, |1⟩ and all the blends between them live, and how gates move a state around.",
+            "id": "s8",
+            "title": "Where this leads",
+            "type": "explanation"
+          },
+          {
+            "id": "s9",
+            "prompt": "A qubit's state before measurement holds two amplitudes, but a measurement returns a single classical bit. What does one measurement tell you about the state, what is lost, and how could you learn more about the amplitudes?",
+            "title": "Reflect",
+            "type": "reflection"
+          }
+        ],
+        "short_description": "What a qubit is, and what happens when you measure one.",
+        "title": "Qubits & Measurement"
+      },
+      {
+        "concept": "bloch-sphere",
+        "difficulty": "beginner",
+        "estimated_minutes": 16,
+        "id": "bloch-sphere",
+        "learning_objectives": [
+          "Locate |0⟩, |1⟩, |+⟩, |−⟩, |+i⟩ and |−i⟩ on the Bloch sphere.",
+          "Read measurement probabilities from a point's height and phase from its angle around the equator.",
+          "Describe common gates as rotations of the sphere.",
+          "Distinguish global phase, which does not move the point, from relative phase, which does.",
+          "Explain why the Bloch sphere describes one qubit at a time."
+        ],
+        "linked_circuit": {
+          "num_clbits": 0,
+          "num_qubits": 1,
+          "ops": [
+            {
+              "clbits": [],
+              "controls": [],
+              "gate": "h",
+              "params": [],
+              "targets": [
+                0
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [],
+              "gate": "s",
+              "params": [],
+              "targets": [
+                0
+              ]
+            }
+          ],
+          "schema": "qentor.circuit/1"
+        },
+        "prerequisite_lesson_ids": [
+          "qubits-measurement"
+        ],
+        "sections": [
+          {
+            "body": "A qubit's state has two complex amplitudes, but once you ignore normalisation and an overall phase only two real numbers are left. Two numbers are exactly what you need to name a point on a sphere, so every state of a single qubit can be drawn as a point on the Bloch sphere. It is a map of the state, not a physical ball.",
+            "id": "s1",
+            "title": "A map for one qubit",
+            "type": "explanation"
+          },
+          {
+            "body": "The state |0⟩ sits at the north pole and |1⟩ at the south pole, so height tells you the measurement probabilities. States on the equator are equal blends of |0⟩ and |1⟩ that differ only in phase: |+⟩ = (|0⟩ + |1⟩)/√2 and |−⟩ = (|0⟩ − |1⟩)/√2 lie on opposite sides along the x-axis, while |+i⟩ = (|0⟩ + i|1⟩)/√2 and |−i⟩ = (|0⟩ − i|1⟩)/√2 lie along the y-axis.",
+            "id": "s2",
+            "title": "Poles, equator and named states",
+            "type": "explanation"
+          },
+          {
+            "body": "Every single-qubit gate rotates the sphere. X turns it half a turn about the x-axis, swapping north and south. Z turns it half a turn about the z-axis, leaving the poles fixed and changing only phase. H swaps the z-axis and the x-axis. For example, from |0⟩ at the north pole, H lands on |+⟩ on the equator, and S then slides it a quarter of the way around the equator to |+i⟩. That is textbook geometry; the lab below runs it for real, and the trace shows coordinates computed by the backend.",
+            "id": "s3",
+            "title": "Gates as rotations",
+            "type": "explanation"
+          },
+          {
+            "body": "Multiplying the whole state by a phase such as −1 or i changes nothing you can measure, and it does not move the point on the sphere. A phase between the |0⟩ part and the |1⟩ part does move the point, around the equator. That is why |+⟩ and |−⟩ are different states even though a computational-basis measurement treats them alike.",
+            "id": "s4",
+            "title": "Global phase and relative phase",
+            "type": "explanation"
+          },
+          {
+            "concept": "bloch-sphere",
+            "id": "s5",
+            "options": [
+              {
+                "id": "a",
+                "text": "On the equator at |+⟩, halfway between the two poles"
+              },
+              {
+                "id": "b",
+                "text": "At the south pole, in the state |1⟩"
+              },
+              {
+                "id": "c",
+                "text": "Still at the north pole, with only its phase changed"
+              },
+              {
+                "id": "d",
+                "text": "At the centre of the sphere, where the state is undetermined"
+              }
+            ],
+            "prompt": "Follow a state through a gate on the Bloch sphere.",
+            "question": "A qubit sits at the north pole of the Bloch sphere and you apply an X gate. Where does it end up?",
+            "title": "Check: following a gate",
+            "type": "concept_check"
+          },
+          {
+            "capability": "execute",
+            "id": "s6",
+            "instructions": "Open the lab circuit (H then S on one qubit), run it, and open the trace. Step through it and watch the Bloch vector: the north pole at the start, the equator after H, and a further quarter turn around the equator after S. Every coordinate shown is computed by the backend from the real state, not drawn from this text.",
+            "title": "Trace H, then S",
+            "type": "interactive_lab"
+          },
+          {
+            "concept": "bloch-sphere",
+            "id": "s7",
+            "options": [
+              {
+                "id": "a",
+                "text": "They have different probabilities of giving 1"
+              },
+              {
+                "id": "b",
+                "text": "One is a superposition and the other is not"
+              },
+              {
+                "id": "c",
+                "text": "They differ only by a global phase, which the sphere still shows"
+              },
+              {
+                "id": "d",
+                "text": "They have a different relative phase, which puts them at opposite points on the equator"
+              }
+            ],
+            "prompt": "Explain why two states with the same measurement statistics can be different points.",
+            "question": "The states |+⟩ and |−⟩ both give an even split between 0 and 1 when measured in the computational basis. Why are they different points on the Bloch sphere?",
+            "title": "Check: two points, one measurement",
+            "type": "concept_check"
+          },
+          {
+            "body": "The Bloch sphere describes one qubit at a time. Two qubits need far more numbers than two spheres can hold, and entangled qubits, which you will meet soon, cannot each be given a point of their own. That is why Qentor offers a Bloch sphere only for one-qubit traces. Next comes superposition: the equator of this sphere, and the H gate that takes you there.",
+            "id": "s8",
+            "title": "Limits of the picture",
+            "type": "explanation"
+          },
+          {
+            "id": "s9",
+            "prompt": "Height on the Bloch sphere sets the measurement probabilities, and the angle around it sets the phase. Why can two different states look identical to a computational-basis measurement, and where would you look to see the difference?",
+            "title": "Reflect",
+            "type": "reflection"
+          }
+        ],
+        "short_description": "A geometric picture of a single qubit's state.",
+        "title": "Bloch Sphere"
+      },
+      {
+        "concept": "superposition",
+        "difficulty": "beginner",
+        "estimated_minutes": 15,
+        "id": "superposition",
+        "learning_objectives": [
+          "Describe what the Hadamard gate does to |0⟩ and |1⟩.",
+          "Tell amplitudes apart from probabilities, and get one from the other.",
+          "Explain why a superposed qubit is not a classical bit with hidden randomness.",
+          "Use repeated measurement to estimate probabilities."
+        ],
+        "linked_circuit": {
+          "num_clbits": 1,
+          "num_qubits": 1,
+          "ops": [
+            {
+              "clbits": [],
+              "controls": [],
+              "gate": "h",
+              "params": [],
+              "targets": [
+                0
+              ]
+            },
+            {
+              "clbits": [
+                0
+              ],
+              "controls": [],
+              "gate": "measure",
+              "params": [],
+              "targets": [
+                0
+              ]
+            }
+          ],
+          "schema": "qentor.circuit/1"
+        },
+        "prerequisite_lesson_ids": [
+          "qubits-measurement"
+        ],
+        "sections": [
+          {
+            "body": "A classical bit can be uncertain: a coin you have not looked at is either heads or tails, you just do not know which. A qubit in superposition is different. Its state is a definite combination of |0⟩ and |1⟩, and that combination has physical consequences. The Hadamard gate, H, is the standard tool for creating one.",
+            "id": "s1",
+            "title": "More than a coin toss",
+            "type": "explanation"
+          },
+          {
+            "body": "H takes |0⟩ to (|0⟩ + |1⟩)/√2, called |+⟩, and takes |1⟩ to (|0⟩ − |1⟩)/√2, called |−⟩. Each basis state comes out with an amplitude of size 1/√2. The gate is reversible: applying H twice returns every state to where it started.",
+            "id": "s2",
+            "title": "The Hadamard gate",
+            "type": "explanation"
+          },
+          {
+            "body": "Squaring an amplitude's size gives a probability. For |+⟩ each amplitude has size 1/√2, so each outcome has probability 1/2: an even split. Amplitudes can be negative or complex and can cancel one another, while probabilities are never negative and always add up to 1. Keeping the two apart is the key to reading quantum circuits.",
+            "id": "s3",
+            "title": "Amplitudes versus probabilities",
+            "type": "explanation"
+          },
+          {
+            "body": "Apply H to |0⟩ and you get an even split of outcomes. Apply H a second time and, by textbook algebra, you are back at |0⟩ with certainty. A coin that was randomised twice would still be random, so a superposition cannot be just hidden randomness. The two routes to each outcome carry amplitudes that add or cancel, the idea the Interference lesson develops.",
+            "id": "s4",
+            "title": "Example: two Hadamards in a row",
+            "type": "explanation"
+          },
+          {
+            "concept": "superposition",
+            "id": "s5",
+            "options": [
+              {
+                "id": "a",
+                "text": "1/√2, the size of the amplitude"
+              },
+              {
+                "id": "b",
+                "text": "1/2, the square of the size of the amplitude"
+              },
+              {
+                "id": "c",
+                "text": "1, because both outcomes are present in the state"
+              },
+              {
+                "id": "d",
+                "text": "It cannot be said, because superposition makes the outcome unpredictable even in principle"
+              }
+            ],
+            "prompt": "Turn an amplitude into a measurement probability.",
+            "question": "After H is applied to |0⟩, each basis state has an amplitude of size 1/√2. If you measure the qubit, what is the probability of reading 1?",
+            "title": "Check: from amplitude to probability",
+            "type": "concept_check"
+          },
+          {
+            "capability": "execute",
+            "id": "s6",
+            "instructions": "Open the lab circuit (H, then a measurement) and run it in shots mode. The counts you see come from a real backend run, so they will usually be close to an even split but not exactly equal: that spread is real sampling, not something written here. Run it a few times, then open the trace to see the qubit's amplitudes right after H, before the measurement collapses them.",
+            "title": "Experiment: repeat H and measure",
+            "type": "interactive_lab"
+          },
+          {
+            "concept": "superposition",
+            "id": "s7",
+            "options": [
+              {
+                "id": "a",
+                "text": "There is no difference: both end up with an even split of outcomes"
+              },
+              {
+                "id": "b",
+                "text": "The qubit ends in |1⟩ with certainty"
+              },
+              {
+                "id": "c",
+                "text": "The qubit returns to |0⟩ with certainty, while the coin stays random"
+              },
+              {
+                "id": "d",
+                "text": "The qubit's second H has no effect, because the state is already a mixture"
+              }
+            ],
+            "prompt": "Say what separates a superposition from classical randomness.",
+            "question": "A fair coin is randomised, and then randomised again by the same process. A qubit starts in |0⟩ and gets H and then H again. What is the key difference between the two?",
+            "title": "Check: superposition versus a coin",
+            "type": "concept_check"
+          },
+          {
+            "body": "H creates equal amplitudes, but so far every amplitude has been positive. The amplitudes of a state also carry a sign or, more generally, a phase. Next you will see how a phase changes the state without changing a single measurement probability, and how a later gate can turn it into something you can measure.",
+            "id": "s8",
+            "title": "Where this leads",
+            "type": "explanation"
+          },
+          {
+            "id": "s9",
+            "prompt": "A colleague says a qubit in superposition is really just 0 or 1 and we do not know which. Using what H followed by H does, how would you show them why that description falls short?",
+            "title": "Reflect",
+            "type": "reflection"
+          }
+        ],
+        "short_description": "A qubit can be in more than one basis state at once.",
+        "title": "Superposition"
+      },
+      {
+        "concept": "phase",
+        "difficulty": "beginner",
+        "estimated_minutes": 15,
+        "id": "phase",
+        "learning_objectives": [
+          "Distinguish global phase from relative phase.",
+          "Describe what the Z and S gates do to |1⟩.",
+          "Explain why a phase change leaves computational-basis probabilities alone.",
+          "Explain why phase becomes observable only through interference."
+        ],
+        "linked_circuit": {
+          "num_clbits": 0,
+          "num_qubits": 1,
+          "ops": [
+            {
+              "clbits": [],
+              "controls": [],
+              "gate": "h",
+              "params": [],
+              "targets": [
+                0
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [],
+              "gate": "z",
+              "params": [],
+              "targets": [
+                0
+              ]
+            }
+          ],
+          "schema": "qentor.circuit/1"
+        },
+        "prerequisite_lesson_ids": [
+          "superposition"
+        ],
+        "sections": [
+          {
+            "body": "Every amplitude has a size and a phase. Picture each amplitude as an arrow: its length sets the probability and its direction is the phase. A computational-basis measurement looks only at lengths. Two states can have the same lengths and different directions, so they behave identically when measured right away, but not necessarily afterwards.",
+            "id": "s1",
+            "title": "The part measurement can't see",
+            "type": "explanation"
+          },
+          {
+            "body": "Turning both arrows together, by multiplying the whole state by a phase like −1 or i, is a global phase. It changes nothing observable, and the two states are treated as the same. Turning only one arrow relative to the other is a relative phase, and it does change the state: (|0⟩ + |1⟩)/√2 and (|0⟩ − |1⟩)/√2 are different states even though their measurement probabilities match.",
+            "id": "s2",
+            "title": "Global and relative phase",
+            "type": "explanation"
+          },
+          {
+            "body": "Z leaves |0⟩ alone and multiplies |1⟩ by −1, a half turn of its arrow. S multiplies |1⟩ by i, a quarter turn, and T an eighth of a turn. These gates change only relative phase, so they never alter the probabilities of a computational-basis measurement; they only move the arrow that later gates will use.",
+            "id": "s3",
+            "title": "The Z and S gates",
+            "type": "explanation"
+          },
+          {
+            "body": "H turns |0⟩ into (|0⟩ + |1⟩)/√2. Z then flips the sign of the |1⟩ part, giving (|0⟩ − |1⟩)/√2. Measured now, the two outcomes are still equally likely, exactly as they were before Z: the state changed but its measurement statistics did not. The lab below runs this circuit so you can see the amplitudes the backend reports.",
+            "id": "s4",
+            "title": "Example: H, then Z",
+            "type": "explanation"
+          },
+          {
+            "concept": "phase",
+            "id": "s5",
+            "options": [
+              {
+                "id": "a",
+                "text": "They are unchanged, because Z only changes the phase of the |1⟩ part"
+              },
+              {
+                "id": "b",
+                "text": "0 becomes certain, because Z acts like a reset"
+              },
+              {
+                "id": "c",
+                "text": "1 becomes certain, because Z flips the sign of the |1⟩ part"
+              },
+              {
+                "id": "d",
+                "text": "The two probabilities swap, because Z flips the qubit"
+              }
+            ],
+            "prompt": "Say how a Z gate affects immediate measurement probabilities.",
+            "question": "Z is applied to the state (|0⟩ + |1⟩)/√2, and the qubit is measured straight away in the computational basis. How do the outcome probabilities compare with measuring before Z?",
+            "title": "Check: what Z changes",
+            "type": "concept_check"
+          },
+          {
+            "capability": "execute",
+            "id": "s6",
+            "instructions": "Open the lab circuit (H then Z) and run it in statevector mode. Compare its amplitudes with those of H on its own: the backend's numbers show which amplitude differs, and the probabilities are unchanged. Then open the trace to follow the state one gate at a time.",
+            "title": "Run H, then Z",
+            "type": "interactive_lab"
+          },
+          {
+            "concept": "phase",
+            "id": "s7",
+            "options": [
+              {
+                "id": "a",
+                "text": "Swapping α and β"
+              },
+              {
+                "id": "b",
+                "text": "Multiplying only β by −1"
+              },
+              {
+                "id": "c",
+                "text": "Multiplying only α by i"
+              },
+              {
+                "id": "d",
+                "text": "Multiplying both α and β by −1"
+              }
+            ],
+            "prompt": "Tell a global phase change from a relative one.",
+            "question": "A qubit is in the state α|0⟩ + β|1⟩. Which of these changes could no experiment ever detect?",
+            "title": "Check: detectable or not",
+            "type": "concept_check"
+          },
+          {
+            "body": "A relative phase cannot be seen by measuring right away, but a later gate can turn it into a difference in outcomes. Send (|0⟩ + |1⟩)/√2 and (|0⟩ − |1⟩)/√2 through H and the first becomes |0⟩ while the second becomes |1⟩. That is the trick behind many quantum algorithms, and the subject of the next lesson: interference.",
+            "id": "s8",
+            "title": "Phase shows up through interference",
+            "type": "explanation"
+          },
+          {
+            "id": "s9",
+            "prompt": "Global phase cannot be detected, but relative phase can. Beyond measuring right away, what would you have to do to a qubit to find out whether its relative phase is a plus or a minus?",
+            "title": "Reflect",
+            "type": "reflection"
+          }
+        ],
+        "short_description": "The part of a qubit's state that measurement alone can't see.",
+        "title": "Phase"
+      },
+      {
+        "concept": "interference",
+        "difficulty": "intermediate",
+        "estimated_minutes": 18,
+        "id": "interference",
+        "learning_objectives": [
+          "Explain interference as amplitudes adding or cancelling before probabilities are formed.",
+          "Trace H, Z, H by hand and find where the cancellation happens.",
+          "Tell constructive from destructive interference.",
+          "Describe how a phase change redistributes probability between outcomes."
+        ],
+        "linked_circuit": {
+          "num_clbits": 1,
+          "num_qubits": 1,
+          "ops": [
+            {
+              "clbits": [],
+              "controls": [],
+              "gate": "h",
+              "params": [],
+              "targets": [
+                0
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [],
+              "gate": "z",
+              "params": [],
+              "targets": [
+                0
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [],
+              "gate": "h",
+              "params": [],
+              "targets": [
+                0
+              ]
+            },
+            {
+              "clbits": [
+                0
+              ],
+              "controls": [],
+              "gate": "measure",
+              "params": [],
+              "targets": [
+                0
+              ]
+            }
+          ],
+          "schema": "qentor.circuit/1"
+        },
+        "prerequisite_lesson_ids": [
+          "phase"
+        ],
+        "sections": [
+          {
+            "body": "Two ripples on water can reinforce each other or cancel out, and quantum amplitudes behave the same way. When a state can reach an outcome in more than one way, you add the amplitudes for those routes first, and only then square the result to get a probability. Routes with opposite signs can cancel.",
+            "id": "s1",
+            "title": "Waves add, and so do amplitudes",
+            "type": "explanation"
+          },
+          {
+            "body": "If the routes to an outcome have the same sign, their amplitudes reinforce and the outcome becomes more likely: constructive interference. If they have opposite signs they cancel and the outcome becomes less likely, possibly impossible: destructive interference. Probabilities themselves never subtract; it is amplitudes that add and then get squared.",
+            "id": "s2",
+            "title": "Constructive and destructive",
+            "type": "explanation"
+          },
+          {
+            "body": "Start with |0⟩. H gives (|0⟩ + |1⟩)/√2. Z flips the sign of the |1⟩ part, giving (|0⟩ − |1⟩)/√2. The second H sends each part to both outcomes. For outcome 0 the two routes arrive with opposite signs and cancel; for outcome 1 they arrive with the same sign and reinforce, leaving |1⟩ with certainty. That is textbook algebra; the lab runs the circuit on the backend.",
+            "id": "s3",
+            "title": "Walkthrough: H, Z, H",
+            "type": "explanation"
+          },
+          {
+            "body": "Interference does not create or destroy probability; the total always stays 1. It moves probability between outcomes. Take out the Z, so it is just H and then H, and the same cancellation happens at outcome 1, so 0 becomes certain instead. The phase you insert between the two Hadamards decides where the probability goes.",
+            "id": "s4",
+            "title": "Probability is redistributed",
+            "type": "explanation"
+          },
+          {
+            "concept": "interference",
+            "id": "s5",
+            "options": [
+              {
+                "id": "a",
+                "text": "Z is a bit flip, so it turns the qubit into |1⟩ and nothing afterwards can change that"
+              },
+              {
+                "id": "b",
+                "text": "Z measures the qubit, and the measurement leaves it in |1⟩"
+              },
+              {
+                "id": "c",
+                "text": "The two routes to outcome 0 arrive with opposite signs and cancel"
+              },
+              {
+                "id": "d",
+                "text": "The probabilities of the two routes to outcome 0 subtract to zero"
+              }
+            ],
+            "prompt": "Explain why one outcome never occurs in H, Z, H.",
+            "question": "A qubit starts in |0⟩, goes through H, then Z, then H, and is measured. Why is the outcome 0 never observed?",
+            "title": "Check: where the cancellation is",
+            "type": "concept_check"
+          },
+          {
+            "capability": "execute",
+            "id": "s6",
+            "instructions": "Open the lab circuit (H, Z, H, then a measurement) and run it; the result comes from a real backend execution. Then delete the Z gate from the circuit in the Lab and run it again to see what the same two Hadamards do without it. Open the trace to follow the state after each gate.",
+            "title": "Run H, Z, H — then remove the Z",
+            "type": "interactive_lab"
+          },
+          {
+            "concept": "interference",
+            "id": "s7",
+            "options": [
+              {
+                "id": "a",
+                "text": "Outcome 1, because two gates always flip a qubit"
+              },
+              {
+                "id": "b",
+                "text": "Outcome 0, because the routes to outcome 1 cancel and the routes to outcome 0 reinforce"
+              },
+              {
+                "id": "c",
+                "text": "Neither: two Hadamards randomise the qubit twice, so each outcome stays equally likely"
+              },
+              {
+                "id": "d",
+                "text": "Outcome 0, because H does nothing to |0⟩"
+              }
+            ],
+            "prompt": "Predict the outcome of two Hadamards with nothing between them.",
+            "question": "The circuit H then H is applied to |0⟩ with no gate between them, and the qubit is measured. Which outcome is certain, and why?",
+            "title": "Check: H then H",
+            "type": "concept_check"
+          },
+          {
+            "body": "So far a single qubit's amplitudes have interfered with themselves. Next you will meet two qubits at once, where a joint state can link the qubits so tightly that neither has a state of its own: entanglement. Interference will still be at work there, and you will see it again in the algorithms that come later.",
+            "id": "s8",
+            "title": "Where this leads",
+            "type": "explanation"
+          },
+          {
+            "id": "s9",
+            "prompt": "In H, Z, H the probability of outcome 0 seems to vanish. Where has it gone, and what single change to the circuit would bring it back? What does that tell you about the difference between adding probabilities and adding amplitudes?",
+            "title": "Reflect",
+            "type": "reflection"
+          }
+        ],
+        "short_description": "How phase differences combine to change measurement outcomes.",
+        "title": "Interference"
+      },
+      {
+        "concept": "entanglement",
+        "difficulty": "intermediate",
+        "estimated_minutes": 18,
+        "id": "entanglement",
+        "learning_objectives": [
+          "Read a two-qubit state and say what its four amplitudes mean.",
+          "Distinguish a separable (product) state from an entangled one.",
+          "Build an entangled pair with H followed by CX.",
+          "Contrast an entangled pair's correlations with two independent coin flips.",
+          "Explain why one Bloch sphere cannot show one qubit of an entangled pair."
+        ],
+        "linked_circuit": {
+          "num_clbits": 0,
+          "num_qubits": 2,
+          "ops": [
+            {
+              "clbits": [],
+              "controls": [],
+              "gate": "h",
+              "params": [],
+              "targets": [
+                0
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [
+                0
+              ],
+              "gate": "cx",
+              "params": [],
+              "targets": [
+                1
+              ]
+            }
+          ],
+          "schema": "qentor.circuit/1"
+        },
+        "prerequisite_lesson_ids": [
+          "superposition"
+        ],
+        "sections": [
+          {
+            "body": "Two qubits have four basis states, 00, 01, 10 and 11, and a two-qubit state gives an amplitude to each. Qentor writes these bitstrings with the highest-numbered qubit on the left, so 01 means qubit 1 is 0 and qubit 0 is 1. Sometimes the joint state is just two separate one-qubit states side by side. Sometimes it is not.",
+            "id": "s1",
+            "title": "One state for two qubits",
+            "type": "explanation"
+          },
+          {
+            "body": "A state is separable if it can be factored into one state for each qubit. For example, qubit 0 in (|0⟩ + |1⟩)/√2 with qubit 1 in |0⟩ is (|00⟩ + |01⟩)/√2, which factors. An entangled state cannot be factored: no choice of one state per qubit reproduces it. The information is in the pair, not in the parts.",
+            "id": "s2",
+            "title": "Separable or entangled",
+            "type": "explanation"
+          },
+          {
+            "body": "Apply H to qubit 0, giving (|00⟩ + |01⟩)/√2, then a CX gate with qubit 0 as the control and qubit 1 as the target. CX flips the target only when the control is 1, so |01⟩ becomes |11⟩ and |00⟩ stays put. The result is (|00⟩ + |11⟩)/√2, a state that cannot be factored.",
+            "id": "s3",
+            "title": "Making an entangled pair",
+            "type": "explanation"
+          },
+          {
+            "body": "Measure this pair and you see 00 or 11, each about equally often, and never 01 or 10. Two independent qubits, each given its own H, would show all four results about equally often. Two coins glued together can also give matching results, but entanglement's correlations survive in other measurement bases in ways no fixed classical recipe can copy, a fact known as Bell's theorem that goes beyond this lesson.",
+            "id": "s4",
+            "title": "Correlation, not two coins",
+            "type": "explanation"
+          },
+          {
+            "concept": "entanglement",
+            "id": "s5",
+            "options": [
+              {
+                "id": "a",
+                "text": "(|00⟩ + |01⟩)/√2"
+              },
+              {
+                "id": "b",
+                "text": "|01⟩"
+              },
+              {
+                "id": "c",
+                "text": "(|00⟩ + |01⟩ + |10⟩ + |11⟩)/2"
+              },
+              {
+                "id": "d",
+                "text": "(|00⟩ + |11⟩)/√2"
+              }
+            ],
+            "prompt": "Pick out the state that cannot be factored into one state per qubit.",
+            "question": "Which of these two-qubit states is entangled?",
+            "title": "Check: spotting entanglement",
+            "type": "concept_check"
+          },
+          {
+            "capability": "execute",
+            "id": "s6",
+            "instructions": "Open the lab circuit (H on qubit 0, then CX from qubit 0 to qubit 1) and run it in statevector mode. The backend's amplitudes show which basis states are present. Open the trace to step through the two gates, and notice that the trace lists the joint amplitudes and offers no Bloch sphere for two qubits.",
+            "title": "Run H, then CX",
+            "type": "interactive_lab"
+          },
+          {
+            "concept": "entanglement",
+            "id": "s7",
+            "options": [
+              {
+                "id": "a",
+                "text": "A shows all four outcomes about equally often, while B shows only 00 and 11"
+              },
+              {
+                "id": "b",
+                "text": "Both show only 00 and 11, but B shows them more often"
+              },
+              {
+                "id": "c",
+                "text": "A shows only 00 and 11, while B shows all four outcomes"
+              },
+              {
+                "id": "d",
+                "text": "The counts are the same for both; only the amplitudes differ"
+              }
+            ],
+            "prompt": "Compare the outcome patterns of an entangled pair and two independent qubits.",
+            "question": "Circuit A gives each of two qubits its own H gate. Circuit B applies H to one qubit and then CX. Both circuits are measured many times. What distinguishes the outcome patterns?",
+            "title": "Check: entangled versus independent",
+            "type": "concept_check"
+          },
+          {
+            "body": "Look at just one qubit of the pair. On its own it gives 0 and 1 with equal probability, like a fair coin, whichever basis you choose. On a Bloch sphere it would have to sit at the very centre of the ball, which is not a point on the sphere. The pair has structure that neither qubit has alone, so no single sphere can show it, and Qentor draws no Bloch sphere for two-qubit traces. Next, the Bell state lesson takes this exact circuit and asks how to check that it worked.",
+            "id": "s8",
+            "title": "Why one sphere cannot show it",
+            "type": "explanation"
+          },
+          {
+            "id": "s9",
+            "prompt": "Describe an experiment that could tell an entangled pair from two independent qubits that merely happen to give matching results in one basis. What would you measure, and what would each case predict?",
+            "title": "Reflect",
+            "type": "reflection"
+          }
+        ],
+        "short_description": "A joint state of two qubits that can't be described separately.",
+        "title": "Entanglement"
+      },
+      {
+        "concept": "bell-state",
+        "difficulty": "intermediate",
+        "estimated_minutes": 18,
+        "id": "bell-state",
+        "learning_objectives": [
+          "Build the Bell state (|00⟩ + |11⟩)/√2 with H and CX.",
+          "Predict the measurement outcomes of a Bell pair, including what one result says about the other.",
+          "Describe exactly what Qentor's Bell verifier checks, and what it does not.",
+          "Relate the Bell state to entanglement."
+        ],
+        "linked_circuit": {
+          "num_clbits": 2,
+          "num_qubits": 2,
+          "ops": [
+            {
+              "clbits": [],
+              "controls": [],
+              "gate": "h",
+              "params": [],
+              "targets": [
+                0
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [
+                0
+              ],
+              "gate": "cx",
+              "params": [],
+              "targets": [
+                1
+              ]
+            },
+            {
+              "clbits": [
+                0
+              ],
+              "controls": [],
+              "gate": "measure",
+              "params": [],
+              "targets": [
+                0
+              ]
+            },
+            {
+              "clbits": [
+                1
+              ],
+              "controls": [],
+              "gate": "measure",
+              "params": [],
+              "targets": [
+                1
+              ]
+            }
+          ],
+          "schema": "qentor.circuit/1"
+        },
+        "prerequisite_lesson_ids": [
+          "entanglement"
+        ],
+        "sections": [
+          {
+            "body": "The Bell states are four two-qubit states that are as entangled as two qubits can be. Qentor builds the one usually written |Φ⁺⟩ = (|00⟩ + |11⟩)/√2. It is the standard test case for an entanglement circuit because both what it should do and how a run can go wrong are easy to state.",
+            "id": "s1",
+            "title": "The simplest entangled pair",
+            "type": "explanation"
+          },
+          {
+            "body": "Put qubit 0 through H, then apply CX with qubit 0 as the control and qubit 1 as the target. Written with qubit 1 on the left, the state goes |00⟩ → (|00⟩ + |01⟩)/√2 → (|00⟩ + |11⟩)/√2. The order matters: CX before H would leave the two qubits unentangled.",
+            "id": "s2",
+            "title": "Construction",
+            "type": "explanation"
+          },
+          {
+            "body": "Measure both qubits in the computational basis and, in an ideal run, only 00 and 11 appear, each about equally often. Whenever one qubit reads 1 the other does too, so one result tells you the other, yet each qubit on its own looks like a fair coin. Real hardware adds noise, so an unwanted 01 or 10 can occasionally show up there; Qentor's simulator runs are ideal.",
+            "id": "s3",
+            "title": "What to expect when measured",
+            "type": "explanation"
+          },
+          {
+            "body": "Qentor's verifier runs nothing itself: it takes a real, already-executed result and checks it against the circuit. It confirms that the circuit is exactly H then CX on two qubits, that the result belongs to this circuit and ran successfully, that only 00 and 11 were observed, and that both were seen. A circuit outside that pattern is reported as unverifiable, not as wrong.",
+            "id": "s4",
+            "title": "What the Bell verifier checks",
+            "type": "explanation"
+          },
+          {
+            "concept": "bell-state",
+            "id": "s5",
+            "options": [
+              {
+                "id": "a",
+                "text": "It is 0 or 1 with equal probability, because the qubits are independent"
+              },
+              {
+                "id": "b",
+                "text": "It reads 1, because the outcomes 01 and 10 never occur"
+              },
+              {
+                "id": "c",
+                "text": "It reads 0, because the two qubits always disagree"
+              },
+              {
+                "id": "d",
+                "text": "Nothing, until it is measured in a different basis"
+              }
+            ],
+            "prompt": "Say what one qubit's result tells you about the other in a Bell pair.",
+            "question": "You measure both qubits of the Bell state (|00⟩ + |11⟩)/√2 and the first qubit reads 1. What can you say about the second qubit's result?",
+            "title": "Check: reading one qubit",
+            "type": "concept_check"
+          },
+          {
+            "capability": "verify_bell_state",
+            "id": "s6",
+            "instructions": "Open the lab circuit (H, CX, then a measurement of each qubit), run it in shots mode, and then run the Bell verifier on that result. The counts and the verifier's checks come from the backend; read each check to see exactly what passed. Then change the circuit, for instance by moving the H, and verify again to see what the verifier reports.",
+            "title": "Run it, then verify it",
+            "type": "interactive_lab"
+          },
+          {
+            "concept": "bell-state",
+            "id": "s7",
+            "options": [
+              {
+                "id": "a",
+                "text": "It proves the qubits were entangled, so nothing further about the circuit needs checking"
+              },
+              {
+                "id": "b",
+                "text": "It proves the amplitude on |11⟩ has a positive sign"
+              },
+              {
+                "id": "c",
+                "text": "The outcomes match the Bell pattern; the check looks only at which outcomes occurred, not at phases or other bases"
+              },
+              {
+                "id": "d",
+                "text": "It proves the two outcome counts were exactly equal"
+              }
+            ],
+            "prompt": "Say what a passed Bell verification does and does not establish.",
+            "question": "The Bell verifier reports VERIFIED for a shots run in which only 00 and 11 appeared. What does that establish, and what does it leave open?",
+            "title": "Check: what VERIFIED means",
+            "type": "concept_check"
+          },
+          {
+            "body": "The Bell state is entangled: no state for qubit 0 times a state for qubit 1 reproduces it, which is why its outcomes are so tightly linked. A verifier that checks which outcomes occur gives a solid necessary condition, not a full proof; for that you would compare amplitudes or measure in more than one basis. From here, superposition, phase and entanglement are the ingredients of the algorithms that come next.",
+            "id": "s8",
+            "title": "The Bell state and entanglement",
+            "type": "explanation"
+          },
+          {
+            "id": "s9",
+            "prompt": "Suppose the verifier reported FAILED because 01 appeared. List two things that could explain it, one about the circuit and one about the run, and say how you would tell them apart.",
+            "title": "Reflect",
+            "type": "reflection"
+          }
+        ],
+        "short_description": "The simplest maximally entangled two-qubit state, and how it's verified.",
+        "title": "Bell State"
+      },
+      {
+        "concept": "phase-kickback",
+        "difficulty": "advanced",
+        "estimated_minutes": 22,
+        "id": "phase-kickback",
+        "learning_objectives": [
+          "Explain what an eigenstate is and why its gate leaves it unchanged apart from a phase.",
+          "Say why the target of a CX must start in |−⟩ for a clean phase kickback.",
+          "Follow a CX acting on |+⟩ and |−⟩ and say where the −1 ends up.",
+          "Explain why a phase on the control needs a Hadamard before it can be measured.",
+          "Connect phase kickback to how oracle algorithms read out a function."
+        ],
+        "linked_circuit": {
+          "num_clbits": 0,
+          "num_qubits": 2,
+          "ops": [
+            {
+              "clbits": [],
+              "controls": [],
+              "gate": "h",
+              "params": [],
+              "targets": [
+                0
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [],
+              "gate": "x",
+              "params": [],
+              "targets": [
+                1
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [],
+              "gate": "h",
+              "params": [],
+              "targets": [
+                1
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [
+                0
+              ],
+              "gate": "cx",
+              "params": [],
+              "targets": [
+                1
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [],
+              "gate": "h",
+              "params": [],
+              "targets": [
+                0
+              ]
+            }
+          ],
+          "schema": "qentor.circuit/1"
+        },
+        "prerequisite_lesson_ids": [
+          "bell-state",
+          "phase"
+        ],
+        "sections": [
+          {
+            "body": "Some states pass through a gate unchanged except for a phase. Such a state is an eigenstate of that gate, and the phase is its eigenvalue. The X gate leaves |+⟩ = (|0⟩ + |1⟩)/√2 exactly as it is, and turns |−⟩ = (|0⟩ − |1⟩)/√2 into −|−⟩: the same state, multiplied by −1. A global phase cannot be seen, so the eigenstate itself appears not to change at all.",
+            "id": "s1",
+            "title": "An eigenstate is left alone",
+            "type": "explanation"
+          },
+          {
+            "body": "For the trick below, the target qubit must start in an eigenstate of X. From |0⟩, an X gate gives |1⟩ and an H gate then gives |−⟩, so X followed by H prepares |−⟩. Note that |1⟩ on its own is not an eigenstate of X, because X turns it into |0⟩, a different state. Written in the X eigenstates, |1⟩ is an equal mix of |+⟩ and |−⟩, and that mix is why leaving out the H behaves differently.",
+            "id": "s2",
+            "title": "Preparing the target",
+            "type": "explanation"
+          },
+          {
+            "body": "Textbook algebra, with q0 as the control and q1 as the target. Put q0 in |+⟩ and q1 in |−⟩. CX flips the target only when the control is 1. When q0 is 0, q1 is untouched; when q0 is 1, q1 receives an X, and for |−⟩ an X is just a factor of −1. So the |1⟩ part of q0 gains a −1 and q1 is unchanged: the pair ends as |−⟩ on q0 and |−⟩ on q1. The phase has been kicked back onto the control.",
+            "id": "s3",
+            "title": "Example: CX on |+⟩ and |−⟩",
+            "type": "explanation"
+          },
+          {
+            "body": "The lab circuit is H on q0, X then H on q1, CX from q0 to q1, then H on q0. The X and H on q1 prepare |−⟩, an eigenstate of X, so this is the clean kickback. Run it first. Then build the contrast case: delete the H on q1, so the target is |1⟩ and not an eigenstate, and compare what the backend reports for q0 in the two runs. The trace shows each gate's effect one step at a time.",
+            "id": "s4",
+            "title": "The lab circuit, and a contrast case",
+            "type": "explanation"
+          },
+          {
+            "concept": "phase-kickback",
+            "id": "s5",
+            "options": [
+              {
+                "id": "a",
+                "text": "The target has been flipped to |+⟩, and the control still has the state it started in"
+              },
+              {
+                "id": "b",
+                "text": "The two qubits are now entangled with each other"
+              },
+              {
+                "id": "c",
+                "text": "The target is unchanged, and the sign of the control's |1⟩ part has flipped"
+              },
+              {
+                "id": "d",
+                "text": "The control has been flipped to |1⟩ straight away, and the target keeps the state it had"
+              }
+            ],
+            "prompt": "Say where the phase ends up when the target is an eigenstate.",
+            "question": "A CX has its control in |+⟩ and its target in |−⟩. Which statement describes the pair immediately afterwards?",
+            "title": "Check: where the phase goes",
+            "type": "concept_check"
+          },
+          {
+            "capability": "execute",
+            "id": "s6",
+            "instructions": "Open the lab circuit (H on q0, X then H on q1, CX, H on q0) and run it in statevector mode; the backend's amplitudes are non-zero only where q0 is 1. Open the trace to follow it gate by gate and see the sign appear after the CX. Now build the contrast case yourself: delete the H on q1, so q1 is |1⟩, and run it again. The backend now reports amplitudes for both values of q0, so q0 does not come out definite.",
+            "title": "Run the clean kickback, then the contrast case",
+            "type": "interactive_lab"
+          },
+          {
+            "concept": "phase-kickback",
+            "id": "s7",
+            "options": [
+              {
+                "id": "a",
+                "text": "A CX acting on a target that is in |1⟩ has no effect on the control at all, so nothing can kick back"
+              },
+              {
+                "id": "b",
+                "text": "|1⟩ is an equal mix of two X eigenstates, and each one sends the control to a different state"
+              },
+              {
+                "id": "c",
+                "text": "The X gate on q1 also changes q0"
+              },
+              {
+                "id": "d",
+                "text": "Phase kickback only occurs on real hardware, never in a simulation"
+              }
+            ],
+            "prompt": "Explain what changes when the target is prepared in |1⟩.",
+            "question": "Suppose the H on q1 is left out of the lab circuit, so the target q1 is prepared in |1⟩ instead of |−⟩. Why does q0 not end up in a single definite state?",
+            "title": "Check: why the target matters",
+            "type": "concept_check"
+          },
+          {
+            "body": "A −1 on the |1⟩ part of the control is a relative phase, so measuring the control straight away shows nothing. A final H on the control maps |−⟩ to |1⟩ and |+⟩ to |0⟩, so the kicked-back sign becomes a bit you can measure. This is interference at work, the idea from the phase lesson: a phase you cannot see directly is turned into an outcome you can.",
+            "id": "s8",
+            "title": "Turning a sign into a bit",
+            "type": "explanation"
+          },
+          {
+            "body": "An oracle usually flips a target qubit according to a function of its inputs. With the target in |−⟩, that flip becomes a sign, minus one to the power of the function's value, written onto the input qubits while the target stays as it was. The function's answer arrives as a phase on the inputs. Deutsch–Jozsa is next: one query, and interference on the inputs reads that phase.",
+            "id": "s9",
+            "title": "Why oracle algorithms use it",
+            "type": "explanation"
+          },
+          {
+            "id": "s10",
+            "prompt": "Why does it matter that the target starts in |−⟩ and not |1⟩? And what would you expect the control to do if the target started in |+⟩ instead?",
+            "title": "Reflect",
+            "type": "reflection"
+          }
+        ],
+        "short_description": "How a target qubit's phase can act back on a control qubit.",
+        "title": "Phase Kickback"
+      },
+      {
+        "concept": "oracle-algorithms",
+        "difficulty": "advanced",
+        "estimated_minutes": 24,
+        "id": "deutsch-jozsa",
+        "learning_objectives": [
+          "State the promise: the hidden function is either constant or balanced, and nothing else.",
+          "Explain why the ancilla is prepared in |−⟩ and how the oracle then writes a phase on the input.",
+          "Follow one balanced-oracle example through superposition, oracle and interference.",
+          "Read a measured outcome as constant or balanced.",
+          "Say what this single example does and does not show."
+        ],
+        "linked_circuit": {
+          "num_clbits": 1,
+          "num_qubits": 2,
+          "ops": [
+            {
+              "clbits": [],
+              "controls": [],
+              "gate": "x",
+              "params": [],
+              "targets": [
+                1
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [],
+              "gate": "h",
+              "params": [],
+              "targets": [
+                0
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [],
+              "gate": "h",
+              "params": [],
+              "targets": [
+                1
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [
+                0
+              ],
+              "gate": "cx",
+              "params": [],
+              "targets": [
+                1
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [],
+              "gate": "h",
+              "params": [],
+              "targets": [
+                0
+              ]
+            },
+            {
+              "clbits": [
+                0
+              ],
+              "controls": [],
+              "gate": "measure",
+              "params": [],
+              "targets": [
+                0
+              ]
+            }
+          ],
+          "schema": "qentor.circuit/1"
+        },
+        "prerequisite_lesson_ids": [
+          "phase-kickback"
+        ],
+        "sections": [
+          {
+            "body": "A function f takes a bit string and returns 0 or 1. You are promised that f is either constant, giving the same answer for every input, or balanced, giving 0 for exactly half of the inputs and 1 for the other half. The task is to say which. Asked classically, f must be evaluated one input at a time, and in the worst case more than half of the inputs are needed. Deutsch–Jozsa decides it with a single query to a quantum oracle.",
+            "id": "s1",
+            "title": "Constant or balanced?",
+            "type": "explanation"
+          },
+          {
+            "body": "Besides the input qubits there is one ancilla, the oracle's target. It starts in |0⟩, and X then H prepare |−⟩. The oracle flips the ancilla whenever f of the input is 1, and |−⟩ is an eigenstate of X with eigenvalue −1. As in the phase kickback lesson, the flip becomes a sign: the input |x⟩ is multiplied by minus one to the power f(x), and the ancilla is left as it was.",
+            "id": "s2",
+            "title": "The ancilla in |−⟩",
+            "type": "explanation"
+          },
+          {
+            "body": "Here there is one input qubit, q0, and the ancilla is q1. The oracle is a single CX from q0 to q1, which computes f(x) = x: it returns 0 for input 0 and 1 for input 1, so this f is balanced. This is ONE fixed example, chosen so the whole circuit stays small. The lesson does not generate oracles, and a realistic oracle has more input qubits and many more gates.",
+            "id": "s3",
+            "title": "The oracle in this example",
+            "type": "explanation"
+          },
+          {
+            "body": "Textbook algebra for this example. H on q0 gives (|0⟩ + |1⟩)/√2. The oracle multiplies each term by minus one to the power f(x): |0⟩ keeps its sign and |1⟩ gains a −1, giving (|0⟩ − |1⟩)/√2, which is |−⟩. The final H maps |−⟩ to |1⟩. A constant oracle would leave (|0⟩ + |1⟩)/√2 up to a global sign, and the final H would map that to |0⟩. The two endings differ, so one query decides.",
+            "id": "s4",
+            "title": "Example: interference on the input",
+            "type": "explanation"
+          },
+          {
+            "concept": "oracle-algorithms",
+            "id": "s5",
+            "options": [
+              {
+                "id": "a",
+                "text": "So the oracle's flip turns into a sign on the input qubits, leaving the target as it was"
+              },
+              {
+                "id": "b",
+                "text": "So the target's measured value equals f of the input"
+              },
+              {
+                "id": "c",
+                "text": "So the input qubits become entangled with each other and share a single joint phase"
+              },
+              {
+                "id": "d",
+                "text": "Because a CX gate only works when its target starts in |−⟩"
+              }
+            ],
+            "prompt": "Explain what preparing the ancilla in |−⟩ achieves.",
+            "question": "Why is the oracle's target qubit prepared in |−⟩ before the oracle runs?",
+            "title": "Check: why |−⟩",
+            "type": "concept_check"
+          },
+          {
+            "capability": "execute",
+            "id": "s6",
+            "instructions": "Open the lab circuit and run it in shots mode: it measures q0, the input qubit, and the backend reports the counts. Then open the trace to follow the state one gate at a time and see the sign appear after the CX. For a constant oracle, remove the CX (an oracle that always returns 0 is constant) and run again: the backend's result for q0 changes.",
+            "title": "Run the balanced example",
+            "type": "interactive_lab"
+          },
+          {
+            "concept": "oracle-algorithms",
+            "id": "s7",
+            "options": [
+              {
+                "id": "a",
+                "text": "The oracle is balanced"
+              },
+              {
+                "id": "b",
+                "text": "The oracle is constant, and it always returns the value 0 whichever input it is given"
+              },
+              {
+                "id": "c",
+                "text": "The oracle is neither constant nor balanced"
+              },
+              {
+                "id": "d",
+                "text": "The oracle is constant, but the run cannot say which constant value it returns"
+              }
+            ],
+            "prompt": "Decide what a measured outcome tells you.",
+            "question": "In a Deutsch–Jozsa run, every input qubit is measured as 0. Given the promise, what can you conclude?",
+            "title": "Check: reading the result",
+            "type": "concept_check"
+          },
+          {
+            "body": "Measure the input register and ignore the ancilla. If every input qubit reads 0, f is constant; if any input qubit reads 1, f is balanced. This example has a single input qubit, so a 1 on q0 means balanced. For an oracle that keeps the promise, a noiseless simulator gives the same verdict on every run, because the interference is complete.",
+            "id": "s8",
+            "title": "Reading the measurement",
+            "type": "explanation"
+          },
+          {
+            "body": "One input qubit is too small to show a speed-up: a classical program decides this f with two evaluations. The advantage appears with many input qubits, and only against deterministic classical algorithms; randomised ones need just a few queries to be very likely right. The promise is essential, since an oracle that is neither constant nor balanced gives an answer that means nothing. Bernstein–Vazirani, next, recovers a hidden string with the same circuit shape.",
+            "id": "s9",
+            "title": "What this example does not show",
+            "type": "explanation"
+          },
+          {
+            "id": "s10",
+            "prompt": "The promise is doing real work. What would a reading of 0 on every input qubit mean if you did not know the oracle was constant or balanced? Why is the algorithm a demonstration of interference rather than a practical tool?",
+            "title": "Reflect",
+            "type": "reflection"
+          }
+        ],
+        "short_description": "Deciding constant vs. balanced with a single query, on one example oracle.",
+        "title": "Deutsch–Jozsa"
+      },
+      {
+        "concept": "oracle-algorithms",
+        "difficulty": "advanced",
+        "estimated_minutes": 24,
+        "id": "bernstein-vazirani",
+        "learning_objectives": [
+          "Describe the hidden-string problem: f(x) is the parity of the bits of x that the secret selects.",
+          "Explain how the oracle stores the secret as CX gates onto the ancilla.",
+          "Explain how phase kickback turns those CX gates into signs on the input qubits.",
+          "Follow the one fixed example and read its measured bits as the secret.",
+          "State what a single query gains over asking classically, one bit at a time."
+        ],
+        "linked_circuit": {
+          "num_clbits": 2,
+          "num_qubits": 3,
+          "ops": [
+            {
+              "clbits": [],
+              "controls": [],
+              "gate": "x",
+              "params": [],
+              "targets": [
+                2
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [],
+              "gate": "h",
+              "params": [],
+              "targets": [
+                0
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [],
+              "gate": "h",
+              "params": [],
+              "targets": [
+                1
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [],
+              "gate": "h",
+              "params": [],
+              "targets": [
+                2
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [
+                0
+              ],
+              "gate": "cx",
+              "params": [],
+              "targets": [
+                2
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [],
+              "gate": "h",
+              "params": [],
+              "targets": [
+                0
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [],
+              "gate": "h",
+              "params": [],
+              "targets": [
+                1
+              ]
+            },
+            {
+              "clbits": [
+                0
+              ],
+              "controls": [],
+              "gate": "measure",
+              "params": [],
+              "targets": [
+                0
+              ]
+            },
+            {
+              "clbits": [
+                1
+              ],
+              "controls": [],
+              "gate": "measure",
+              "params": [],
+              "targets": [
+                1
+              ]
+            }
+          ],
+          "schema": "qentor.circuit/1"
+        },
+        "prerequisite_lesson_ids": [
+          "deutsch-jozsa"
+        ],
+        "sections": [
+          {
+            "body": "A secret bit string s defines a function: f(x) is the parity of the bits of x in the positions where s has a 1, that is, whether that count of ones is odd or even. You may ask an oracle for f(x) on any x you like, and you want s. Classically each answer reveals one bit of s at best, so n bits cost n questions. Bernstein–Vazirani recovers all of s with one query.",
+            "id": "s1",
+            "title": "A hidden bit string",
+            "type": "explanation"
+          },
+          {
+            "body": "The oracle is built from CX gates. For every position where s has a 1 there is one CX from that input qubit to the ancilla, and where s has a 0 there is none. The ancilla is flipped once for each of those input qubits that is 1, so it ends up flipped by f(x), the parity. The secret lives in the pattern of gates, not in any qubit.",
+            "id": "s2",
+            "title": "The secret is stored in the gates",
+            "type": "explanation"
+          },
+          {
+            "body": "The ancilla starts in |−⟩, exactly as in Deutsch–Jozsa, so each CX kicks a −1 back onto its own control whenever that control is 1. The input register therefore picks up minus one to the power f(x). Starting from an equal superposition of every input, that pattern of signs is exactly what a layer of H gates turns into the single basis state for s: interference points at the secret.",
+            "id": "s3",
+            "title": "Kickback does the reading",
+            "type": "explanation"
+          },
+          {
+            "body": "This lesson runs ONE fixed example, not an oracle generator: two input qubits q0 and q1 and an ancilla q2, with a CX from q0 to q2 and none from q1. The secret has a 1 on q0 and a 0 on q1. Qentor prints bitstrings with the highest-numbered qubit on the left, so the measured bits read 01: q1's bit, then q0's. The circuit is X and H on q2, H on q0 and q1, the CX, then H on q0 and q1 and a measurement of both.",
+            "id": "s4",
+            "title": "The one fixed example",
+            "type": "explanation"
+          },
+          {
+            "body": "Textbook algebra for this example. After the first layer of H gates, q0 and q1 are each (|0⟩ + |1⟩)/√2. The only oracle gate is the CX from q0, and it kicks a −1 onto q0 when q0 is 1, so q0 becomes |−⟩ while q1, untouched, stays |+⟩. The second layer of H gates maps |−⟩ to |1⟩ and |+⟩ to |0⟩. So q0 reads 1 and q1 reads 0, which is exactly the secret the oracle's gates encode.",
+            "id": "s5",
+            "title": "Example: reading the secret",
+            "type": "explanation"
+          },
+          {
+            "concept": "oracle-algorithms",
+            "id": "s6",
+            "options": [
+              {
+                "id": "a",
+                "text": "q0 reads 0 and q1 reads 1"
+              },
+              {
+                "id": "b",
+                "text": "q0 reads 1 and q1 reads 0"
+              },
+              {
+                "id": "c",
+                "text": "Both q0 and q1 read 1, since both begin in the same state"
+              },
+              {
+                "id": "d",
+                "text": "All four combinations are equally likely"
+              }
+            ],
+            "prompt": "Predict the measured bits from the oracle's gates.",
+            "question": "The oracle has a CX from q0 to the ancilla and no gate from q1. Which measured bits should the algorithm show?",
+            "title": "Check: predict the readout",
+            "type": "concept_check"
+          },
+          {
+            "capability": "execute",
+            "id": "s7",
+            "instructions": "Open the lab circuit and run it in shots mode: the backend measures both input qubits. Read the bits by qubit, where c0 holds q0 and c1 holds q1, and compare them with the CX gates in the oracle. Then open the trace to see the signs appear after the CX and the second layer of H gates turn them into bits.",
+            "title": "Run the fixed example",
+            "type": "interactive_lab"
+          },
+          {
+            "concept": "oracle-algorithms",
+            "id": "s8",
+            "options": [
+              {
+                "id": "a",
+                "text": "Nothing changes: the new gate acts only on the ancilla, so q0 still reads 1 and q1 still reads 0"
+              },
+              {
+                "id": "b",
+                "text": "The two bits swap, so q0 now reads 0 and q1 reads 1"
+              },
+              {
+                "id": "c",
+                "text": "Both input qubits read 1, one for each CX in the oracle"
+              },
+              {
+                "id": "d",
+                "text": "The bits are random, because the two CX gates interfere with each other"
+              }
+            ],
+            "prompt": "Predict what a second CX in the oracle does.",
+            "question": "You add a CX from q1 to the ancilla, so the oracle now has one from q0 and one from q1. What does one run of the algorithm read?",
+            "title": "Check: change the oracle",
+            "type": "concept_check"
+          },
+          {
+            "body": "Classically each query returns a single bit, so learning n secret bits takes n queries. The quantum oracle is called once, but on a superposition of every input, and the kicked-back signs record the whole secret at once. That single call is real; building the oracle out of gates is not free, and Bernstein–Vazirani has no practical use of its own. It shows what kickback and interference can do. To go on, build your own oracle by hand in the Lab.",
+            "id": "s9",
+            "title": "Why one query is enough, and its limits",
+            "type": "explanation"
+          },
+          {
+            "id": "s10",
+            "prompt": "Suppose the secret had three 1-bits and you had never seen the oracle's gates. In your own words, how would the same circuit still return the secret in one call, and what would a classical program need to do instead?",
+            "title": "Reflect",
+            "type": "reflection"
+          }
+        ],
+        "short_description": "Recovering a hidden bitstring with a single query, on one example oracle.",
+        "title": "Bernstein–Vazirani"
+      },
+      {
+        "concept": "superdense-coding",
+        "difficulty": "intermediate",
+        "estimated_minutes": 18,
+        "id": "superdense-coding",
+        "learning_objectives": [
+          "Say what Alice and Bob must share before superdense coding can start.",
+          "Explain why X and Z, acting on one qubit of a Bell pair, reach different states.",
+          "Follow the fixed circuit: Bell pair, Alice's gate on q0, Bob's decoder, measurement.",
+          "Say what is actually transmitted: one qubit, and why two bits are recovered."
+        ],
+        "linked_circuit": {
+          "num_clbits": 2,
+          "num_qubits": 2,
+          "ops": [
+            {
+              "clbits": [],
+              "controls": [],
+              "gate": "h",
+              "params": [],
+              "targets": [
+                0
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [
+                0
+              ],
+              "gate": "cx",
+              "params": [],
+              "targets": [
+                1
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [],
+              "gate": "x",
+              "params": [],
+              "targets": [
+                0
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [
+                0
+              ],
+              "gate": "cx",
+              "params": [],
+              "targets": [
+                1
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [],
+              "gate": "h",
+              "params": [],
+              "targets": [
+                0
+              ]
+            },
+            {
+              "clbits": [
+                0
+              ],
+              "controls": [],
+              "gate": "measure",
+              "params": [],
+              "targets": [
+                0
+              ]
+            },
+            {
+              "clbits": [
+                1
+              ],
+              "controls": [],
+              "gate": "measure",
+              "params": [],
+              "targets": [
+                1
+              ]
+            }
+          ],
+          "schema": "qentor.circuit/1"
+        },
+        "prerequisite_lesson_ids": [
+          "bell-state"
+        ],
+        "sections": [
+          {
+            "body": "Alice wants to send Bob two classical bits. Sent directly that takes two bits, or two qubits. Superdense coding sends only ONE qubit, as long as Alice and Bob already share an entangled pair. This lesson is ONE small fixed circuit with two qubits: Alice owns q0 and Bob owns q1. It is a fixed protocol to study, not a general tool for sending data.",
+            "id": "s1",
+            "title": "Two bits with one qubit",
+            "type": "explanation"
+          },
+          {
+            "body": "Before any message exists, Alice and Bob make a Bell pair: H on q0, then CX with q0 as control and q1 as target. Measured, the two qubits always agree, yet each alone is undetermined. A single qubit sent alone can deliver one bit at most. A shared pair has four joint states that can be told apart, and Alice can reach any of them by acting on her own half only.",
+            "id": "s2",
+            "title": "Why a shared entangled pair",
+            "type": "explanation"
+          },
+          {
+            "body": "Alice applies one of four gate choices to q0 only: nothing, X, Z, or Z followed by X. Each leaves the pair in a different state, one for each two-bit message. Qentor prints bits as q1 q0, the highest-numbered qubit on the left. In this lesson X sets the left bit and Z sets the right bit, so message 10 is X alone, message 01 is Z alone and message 11 uses both.",
+            "id": "s3",
+            "title": "Alice's four encodings",
+            "type": "explanation"
+          },
+          {
+            "body": "This is textbook reasoning, not a run. X on one qubit of the pair turns results that always agree into results that always disagree, because it flips that qubit's outcome. Z leaves the measurement odds alone and flips the sign between the two parts of the state, which is a phase. X changes the odds and Z changes the phase, so together they reach four states that can be told apart.",
+            "id": "s4",
+            "title": "Why X and Z reach different Bell states",
+            "type": "explanation"
+          },
+          {
+            "concept": "superdense-coding",
+            "id": "s5",
+            "options": [
+              {
+                "id": "a",
+                "text": "The two results stop being related at all, so the pair is no longer entangled"
+              },
+              {
+                "id": "b",
+                "text": "Results that always agreed now always disagree, since X flips one qubit's outcome"
+              },
+              {
+                "id": "c",
+                "text": "The odds stay the same but the sign between the two parts of the state flips"
+              },
+              {
+                "id": "d",
+                "text": "The pair splits into two independent qubits, one definite and one random"
+              }
+            ],
+            "prompt": "Think about what the X gate does to one qubit's outcome.",
+            "question": "Alice applies the X gate to her qubit q0 of the shared pair. What changes about the pair's results?",
+            "title": "Check: what X does to the pair",
+            "type": "concept_check"
+          },
+          {
+            "capability": "execute",
+            "id": "s6",
+            "instructions": "Open the lab circuit: it makes the pair, encodes message 10 with X on q0, decodes, and measures both qubits. Run it on the backend and read the measurement result as q1 q0. Then use the trace: select the step after Alice's gate and look at each qubit's own sphere and at the amplitude view. Finally swap the X for a Z, or remove it, and run again on the backend to see which message each choice sends.",
+            "title": "Lab: encode message 10",
+            "type": "interactive_lab"
+          },
+          {
+            "concept": "superdense-coding",
+            "id": "s7",
+            "options": [
+              {
+                "id": "a",
+                "text": "Nothing more, because the single qubit already carries both bits by itself"
+              },
+              {
+                "id": "b",
+                "text": "A second qubit sent by Alice that carries the remaining bit of the message"
+              },
+              {
+                "id": "c",
+                "text": "The classical result of a measurement Alice made, sent by an ordinary channel"
+              },
+              {
+                "id": "d",
+                "text": "His own half of the shared pair, so the two qubits can be decoded together"
+              }
+            ],
+            "prompt": "Think about where the second bit of the message travelled.",
+            "question": "Alice sends her qubit q0 to Bob. What must Bob have in order to recover both bits of the message?",
+            "title": "Check: what Bob needs",
+            "type": "concept_check"
+          },
+          {
+            "body": "Bob holds q0 after receiving it, and q1 from the start. He applies CX with q0 as control and q1 as target, then H on q0. This undoes the Bell-pair preparation and turns each of the four states into one definite two-bit reading. Measuring both qubits gives the message, written q1 q0. The decoder is the same for every message; only Alice's gate differs.",
+            "id": "s8",
+            "title": "Bob decodes",
+            "type": "explanation"
+          },
+          {
+            "body": "One qubit crosses from Alice to Bob, and two classical bits are recovered, because the other half of the pair was already with Bob. It is not free: making and sharing the pair came first, and the qubit alone, without Bob's half, gives no message. This is one small educational example. The numbers you see come from the backend's run in the Lab, not from this text.",
+            "id": "s9",
+            "title": "What is actually transmitted",
+            "type": "explanation"
+          },
+          {
+            "id": "s10",
+            "prompt": "Alice sends only one qubit, yet Bob reads two bits. Where did the second bit travel? And why would the message be unreadable if Bob only had the qubit Alice sent?",
+            "title": "Reflect",
+            "type": "reflection"
+          }
+        ],
+        "short_description": "Sending two classical bits by moving one qubit of a shared Bell pair, in one small fixed circuit.",
+        "title": "Superdense Coding"
+      },
+      {
+        "concept": "teleportation",
+        "difficulty": "advanced",
+        "estimated_minutes": 24,
+        "id": "quantum-teleportation",
+        "learning_objectives": [
+          "Say what teleportation moves, and what it does not.",
+          "Explain the role of the shared entangled pair.",
+          "Explain why this lesson's corrections are deferred, and how that differs from the full protocol.",
+          "Say why teleportation cannot signal faster than light.",
+          "Read a multi-qubit trace through each qubit's own reduced state."
+        ],
+        "linked_circuit": {
+          "num_clbits": 1,
+          "num_qubits": 3,
+          "ops": [
+            {
+              "clbits": [],
+              "controls": [],
+              "gate": "ry",
+              "params": [
+                1.0
+              ],
+              "targets": [
+                0
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [],
+              "gate": "h",
+              "params": [],
+              "targets": [
+                1
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [
+                1
+              ],
+              "gate": "cx",
+              "params": [],
+              "targets": [
+                2
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [
+                0
+              ],
+              "gate": "cx",
+              "params": [],
+              "targets": [
+                1
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [],
+              "gate": "h",
+              "params": [],
+              "targets": [
+                0
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [
+                1
+              ],
+              "gate": "cx",
+              "params": [],
+              "targets": [
+                2
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [
+                0
+              ],
+              "gate": "cz",
+              "params": [],
+              "targets": [
+                2
+              ]
+            },
+            {
+              "clbits": [
+                0
+              ],
+              "controls": [],
+              "gate": "measure",
+              "params": [],
+              "targets": [
+                2
+              ]
+            }
+          ],
+          "schema": "qentor.circuit/1"
+        },
+        "prerequisite_lesson_ids": [
+          "bell-state",
+          "phase"
+        ],
+        "sections": [
+          {
+            "body": "Alice has a qubit in a state she does not want to measure, and Bob holds the other half of a shared Bell pair. Teleportation moves that STATE onto Bob's qubit, while no qubit travels between them. This lesson is ONE fixed 3-qubit example: q0 is Alice's message, prepared by a fixed RY rotation of 1 radian; q1 is Alice's half of the pair; q2 is Bob's half.",
+            "id": "s1",
+            "title": "Moving a state, not a qubit",
+            "type": "explanation"
+          },
+          {
+            "body": "The full protocol measures q0 and q1 in the middle of the circuit, sends the two results to Bob as classical bits, and Bob applies X and Z corrections accordingly. Qentor's circuit model has NO mid-circuit measurement and NO classical control. So this lesson uses the standard equivalent form with DEFERRED corrections: controlled gates, CX from q1 and CZ from q0, applied before any measurement. It is not the full dynamic protocol with classical communication, and does not claim to be.",
+            "id": "s2",
+            "title": "Deferred corrections: what this circuit does differently",
+            "type": "explanation"
+          },
+          {
+            "body": "Textbook steps for the fixed example. Prepare the message on q0 with RY. Make a Bell pair on q1 and q2: H on q1, then CX from q1 to q2. Alice entangles her message with her half: CX from q0 to q1, then H on q0. Then the deferred corrections: CX from q1 to q2, then CZ from q0 to q2. Afterwards q2 holds the message state, and q2 is the only qubit measured.",
+            "id": "s3",
+            "title": "The circuit, step by step",
+            "type": "explanation"
+          },
+          {
+            "body": "The shared pair is the channel: it ties Bob's qubit to Alice's, so what Alice does to her side reaches his without anything travelling. Alice's steps leave Bob's qubit holding the message in one of four disguised forms. The corrections undo whichever disguise applies: CX removes a bit flip and CZ removes a sign flip. Without the pair there is nothing to carry the state; without the corrections Bob's qubit is the wrong state.",
+            "id": "s4",
+            "title": "The roles of entanglement and corrections",
+            "type": "explanation"
+          },
+          {
+            "concept": "teleportation",
+            "id": "s5",
+            "options": [
+              {
+                "id": "a",
+                "text": "A complete copy of the message state that only needs a sign fix"
+              },
+              {
+                "id": "b",
+                "text": "The state it started in, because nothing has acted on it yet"
+              },
+              {
+                "id": "c",
+                "text": "No definite state of its own, because it is half of an entangled pair"
+              },
+              {
+                "id": "d",
+                "text": "The message state turned by a fixed angle that Bob can undo by himself"
+              }
+            ],
+            "prompt": "Think about what an entangled qubit looks like when you examine it alone.",
+            "question": "In the fixed example, before the corrections are applied, what does Bob's qubit q2 show on its own?",
+            "title": "Check: Bob's qubit before the corrections",
+            "type": "concept_check"
+          },
+          {
+            "capability": "execute",
+            "id": "s6",
+            "instructions": "Open the lab circuit and run it on the backend in shots mode: the measurement result is for q2 only, one bit. A statevector run of a circuit that ends in a measurement shows one collapsed state, so read the states in the trace instead: step to just before the corrections and look at the per-qubit spheres, then step past the corrections and look again, and compare q2 with the state RY gave q0. Remember the corrections here are deferred controlled gates, not measure-then-correct.",
+            "title": "Lab: teleport the fixed state",
+            "type": "interactive_lab"
+          },
+          {
+            "concept": "teleportation",
+            "id": "s7",
+            "options": [
+              {
+                "id": "a",
+                "text": "Controlled gates applied before any measurement, since the model has no classical control"
+              },
+              {
+                "id": "b",
+                "text": "Alice measures q0 and q1 in the middle of the circuit and sends the results as classical bits to Bob"
+              },
+              {
+                "id": "c",
+                "text": "The corrections are left out, so Bob's qubit holds the message only some of the time"
+              },
+              {
+                "id": "d",
+                "text": "Bob applies the corrections after measuring his own qubit at the end of the circuit"
+              }
+            ],
+            "prompt": "Think about what the circuit model does and does not support.",
+            "question": "What do 'deferred corrections' mean in this lesson's circuit?",
+            "title": "Check: deferred corrections",
+            "type": "concept_check"
+          },
+          {
+            "body": "Before the corrections, Bob's qubit is half of an entangled pair whatever Alice's message is, so looked at alone it carries no information. Only after the corrections does it hold the message, and in the full protocol those need Alice's two classical results, sent by ordinary means. So teleportation cannot signal faster than light. It also does not copy the state: Alice's qubits end up in a different state.",
+            "id": "s8",
+            "title": "No faster-than-light signalling",
+            "type": "explanation"
+          },
+          {
+            "body": "In the trace each qubit has its own Bloch sphere, computed by the backend from that qubit's reduced state. While qubits are entangled a sphere's arrow has length zero: that qubit alone has no definite state, which is not an error. Before the corrections q2 looks like that. After them q2's sphere shows the message state, and q0 and q1 are left in states of their own.",
+            "id": "s9",
+            "title": "Reading the trace of a multi-qubit run",
+            "type": "explanation"
+          },
+          {
+            "id": "s10",
+            "prompt": "In the full protocol Alice's two measurement results must reach Bob before he can fix his qubit. What would Bob's qubit look like to him if those results never arrived, and what does that say about signalling?",
+            "title": "Reflect",
+            "type": "reflection"
+          }
+        ],
+        "short_description": "Moving a qubit's state with a shared pair and corrections, in one fixed 3-qubit example with deferred corrections.",
+        "title": "Quantum Teleportation"
+      },
+      {
+        "concept": "grover-search",
+        "difficulty": "advanced",
+        "estimated_minutes": 22,
+        "id": "grovers-search",
+        "learning_objectives": [
+          "Say what the oracle changes about the marked item, and why a measurement cannot see it.",
+          "Explain how diffusion turns that change into a larger amplitude.",
+          "Say why one iteration is enough for four items and one marked item.",
+          "Describe the fixed two-qubit circuit and read its measurement as q1 q0."
+        ],
+        "linked_circuit": {
+          "num_clbits": 2,
+          "num_qubits": 2,
+          "ops": [
+            {
+              "clbits": [],
+              "controls": [],
+              "gate": "h",
+              "params": [],
+              "targets": [
+                0
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [],
+              "gate": "h",
+              "params": [],
+              "targets": [
+                1
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [],
+              "gate": "x",
+              "params": [],
+              "targets": [
+                1
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [
+                0
+              ],
+              "gate": "cz",
+              "params": [],
+              "targets": [
+                1
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [],
+              "gate": "x",
+              "params": [],
+              "targets": [
+                1
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [],
+              "gate": "h",
+              "params": [],
+              "targets": [
+                0
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [],
+              "gate": "h",
+              "params": [],
+              "targets": [
+                1
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [],
+              "gate": "x",
+              "params": [],
+              "targets": [
+                0
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [],
+              "gate": "x",
+              "params": [],
+              "targets": [
+                1
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [
+                0
+              ],
+              "gate": "cz",
+              "params": [],
+              "targets": [
+                1
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [],
+              "gate": "x",
+              "params": [],
+              "targets": [
+                0
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [],
+              "gate": "x",
+              "params": [],
+              "targets": [
+                1
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [],
+              "gate": "h",
+              "params": [],
+              "targets": [
+                0
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [],
+              "gate": "h",
+              "params": [],
+              "targets": [
+                1
+              ]
+            },
+            {
+              "clbits": [
+                0
+              ],
+              "controls": [],
+              "gate": "measure",
+              "params": [],
+              "targets": [
+                0
+              ]
+            },
+            {
+              "clbits": [
+                1
+              ],
+              "controls": [],
+              "gate": "measure",
+              "params": [],
+              "targets": [
+                1
+              ]
+            }
+          ],
+          "schema": "qentor.circuit/1"
+        },
+        "prerequisite_lesson_ids": [
+          "interference"
+        ],
+        "sections": [
+          {
+            "body": "Finding the one item that passes a test, among four, normally takes several tries. Grover's search uses interference to raise the marked item's amplitude instead. This lesson is ONE small educational example: two qubits give four items, one fixed item is marked, and exactly one Grover iteration is used. It does not show a scalable speed-up and it is not a general search tool.",
+            "id": "s1",
+            "title": "A search over four items",
+            "type": "explanation"
+          },
+          {
+            "body": "H on both qubits puts all four items in an equal superposition, so each has the same amplitude and nothing is marked yet. Qentor writes bit strings as q1 q0, the highest-numbered qubit on the left, so the four items are 00, 01, 10 and 11. The marked item in this lesson is 01: q1 is 0 and q0 is 1.",
+            "id": "s2",
+            "title": "An even start",
+            "type": "explanation"
+          },
+          {
+            "body": "Textbook view: the oracle flips the sign of the marked item's amplitude and leaves the other three alone. A CZ flips the sign of the item where both qubits are 1. To mark 01, X on q1 comes before it and again after, which moves 01 into that position and back. A sign is a phase, so a measurement made right after the oracle could not tell anything had changed.",
+            "id": "s3",
+            "title": "The oracle changes a phase",
+            "type": "explanation"
+          },
+          {
+            "body": "Diffusion reflects every amplitude about their average: H on both, X on both, CZ, X on both, H on both. The marked item's flipped sign puts it below the average, so the reflection throws it far above, while the other three shrink. Interference does the work: the contributions add for the marked item and cancel for the rest. The diffusion never needs to know which item is marked.",
+            "id": "s4",
+            "title": "Diffusion turns a sign into a bigger amplitude",
+            "type": "explanation"
+          },
+          {
+            "concept": "grover-search",
+            "id": "s5",
+            "options": [
+              {
+                "id": "a",
+                "text": "It makes the marked item more likely to be measured straight away"
+              },
+              {
+                "id": "b",
+                "text": "It moves the marked item onto a different qubit that diffusion then reads"
+              },
+              {
+                "id": "c",
+                "text": "It does not, because diffusion would find the item without the oracle"
+              },
+              {
+                "id": "d",
+                "text": "Diffusion compares amplitudes with their average, so the flipped sign makes the marked one stand out"
+              }
+            ],
+            "prompt": "Think about what diffusion compares each amplitude with.",
+            "question": "Right after the oracle a measurement looks unchanged. Why does the sign flip still matter?",
+            "title": "Check: why the sign flip matters",
+            "type": "concept_check"
+          },
+          {
+            "capability": "execute",
+            "id": "s6",
+            "instructions": "Open the lab circuit and run it on the backend; read the measurement as q1 q0. In the trace, step through the circuit and watch the amplitude and phase view: after the oracle, compare the marked item's phase arrow and size with the others, then compare again after the diffusion. Then change which qubit gets the X gates around the oracle's CZ and run it again on the backend to mark a different item.",
+            "title": "Lab: one Grover iteration",
+            "type": "interactive_lab"
+          },
+          {
+            "concept": "grover-search",
+            "id": "s7",
+            "options": [
+              {
+                "id": "a",
+                "text": "Because the oracle alone already makes the marked item certain"
+              },
+              {
+                "id": "b",
+                "text": "Because one reflection about the average moves all the amplitude onto the marked item at this size"
+              },
+              {
+                "id": "c",
+                "text": "Because Grover's search never needs more than one iteration for any number of items"
+              },
+              {
+                "id": "d",
+                "text": "Because two qubits cannot hold the state that a second iteration would need"
+              }
+            ],
+            "prompt": "Think about the size of this search.",
+            "question": "With four items and one marked item, why does a single Grover iteration suffice here?",
+            "title": "Check: why one iteration is enough",
+            "type": "concept_check"
+          },
+          {
+            "body": "Textbook algebra for four items and one marked item: after one oracle call and one diffusion, all of the amplitude sits on the marked item. With more items the first iteration moves the marked item's amplitude only part of the way, and further iterations are needed. This lesson stops at four items on purpose: it shows the mechanism, not a scalable advantage.",
+            "id": "s8",
+            "title": "Why one iteration is enough here",
+            "type": "explanation"
+          },
+          {
+            "body": "In the Lab trace, the amplitude and phase view shows the effect step by step: after the oracle the marked item's phase arrow turns while its size matches the others, and after diffusion its size has grown. The measurement result is read as q1 q0. Every number comes from the backend's run, not from this text, so check what you read against the trace.",
+            "id": "s9",
+            "title": "Reading the Lab",
+            "type": "explanation"
+          },
+          {
+            "id": "s10",
+            "prompt": "Which part of the circuit knows which item is marked, and which part does not? What would you expect if the oracle marked a different item and you kept the same diffusion?",
+            "title": "Reflect",
+            "type": "reflection"
+          }
+        ],
+        "short_description": "Finding one marked item among four with one oracle and one diffusion step; a small educational example, not a scalable search.",
+        "title": "Grover's Search"
+      }
+    ]
+  }
+}
