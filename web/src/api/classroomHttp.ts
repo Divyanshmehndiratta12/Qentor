@@ -1,33 +1,45 @@
 /**
- * The classroom endpoints, as plain functions over `fetch`. `RealApiClient` delegates to these.
+ * The classroom, sharing and code-input endpoints, as plain functions over `fetch`. `RealApiClient` delegates to these.
  *
  * Every response is parsed through a zod schema before it leaves this file; a structured refusal (`{detail: {code, message}}`) becomes a
  * `ClassroomRejectedError` carrying the server's own code and words, and anything unstructured becomes `BackendUnavailableError`. Nothing
  * here computes a count, a verdict or a result: it sends identifiers and receives what the server recorded.
  */
 import type { z } from 'zod'
+import { CircuitSchema } from '@/circuit/types'
 import {
   ClassDashboardResponseSchema,
   ClassroomErrorDetailSchema,
   CreateClassResponseSchema,
+  CreateExperimentResponseSchema,
   DeleteClassResponseSchema,
   JoinClassResponseSchema,
   LeaveClassResponseSchema,
   LearnerEventResponseSchema,
   MyClassResponseSchema,
+  ParseCodeRefusalSchema,
+  ParseCodeResponseSchema,
+  SharedExperimentResponseSchema,
   SyncProgressResponseSchema,
 } from '@/provenance/schema'
-import { LEARNER_HEADER } from './learnerToken'
+import { quantumValueFromExecuteResponse } from './executeValue'
+import { learnerHeaders, LEARNER_HEADER } from './learnerToken'
 import {
   BackendUnavailableError,
   ClassroomRejectedError,
+  CodeNotSupportedError,
   type ClassCreated,
   type ClassDashboard,
   type ClassJoined,
   type ClassMembership,
   type ClassSyncResult,
+  type CreateExperimentInput,
+  type CreatedExperiment,
   type LearnerEventKind,
+  type ParsedCode,
   type SavedAnswer,
+  type SdkDialect,
+  type SharedExperiment,
 } from './client'
 
 const INSTRUCTOR_HEADER = 'X-Qentor-Instructor'
@@ -185,4 +197,56 @@ export async function deleteClass(baseUrl: string, classCode: string, instructor
     headers: { [INSTRUCTOR_HEADER]: instructorKey },
   })
   return { eventsDeleted: r.events_deleted }
+}
+
+export async function createExperiment(baseUrl: string, input: CreateExperimentInput): Promise<CreatedExperiment> {
+  const body: Record<string, unknown> = { circuit: CircuitSchema.parse(input.circuit) }
+  if (input.resultId) body.result_id = input.resultId
+  if (input.lessonId) body.lesson_id = input.lessonId
+  if (input.challengeId) body.challenge_id = input.challengeId
+  if (input.title?.trim()) body.title = input.title.trim()
+  const r = await call(baseUrl, 'POST', '/api/experiments', CreateExperimentResponseSchema, { body, headers: learnerHeaders() })
+  return { experimentId: r.experiment_id, path: r.path, createdAt: r.created_at }
+}
+
+export async function getExperiment(baseUrl: string, experimentId: string): Promise<SharedExperiment> {
+  const r = await call(baseUrl, 'GET', `/api/experiments/${encodeURIComponent(experimentId)}`, SharedExperimentResponseSchema)
+  return {
+    experimentId: r.experiment_id,
+    createdAt: r.created_at,
+    title: r.title,
+    note: r.note,
+    circuitHash: r.circuit_hash,
+    circuit: r.circuit,
+    qasm: r.qasm,
+    generator: r.generator,
+    code: r.code,
+    backend: r.backend,
+    mode: r.mode,
+    shots: r.shots,
+    lesson: r.lesson,
+    challenge: r.challenge,
+    // the stored record, wrapped exactly as a fresh run is: its numbers are shown only with its provenance
+    result: r.result ? quantumValueFromExecuteResponse(r.result) : null,
+    resultNote: r.result_note,
+  }
+}
+
+export async function parseCode(baseUrl: string, dialect: SdkDialect, code: string): Promise<ParsedCode> {
+  const res = await send(baseUrl, 'POST', '/api/circuit/parse-code', { body: { dialect, code } })
+  if (!res.ok) {
+    let body: unknown = null
+    try {
+      body = await res.clone().json()
+    } catch {
+      body = null
+    }
+    const refused = ParseCodeRefusalSchema.safeParse((body as { detail?: unknown } | null)?.detail)
+    if (res.status === 422 && refused.success) {
+      throw new CodeNotSupportedError(refused.data.message, refused.data.problems, refused.data.supported, refused.data.label)
+    }
+    throw await refusal(res)
+  }
+  const r = ParseCodeResponseSchema.parse(await res.json())
+  return { dialect, label: r.label, circuit: r.circuit, circuitHash: r.circuit_hash, canonicalQasm: r.canonical_qasm, notes: r.notes }
 }

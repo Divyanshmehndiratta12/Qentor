@@ -953,5 +953,46 @@ export const ClassDashboardResponseSchema = z.object({
 })
 export type ClassDashboardResponse = z.infer<typeof ClassDashboardResponseSchema>
 
-// A structured refusal from a classroom endpoint: `{detail: {code, message}}`.
+// backend/qentor/api/sharing.py — a read-only snapshot. The result, when there is one, is the stored provenance record.
+export const CreateExperimentResponseSchema = z.object({ experiment_id: z.string(), path: z.string(), created_at: z.string() })
+export const SharedExperimentResponseSchema = z.object({
+  experiment_id: z.string(),
+  created_at: z.string(),
+  title: z.string().nullable(),
+  read_only: z.literal(true),
+  note: z.string(),
+  circuit_hash: z.string(),
+  circuit: CircuitSchema,
+  qasm: z.string(),
+  generator: z.string(),
+  code: z.object({ qiskit: z.string(), cirq: z.string(), pennylane: z.string() }),
+  backend: z.string(),
+  mode: z.string(),
+  shots: z.number().int().nullable(),
+  lesson: z.object({ id: z.string(), title: z.string() }).nullable(),
+  challenge: z.object({ id: z.string(), title: z.string() }).nullable(),
+  result: ExecuteResponseSchema.nullable(),
+  result_note: z.string(),
+})
+export type SharedExperimentResponse = z.infer<typeof SharedExperimentResponseSchema>
+
+// backend/qentor/api/code_input.py — pasted code read into the canonical circuit. No result, ever.
+export const ParseCodeResponseSchema = z.object({
+  status: z.literal('PARSED'),
+  dialect: z.string(),
+  label: z.string(),
+  circuit: CircuitSchema,
+  circuit_hash: z.string(),
+  canonical_qasm: z.string(),
+  notes: z.array(z.string()),
+})
+export const ParseCodeRefusalSchema = z.object({
+  code: z.literal('CODE_NOT_SUPPORTED'),
+  message: z.string(),
+  problems: z.array(z.object({ line: z.number().int().nullable(), column: z.number().int().nullable(), message: z.string() })),
+  supported: z.array(z.string()),
+  label: z.string(),
+})
+
+// A structured refusal from a classroom, sharing or code endpoint: `{detail: {code, message}}`.
 export const ClassroomErrorDetailSchema = z.object({ code: z.string(), message: z.string() }).passthrough()

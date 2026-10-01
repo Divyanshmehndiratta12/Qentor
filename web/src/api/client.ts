@@ -827,7 +827,26 @@ export interface ApiClient {
 
   /** DELETE /api/classes/{code} - delete the class and every event recorded in it (instructor key required). */
   deleteClass(classCode: string, instructorKey: string): Promise<{ eventsDeleted: number }>
+
+  /**
+   * POST /api/experiments - share a circuit (and optionally one stored run of it) as a read-only page. The request has no field
+   * for a number or a verdict; the run is named by id and the server attaches its own record. The browser's learner token, when it
+   * has one, is sent only so the class can count the share.
+   */
+  createExperiment(input: CreateExperimentInput): Promise<CreatedExperiment>
+
+  /** GET /api/experiments/{id} - the public, read-only view of a shared experiment. */
+  getExperiment(experimentId: string): Promise<SharedExperiment>
+
+  /**
+   * POST /api/circuit/parse-code - read pasted OpenQASM 3, Qiskit, Cirq or PennyLane text into the canonical circuit. The server
+   * never executes it: Python is parsed against a small allow-list. Rejects with `CodeNotSupportedError` naming each unsupported
+   * construct and its line; resolves with the circuit to PREVIEW (nothing is inserted and nothing is run).
+   */
+  parseCode(dialect: SdkDialect, code: string): Promise<ParsedCode>
 }
+
+export type SdkDialect = 'openqasm' | 'qiskit' | 'cirq' | 'pennylane'
 
 export interface ClassCreated {
   classCode: string
@@ -939,7 +958,72 @@ export interface ClassDashboard {
   recent: DashboardRecent[]
 }
 
-/** A structured refusal from a classroom endpoint (`detail = {code, message}`): a bad code, an unknown class, a rate limit. */
+export interface CreateExperimentInput {
+  circuit: Circuit
+  /** A stored run of exactly this circuit; the server attaches its record. Never numbers. */
+  resultId?: string | null
+  lessonId?: string | null
+  challengeId?: string | null
+  title?: string | null
+}
+
+export interface CreatedExperiment {
+  experimentId: string
+  path: string
+  createdAt: string
+}
+
+/** A read-only shared experiment. `result` is the stored provenance record of one run, wrapped like any execution result. */
+export interface SharedExperiment {
+  experimentId: string
+  createdAt: string
+  title: string | null
+  note: string
+  circuitHash: string
+  circuit: Circuit
+  qasm: string
+  generator: string
+  code: { qiskit: string; cirq: string; pennylane: string }
+  backend: string
+  mode: string
+  shots: number | null
+  lesson: { id: string; title: string } | null
+  challenge: { id: string; title: string } | null
+  result: QuantumValue<ExecutePayload> | null
+  resultNote: string
+}
+
+export interface ParsedCode {
+  dialect: SdkDialect
+  label: string
+  circuit: Circuit
+  circuitHash: string
+  canonicalQasm: string
+  notes: string[]
+}
+
+export interface CodeProblem {
+  line: number | null
+  column: number | null
+  message: string
+}
+
+/** The server read the code and declined it: each unsupported construct is named with its line. Nothing was executed or guessed. */
+export class CodeNotSupportedError extends Error {
+  readonly problems: CodeProblem[]
+  readonly supported: string[]
+  readonly label: string
+
+  constructor(message: string, problems: CodeProblem[], supported: string[], label: string) {
+    super(message)
+    this.name = 'CodeNotSupportedError'
+    this.problems = problems
+    this.supported = supported
+    this.label = label
+  }
+}
+
+/** A structured refusal from a classroom or sharing endpoint (`detail = {code, message}`): a bad code, an unknown class, a rate limit. */
 export class ClassroomRejectedError extends Error {
   readonly code: string
   readonly status: number

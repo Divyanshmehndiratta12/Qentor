@@ -120,3 +120,5 @@ Demo importance: **Critical** (the story breaks without it) · **High** · **Med
 | E6 | Sampled vs theoretical labelling on every chart | Built | Kind badge on each chart; backend supplies theoretical probabilities |
 | E7 | Learner report on Progress (challenge completion, recent activity) | Built (one learner, this browser) | States that no cohort data exists |
 | E8 | Share link and export bundle | Built | Link carries the circuit only; bundle has run metadata, no results, nothing of the server's |
+| E9 | Read-only experiment page with "Fork into my Lab" (collaboration by reading; no real-time co-editing). **Not in PPT** | Built | `api/sharing.py`: the request has no field for a number or a verdict, a run attaches only if it is a checked run of exactly this circuit, no owner column; the page reads stored records |
+| E10 | Import a circuit from OpenQASM 3, Qiskit, Cirq or PennyLane code. **Not in PPT** | Built (a documented subset) | `circuit/sdk_parse.py`: `ast.parse` and an allow-list, no execution anywhere (a test reads the module's syntax tree); unsupported code is refused with its line |

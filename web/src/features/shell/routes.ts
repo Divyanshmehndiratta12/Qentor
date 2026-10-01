@@ -6,7 +6,7 @@
  */
 import type { Screen } from './TopBar'
 
-const PATHS: Record<Screen, string> = { lab: '/', learn: '/learn', challenges: '/challenges', progress: '/progress', classroom: '/classroom' }
+const PATHS: Record<Screen, string> = { lab: '/', learn: '/learn', challenges: '/challenges', progress: '/progress', classroom: '/classroom', shared: '/shared' }
 
 function normalise(pathname: string): string {
   return pathname.length > 1 ? pathname.replace(/\/+$/, '') : pathname
@@ -16,6 +16,7 @@ function normalise(pathname: string): string {
 export function screenFromPath(pathname: string): Screen {
   const path = normalise(pathname)
   if (path.startsWith(`${PATHS.challenges}/`)) return 'challenges'
+  if (path.startsWith(`${PATHS.shared}/`)) return 'shared'
   const match = (Object.entries(PATHS) as Array<[Screen, string]>).find(([, p]) => p === path)
   return match ? match[0] : 'lab'
 }
@@ -35,4 +36,13 @@ export function challengeIdFromPath(pathname: string): string | null {
 
 export function pathForChallenge(challengeId: string | null): string {
   return challengeId ? `${PATHS.challenges}/${challengeId}` : PATHS.challenges
+}
+
+/** The shared-experiment id in `/shared/<id>`, or `null` for any other path or an id of an unexpected shape. */
+export function sharedIdFromPath(pathname: string): string | null {
+  const path = normalise(pathname)
+  const prefix = `${PATHS.shared}/`
+  if (!path.startsWith(prefix)) return null
+  const id = path.slice(prefix.length)
+  return /^ex_[0-9a-f]{16}$/.test(id) ? id : null
 }

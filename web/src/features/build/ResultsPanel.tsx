@@ -171,7 +171,7 @@ function KindBadge({ kind, shots }: { kind: 'sampled' | 'theoretical'; shots?: n
   )
 }
 
-function ShotsResult({
+export function ShotsResult({
   frequencies,
   counts,
   shots,
@@ -230,7 +230,7 @@ function ShotsResult({
   )
 }
 
-function StatevectorResult({
+export function StatevectorResult({
   amplitudes,
   theoretical,
   hasMeasurement,

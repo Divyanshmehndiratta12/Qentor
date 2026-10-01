@@ -38,6 +38,7 @@ from fastapi.responses import JSONResponse
 from qentor.challenges import CHALLENGES, evaluate_challenge, get_challenge, public_view
 from qentor.classroom import ClassroomStore
 from qentor.classroom.store import DEFAULT_RETENTION_DAYS
+from qentor.sharing import ExperimentStore
 from qentor.circuit.codegen import CODEGEN_VERSION, generate_all
 from qentor.circuit.hashing import circuit_hash
 from qentor.circuit.qasm import to_qasm3
@@ -95,6 +96,8 @@ from qentor.verification.multi_input_harness import (
 from qentor.verification.optimizer import optimize_circuit
 
 from . import classroom as classroom_api
+from . import code_input as code_input_api
+from . import sharing as sharing_api
 from .static_site import frontend_dist, mount_frontend
 from .schemas import (
     AgreementBackendResponse,
@@ -190,6 +193,8 @@ _store = ProvenanceStore()
 _attempts = AttemptStore()
 # The anonymous classroom layer (qentor.classroom): classes, anonymous learners and the learning events this server derives.
 _classroom = ClassroomStore()
+# Read-only shared experiments (qentor.sharing): immutable snapshots of a circuit and, optionally, one stored run of it.
+_experiments = ExperimentStore()
 CLASSROOM_RETENTION_ENV = "QENTOR_CLASSROOM_RETENTION_DAYS"
 
 
@@ -1475,7 +1480,7 @@ def submit_challenge(
 # The feature routers' routes are added to the app's own route list rather than through `include_router`, which in this FastAPI version wraps a
 # router in a lazy container: `app.routes` then no longer lists those endpoints as plain `APIRoute`s, and the route-inventory tests and the content
 # validator read it that way. They are registered here, before `mount_frontend`, so the SPA fallback can never shadow them.
-for _router in (classroom_api.router,):
+for _router in (classroom_api.router, sharing_api.router, code_input_api.router):
     app.router.routes.extend(_router.routes)
 
 

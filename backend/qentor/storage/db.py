@@ -83,6 +83,21 @@ CREATE TABLE IF NOT EXISTS learner_events (
 CREATE INDEX IF NOT EXISTS idx_events_class ON learner_events (class_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_events_learner ON learner_events (class_id, learner_id, kind);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_events_dedupe ON learner_events (class_id, learner_id, dedupe_key) WHERE dedupe_key IS NOT NULL;
+
+-- A read-only shared experiment (qentor.sharing): a snapshot of what the owner chose to share, nothing about the owner.
+CREATE TABLE IF NOT EXISTS shared_experiments (
+    experiment_id TEXT PRIMARY KEY,
+    created_at    TEXT NOT NULL,
+    title         TEXT,
+    circuit_json  TEXT NOT NULL,
+    circuit_hash  TEXT NOT NULL,
+    backend       TEXT NOT NULL,
+    mode          TEXT NOT NULL,
+    shots         INTEGER,
+    result_id     TEXT,
+    lesson_id     TEXT,
+    challenge_id  TEXT
+);
 """
 
 

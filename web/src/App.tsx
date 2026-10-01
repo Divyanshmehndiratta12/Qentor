@@ -39,9 +39,10 @@ import { ProgressScreen } from '@/features/progress/ProgressScreen'
 import { TutorPanel } from '@/features/tutor/TutorPanel'
 import { ClassroomScreen } from '@/features/classroom/ClassroomScreen'
 import { useClassroomStore } from '@/features/classroom/store'
+import { SharedExperimentScreen } from '@/features/share/SharedExperimentScreen'
 import { TopBar, type Screen } from '@/features/shell/TopBar'
 import { decodeShareFragment } from '@/features/share/shareLink'
-import { challengeIdFromPath, pathForChallenge, pathForScreen, screenFromPath } from '@/features/shell/routes'
+import { challengeIdFromPath, pathForChallenge, pathForScreen, screenFromPath, sharedIdFromPath } from '@/features/shell/routes'
 
 function App() {
   // The address bar decides the first screen (a direct visit to /learn opens Learn), and is kept in step afterwards.
@@ -52,6 +53,8 @@ function App() {
   // The challenge the address bar names (/challenges/<id>). `n` counts address changes from Back/Forward so the Challenges screen
   // follows them even when the id is the same as before.
   const [challengeRoute, setChallengeRoute] = useState(() => ({ challengeId: challengeIdFromPath(window.location.pathname), n: 0 }))
+  // The shared experiment the address bar names (/shared/<id>); `null` for an address that is not a well-formed share id.
+  const [sharedId, setSharedId] = useState(() => sharedIdFromPath(window.location.pathname))
   const [guideOpen, setGuideOpen] = useState(false)
   const guideButtonRef = useRef<HTMLButtonElement>(null)
   const isFirstScreen = useRef(true)
@@ -89,6 +92,7 @@ function App() {
     const onPop = () => {
       setScreen(screenFromPath(window.location.pathname))
       setChallengeRoute((r) => ({ challengeId: challengeIdFromPath(window.location.pathname), n: r.n + 1 }))
+      setSharedId(sharedIdFromPath(window.location.pathname))
     }
     window.addEventListener('popstate', onPop)
     return () => window.removeEventListener('popstate', onPop)
@@ -134,6 +138,17 @@ function App() {
   function openChallenge(challengeId: string) {
     setChallengeRoute((r) => ({ challengeId, n: r.n + 1 }))
     goTo('challenges')
+  }
+
+  // "Fork into my Lab" on a shared page: the visitor's own copy of the circuit goes onto the Lab canvas, WITHOUT any result, and nothing
+  // is sent anywhere. The shared experiment is not touched.
+  function forkShared(circuit: Circuit, title: string | null) {
+    loadCircuit(circuit)
+    setSharedNotice({
+      ok: true,
+      text: `Forked ${title ? `“${title}”` : 'the shared experiment'} into your Lab as your own copy. The shared page is unchanged. It came without results — run it to see what the backend computes.`,
+    })
+    goTo('lab')
   }
 
   function openLesson(lessonId: string) {
@@ -216,6 +231,10 @@ function App() {
       ) : screen === 'classroom' ? (
         <main id="main-content" tabIndex={-1} className="min-h-0 flex-1 overflow-auto bg-void-950 outline-none">
           <ClassroomScreen />
+        </main>
+      ) : screen === 'shared' ? (
+        <main id="main-content" tabIndex={-1} className="min-h-0 flex-1 overflow-auto bg-void-950 outline-none">
+          <SharedExperimentScreen experimentId={sharedId} onFork={forkShared} onOpenLab={() => goTo('lab')} />
         </main>
       ) : screen === 'challenges' ? (
         <ChallengesScreen

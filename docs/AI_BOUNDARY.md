@@ -20,7 +20,7 @@ through a backend before a learner sees it.
 | Explain a misconception tag | The tag comes from deterministic rules. The AI explains it. |
 | Give a hint | Conceptual hints freely. A hint that contains a circuit is a candidate (below). |
 | Propose a candidate circuit (fix or optimisation) | Returned as the canonical JSON model. Shown only with its verification status. |
-| Propose candidate code | Only as OpenQASM 3, parsed into the model by the server's own parser. Python is never executed. Built: see §9 |
+| Propose candidate code | Only as OpenQASM 3, parsed into the model by the server's own parser. Python is never executed. Built: see §9. (A learner may also paste Qiskit, Cirq or PennyLane text: that is not AI. `circuit/sdk_parse.py` parses it with `ast.parse` against an allow-list, never executes it, and returns no result; see `ARCHITECTURE.md` §17.) |
 | Propose a candidate optimisation | Goes through the equivalence checker like any other proposal |
 | Make a typed claim ("P(00)=0.5 for this circuit") | The claim is re-simulated. It is shown only if it matches, and then the backend value is shown. |
 | Answer in the learner's selected language (P1) | Numbers still come from facts |

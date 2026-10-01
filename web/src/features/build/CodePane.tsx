@@ -8,6 +8,7 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { getApiClient, type CodeFramework, type CodeViewsResult } from '@/api'
 import type { Circuit } from '@/circuit/types'
+import { CodeImport } from './CodeImport'
 import { QASMEditor } from './QASMEditor'
 import { useBuildStore } from './store'
 
@@ -90,6 +91,8 @@ export function CodePane() {
           <GeneratedCode framework={active} />
         </div>
       )}
+
+      <CodeImport />
     </div>
   )
 }

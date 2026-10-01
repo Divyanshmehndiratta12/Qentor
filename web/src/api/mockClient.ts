@@ -34,7 +34,12 @@ import type {
   ClassMembership,
   ClassSyncResult,
   ConceptCheckGrade,
+  CreateExperimentInput,
+  CreatedExperiment,
   LearnerEventKind,
+  ParsedCode,
+  SdkDialect,
+  SharedExperiment,
   DebugReport,
   DebugRequestInput,
   RegradedAnswer,
@@ -190,7 +195,7 @@ export class MockApiClient implements ApiClient {
     throw new EndpointNotImplementedError('POST /api/assessments/regrade (the FIXTURE mock adapter cannot grade)')
   }
 
-  /** Deliberately NOT faked: classes, learners and events exist only on the server. */
+  /** Deliberately NOT faked: classes, learners, events, shared experiments and parsed code exist only on the server. */
   async createClass(_title?: string): Promise<ClassCreated> {
     throw new EndpointNotImplementedError('POST /api/classes (the FIXTURE mock adapter has no classroom)')
   }
@@ -221,6 +226,18 @@ export class MockApiClient implements ApiClient {
 
   async deleteClass(_classCode: string, _instructorKey: string): Promise<{ eventsDeleted: number }> {
     throw new EndpointNotImplementedError('DELETE /api/classes/{code} (the FIXTURE mock adapter has no classroom)')
+  }
+
+  async createExperiment(_input: CreateExperimentInput): Promise<CreatedExperiment> {
+    throw new EndpointNotImplementedError('POST /api/experiments (the FIXTURE mock adapter cannot share)')
+  }
+
+  async getExperiment(_experimentId: string): Promise<SharedExperiment> {
+    throw new EndpointNotImplementedError('GET /api/experiments/{id} (the FIXTURE mock adapter has no shared experiments)')
+  }
+
+  async parseCode(_dialect: SdkDialect, _code: string): Promise<ParsedCode> {
+    throw new EndpointNotImplementedError('POST /api/circuit/parse-code (the FIXTURE mock adapter cannot read code)')
   }
 
   /** Deliberately NOT faked: the export bundle is written by the server. */

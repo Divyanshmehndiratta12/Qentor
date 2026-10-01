@@ -7,7 +7,6 @@
 import type { z } from 'zod'
 import { CircuitSchema, type Circuit } from '@/circuit/types'
 import {
-  provenanceFromExecuteResponse,
   provenanceFromTraceStep,
   toQuantumValue,
   type QuantumValue,
@@ -30,8 +29,6 @@ import {
   MultiInputTestResponseSchema,
   OptimizeResponseSchema,
   RegradeResponseSchema,
-  ShotsPayloadSchema,
-  StatevectorPayloadSchema,
   TraceErrorDetailSchema,
   TraceResponseSchema,
   TutorResponseSchema,
@@ -40,6 +37,7 @@ import {
   type TraceResponse,
 } from '@/provenance/schema'
 import * as classroom from './classroomHttp'
+import { quantumValueFromExecuteResponse } from './executeValue'
 import { learnerHeaders } from './learnerToken'
 import {
   BackendUnavailableError,
@@ -59,7 +57,12 @@ import {
   type ClassMembership,
   type ClassSyncResult,
   type CodeViewsResult,
+  type CreateExperimentInput,
+  type CreatedExperiment,
   type LearnerEventKind,
+  type ParsedCode,
+  type SdkDialect,
+  type SharedExperiment,
   type GenerationRequestInput,
   type GenerationStatus,
   type ConceptCheckGrade,
@@ -193,28 +196,7 @@ export class RealApiClient implements ApiClient {
       throw new BackendUnavailableError(detail, res.status)
     }
 
-    const response = ExecuteResponseSchema.parse(await res.json())
-    const provenance = provenanceFromExecuteResponse(response)
-
-    let payload: ExecutePayload
-    if (response.execution_mode === 'statevector') {
-      const sv = StatevectorPayloadSchema.parse(response.payload)
-      payload = {
-        executionId: sv.execution_id,
-        statevector: sv.statevector,
-        ...(sv.theoretical_probabilities ? { theoreticalProbabilities: sv.theoretical_probabilities } : {}),
-      }
-    } else {
-      const shots = ShotsPayloadSchema.parse(response.payload)
-      payload = {
-        executionId: shots.execution_id,
-        counts: shots.counts,
-        probabilities: shots.probabilities,
-        ...(shots.shots !== undefined ? { shots: shots.shots } : {}),
-      }
-    }
-
-    return toQuantumValue(payload, provenance)
+    return quantumValueFromExecuteResponse(ExecuteResponseSchema.parse(await res.json()))
   }
 
   async traceCircuit(circuit: Circuit, backend?: Backend): Promise<ExecutionTraceResult> {
@@ -601,6 +583,18 @@ export class RealApiClient implements ApiClient {
 
   deleteClass(classCode: string, instructorKey: string): Promise<{ eventsDeleted: number }> {
     return classroom.deleteClass(this.baseUrl, classCode, instructorKey)
+  }
+
+  createExperiment(input: CreateExperimentInput): Promise<CreatedExperiment> {
+    return classroom.createExperiment(this.baseUrl, input)
+  }
+
+  getExperiment(experimentId: string): Promise<SharedExperiment> {
+    return classroom.getExperiment(this.baseUrl, experimentId)
+  }
+
+  parseCode(dialect: SdkDialect, code: string): Promise<ParsedCode> {
+    return classroom.parseCode(this.baseUrl, dialect, code)
   }
 
   async listLessons(): Promise<Lesson[]> {

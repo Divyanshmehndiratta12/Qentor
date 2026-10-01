@@ -15,7 +15,7 @@ Browser (React + TypeScript)
   ▼
 FastAPI  ──────────────────────────────────────────────────────────────
   api/            HTTP routes, request validation (pydantic), static serving of web/dist
-  circuit/        canonical model, OpenQASM 3 emitter, hashing, Qiskit/Cirq/PennyLane code views
+  circuit/        canonical model, OpenQASM 3 emitter and parser, hashing, Qiskit/Cirq/PennyLane code views, the safe SDK-code reader (parses, never executes; see §17)
   execution/      backend adapters (Aer, Cirq, PennyLane), trace, Bloch vectors, per-qubit reduced states, amplitude view, limits, sanity checks
   verification/   equivalence, cross-backend agreement, multi-input harness, optimiser, experiment comparison
   challenges/     challenge definitions, the eighteen challenges, the deterministic evaluator
@@ -24,6 +24,7 @@ FastAPI  ───────────────────────�
   tutor/          fact sheets, LLM adapter, claim guard, deterministic answers, debugger, comparison facts
   provenance/     provenance records and store, challenge attempt log (writers: only api/ calls them)
   classroom/      anonymous classes: capability tokens, learner events, the instructor's aggregate (a writer: only api/ calls it; see §15)
+  sharing/        read-only shared experiments: an immutable snapshot of a circuit and, optionally, one stored run of it (a writer: only api/ calls it; see §16)
   storage/        SQLite connection and schema (QENTOR_DB_PATH)
   (not built: recorded/live hardware adapters; lesson progress itself is browser-local, the server holds only the classroom events of a learner who joined a class)
 ────────────────────────────────────────────────────────────────────────
@@ -32,8 +33,8 @@ FastAPI  ───────────────────────�
 Dependency direction is one way: `api → tutor → verification / challenges → execution → circuit`
 (`content` sits beside `api`: it reads `lessons`, `challenges` and `execution`, and nothing imports it at runtime).
 **Nothing in `execution`, `verification` or `challenges` imports `tutor`, and `tutor` never imports a
-provenance writer** (`provenance.store`, `provenance.attempts`) **or the classroom writer** (`classroom`); all are enforced by import-graph tests.
-`classroom` itself imports only `lessons`, `challenges` and `storage`: it computes no quantum value and nothing below `api` imports it.
+provenance writer** (`provenance.store`, `provenance.attempts`) **or the classroom and share writers** (`classroom`, `sharing`); all are enforced by import-graph tests.
+`classroom` imports only `lessons`, `challenges` and `storage`, and `sharing` only `circuit` and `storage`: neither computes a quantum value and nothing below `api` imports either.
 The LLM sits at the top of the stack and can only read results.
 
 ## 2. Repository layout
@@ -180,6 +181,7 @@ Details in `AI_BOUNDARY.md`.
 | Challenge attempt log (server verdicts, per-check outcomes, result ids) | SQLite table `challenge_attempts` | The debugger reads a judged attempt by id; no user column, so it is not a learner profile |
 | Lesson progress, challenge outcomes, activity streak, welcome dismissal | Browser `localStorage`, versioned keys | No accounts; each is shape-checked and reconciled on load |
 | Classroom: classes (code, hash of the instructor key), anonymous learners (hash of the token), memberships, learner events | SQLite tables `classes`, `learners`, `memberships`, `learner_events` | Only for a learner who joined a class; no name, email or address column exists. Events older than `QENTOR_CLASSROOM_RETENTION_DAYS` (default 180) are purged at start; deleting a class deletes its events |
+| Shared experiments (the circuit, its hash, backend and mode, an optional lesson/challenge and result id, an optional plain-text title) | SQLite table `shared_experiments` | An immutable snapshot with no owner column: nothing about the sharer, a class or the server is stored. The result itself is not copied: the share names one provenance record |
 | Class code, learner token, instructor keys of classes this browser created | Browser `localStorage` key `qentor.classroom.v1` | The token is this browser's anonymous identity; the instructor key is the only way back into a dashboard |
 | Content | Python data modules (lessons, challenges) | Reviewable, testable |
 
@@ -224,6 +226,8 @@ server process. Recorded hardware runs are not built.
 
 | `POST /api/classes`, `POST /api/classes/join`, `GET /api/classes/me`, `POST /api/classes/leave`, `POST /api/classes/sync-progress` | Create a class (returns the class code and the instructor key, shown once); join by code; where this learner token stands; leave; count what a browser already did (the server grades each answer itself) |
 | `POST /api/learner-events` | A browser may report only `lesson_started`, `lesson_completed` (accepted only when the server's own record shows every concept check answered correctly) and `challenge_started`; identifiers only |
+| `POST /api/experiments`, `GET /api/experiments/{id}` | Share a circuit (and optionally one stored run of exactly that circuit) as a read-only page; read it. No endpoint lists, edits or deletes a share (see §16) |
+| `POST /api/circuit/parse-code` | Read pasted OpenQASM 3, Qiskit, Cirq or PennyLane text into the canonical circuit for a preview. Python is parsed, never executed; unsupported code is refused with its line (see §17) |
 | `GET /api/classes/{code}/dashboard`, `DELETE /api/classes/{code}` | The instructor's aggregate view and class deletion; both need the instructor key |
 
 Every request schema forbids extra fields, so a client has no field through which to send a result, a state or a verdict.
@@ -278,3 +282,55 @@ count what the browser already did; the server grades each saved answer itself.
 - Retention is `QENTOR_CLASSROOM_RETENTION_DAYS` (default 180) for events, applied at start; there is no export or per-learner erasure other
   than leaving and deleting the class.
 - No class can be discovered or listed; a class is reachable only by its code, and its dashboard only by its key.
+
+## 16. Read-only experiment sharing
+
+"Share as a read-only page" (`POST /api/experiments`) stores an **immutable snapshot**; `GET /api/experiments/{id}` serves it at
+`/shared/<id>`. It is collaboration by reading, not by editing: there is no real-time co-editing, no comment, no merge.
+
+- **What a share holds:** the canonical circuit and its hash, the backend and mode, an optional lesson or challenge id (shown by its authored
+  title), an optional title (plain text, 80 characters, control characters removed), and an optional result id.
+- **What the page shows:** the circuit as a diagram, its OpenQASM 3 and the Qiskit/Cirq/PennyLane text the SERVER writes from the circuit
+  (text only, never run), the backend and mode, and, if a run was attached, that run's stored provenance record through the same
+  provenance-carrying components as a live result (sampled or theoretical labelling included). A shared run shows what the server stored; the
+  sharer's browser contributes no number.
+- **Rules the server enforces:** the request schema forbids extra fields (no `result`, `payload`, `provenance_class`, `verification_status`,
+  owner, token or class); a run attaches only if it is a `STATE_CHECKED` record of exactly this circuit (hash match), and its backend, mode and
+  shot count come from the record, not the request; lesson and challenge ids are checked against the catalogs; the circuit must be one the
+  platform would run (limits); creation is rate-limited per client address.
+- **Privacy:** the table has no owner column and the response model has no field for a learner token, a class, an address, a path or a key.
+  Sharing while in a class records an `experiment_shared` event for the learner under their alias; the share itself carries nothing back to them.
+- **Read-only by construction:** the page has no field or action that changes the snapshot, and the router has exactly one write (insert) and
+  one read; there is no update, delete, list or search. If a stored circuit no longer validates it is not served; if the attached record is gone
+  or no longer matches, the page says so and shows no result.
+- **Fork into my Lab** copies the circuit into the visitor's own Lab in the browser (a deep copy, without any result) and sends nothing to the
+  server; the shared page is unchanged. Editing the fork cannot affect it.
+
+**Limits, stated plainly.** A shared page is public to anyone who has its address (an unguessable 64-bit id), and a share cannot be revoked or
+expired from the product: it can only be removed from the database. There is no per-share access control and no listing, so a lost link is
+lost. The attached provenance record stays in the provenance log as it always did.
+
+## 17. Code input (the safe SDK-code reader)
+
+"Import from code" in the Lab (Paste, Parse, Preview, Insert into Lab) reads OpenQASM 3, Qiskit, Cirq or PennyLane text into the canonical
+circuit. **Python is never executed**: `circuit/sdk_parse.py` calls `ast.parse` (which parses, it does not run anything) and walks the tree
+against an explicit allow-list. There is no `eval`, `exec`, `compile`, `__import__`, `getattr` or dynamic lookup in the module (a test reads the
+module's own syntax tree to prove it) and none in the web app either (a test scans the source).
+
+- **Documented subset.** Qiskit: `from qiskit import QuantumCircuit`, `qc = QuantumCircuit(n[, m])`, `qc.h/x/y/z/s/sdg/t/tdg/rx/ry/rz/cx/cz/cp/swap/ccx/
+  measure/measure_all/barrier`. Cirq: `import cirq`, `LineQubit`, `cirq.Circuit(...)`, `circuit.append(...)`, the same gates as `cirq.H`, `cirq.CNOT`,
+  `cirq.rx(θ)(q)`, `(cirq.S**-1)(q)`, `cirq.cphase`, `cirq.measure(q, key="c0")`. PennyLane: `qml.device("default.qubit", wires=n)`, one `def circuit():`
+  (optionally `@qml.qnode(dev)`) of `qml.Hadamard`, `qml.CNOT`, `qml.RX(θ, wires=q)` and the like, ending in `return qml.state()` or
+  `qml.probs/sample/counts(wires=...)`. Angles are numbers or expressions of numbers and `pi`; `pi` must be imported as Python requires. Qubits are
+  integer literals. The full list is returned with every refusal and shown in the UI.
+- **Refused, with the line:** loops, conditionals, functions (other than the one PennyLane circuit), classes, comprehensions, lambdas, f-strings,
+  other imports, any call that is not a gate, attribute chains, keyword arguments in qubit positions, computed or negative indices, registers,
+  parameters, other devices, unknown gates, wrong argument counts, an index outside the circuit. Up to five problems are listed; a program with any
+  problem is refused whole, so nothing is skipped, guessed or silently translated.
+- **Limits.** 20,000 characters, 600 lines, 30 levels of brackets, 500 operations, 16 qubits; deeply nested or pathological text is a refusal, not a
+  crash. Notes say what the reader decided (`measure_all` adds classical bits as Qiskit does; a `barrier` has no effect and is not kept; a PennyLane
+  `return qml.probs(wires=[...])` is read as measuring those wires).
+- **Round trip.** Everything the server's own code generator writes for the shared fixtures, and for random circuits, is read back to the same
+  circuit in all three SDKs.
+- **No result and no insertion.** The endpoint returns the circuit, its OpenQASM 3, its hash and notes: never a number. The browser previews it,
+  and nothing reaches the Lab until the learner confirms (a second step if it would replace an existing circuit). Parsing is rate-limited per client.

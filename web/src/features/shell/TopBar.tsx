@@ -27,7 +27,7 @@ import type { ReactNode } from 'react'
 import { useBuildStore } from '@/features/build/store'
 import { ClassChip } from '@/features/classroom/ClassChip'
 
-export type Screen = 'lab' | 'learn' | 'challenges' | 'progress' | 'classroom'
+export type Screen = 'lab' | 'learn' | 'challenges' | 'progress' | 'classroom' | 'shared'
 
 const isMock = import.meta.env.VITE_USE_MOCK_API === 'true'
 
