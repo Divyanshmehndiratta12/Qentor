@@ -41,6 +41,48 @@ CREATE TABLE IF NOT EXISTS challenge_attempts (
     created_at      TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_attempts_challenge ON challenge_attempts (challenge_id);
+
+-- The anonymous classroom layer (qentor.classroom). No names, no emails, no accounts: a class is a short code plus an
+-- instructor capability (only its SHA-256 is stored), a learner is a random token (only its SHA-256 is stored), and an event is
+-- one useful learning fact the SERVER derived. Nothing here is a UI click log.
+CREATE TABLE IF NOT EXISTS classes (
+    class_id            TEXT PRIMARY KEY,
+    class_code          TEXT NOT NULL UNIQUE,
+    instructor_key_hash TEXT NOT NULL,
+    title               TEXT NOT NULL,
+    created_at          TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS learners (
+    learner_id  TEXT PRIMARY KEY,
+    secret_hash TEXT NOT NULL UNIQUE,
+    created_at  TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS memberships (
+    class_id   TEXT NOT NULL,
+    learner_id TEXT NOT NULL,
+    joined_at  TEXT NOT NULL,
+    left_at    TEXT,
+    PRIMARY KEY (class_id, learner_id)
+);
+CREATE INDEX IF NOT EXISTS idx_memberships_learner ON memberships (learner_id);
+
+-- dedupe_key makes a replayed idempotent event (started / completed / synced) a no-op: UNIQUE per learner and class.
+CREATE TABLE IF NOT EXISTS learner_events (
+    event_id    TEXT PRIMARY KEY,
+    class_id    TEXT NOT NULL,
+    learner_id  TEXT NOT NULL,
+    kind        TEXT NOT NULL,
+    subject_id  TEXT NOT NULL,
+    outcome     TEXT,
+    detail_json TEXT NOT NULL,
+    dedupe_key  TEXT,
+    created_at  TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_events_class ON learner_events (class_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_events_learner ON learner_events (class_id, learner_id, kind);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_events_dedupe ON learner_events (class_id, learner_id, dedupe_key) WHERE dedupe_key IS NOT NULL;
 """
 
 

@@ -35,6 +35,7 @@
 import { create } from 'zustand'
 import { getApiClient, BackendUnavailableError, EndpointNotImplementedError, GradeRejectedError } from '@/api'
 import type { Lesson, SavedAnswer } from '@/api'
+import { reportClassroomEvent } from '@/features/classroom/events'
 import { isLessonComplete, type ConceptCheckAttempt, type LessonProgress } from './lessonState'
 import { recordActivity, toLocalDateKey, type ActivityHistory } from './streak'
 import { loadActivityHistory, saveActivityHistory } from './streakStorage'
@@ -185,6 +186,7 @@ export const useLearnStore = create<LearnState>((set, get) => ({
       next.add(id)
       set({ startedLessonIds: next })
       persistProgress()
+      reportClassroomEvent('lesson_started', id) // a no-op unless this browser is in a class
     }
   },
 
@@ -215,6 +217,7 @@ export const useLearnStore = create<LearnState>((set, get) => ({
     const lesson = get().lessons.find((l) => l.id === lessonId)
     if (lesson && !isLessonComplete(lesson, existing) && isLessonComplete(lesson, updated)) {
       recordActivityToday()
+      reportClassroomEvent('lesson_completed', lessonId) // the server accepts it only if its own record of graded checks agrees
     }
   },
 

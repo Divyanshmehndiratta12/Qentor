@@ -858,3 +858,100 @@ export const GenerateCircuitResponseSchema = z.object({
   constraint_notes: z.array(z.string()),
 })
 export type GenerateCircuitResponse = z.infer<typeof GenerateCircuitResponseSchema>
+
+// ---------------------------------------------------------------------------------------------------------------------------
+// Classroom (backend/qentor/api/classroom.py, backend/qentor/classroom/dashboard.py). Anonymous: a learner is a random token held
+// by this browser; the instructor sees counts and aliases only. Every dashboard figure is a count the server made.
+
+export const CreateClassResponseSchema = z.object({
+  class_code: z.string(),
+  instructor_key: z.string(),
+  title: z.string(),
+  created_at: z.string(),
+  notice: z.string(),
+})
+
+export const JoinClassResponseSchema = z.object({
+  learner_token: z.string(),
+  alias: z.string(),
+  class_code: z.string(),
+  class_title: z.string(),
+  rejoined: z.boolean(),
+  new_identity: z.boolean(),
+})
+
+export const MyClassResponseSchema = z.object({
+  in_class: z.boolean(),
+  token_known: z.boolean(),
+  class_code: z.string().nullable().optional(),
+  class_title: z.string().nullable().optional(),
+  alias: z.string().nullable().optional(),
+  joined_at: z.string().nullable().optional(),
+})
+
+export const LeaveClassResponseSchema = z.object({ left: z.boolean() })
+export const SyncProgressResponseSchema = z.object({ recorded: z.number().int(), duplicates: z.number().int(), unknown: z.number().int() })
+export const LearnerEventResponseSchema = z.object({ status: z.enum(['RECORDED', 'DUPLICATE']) })
+export const DeleteClassResponseSchema = z.object({ deleted: z.boolean(), events_deleted: z.number().int() })
+
+export const DashboardCheckRowSchema = z.object({ check_id: z.string(), concept: z.string(), answered: z.number().int(), correct: z.number().int() })
+export const DashboardLessonRowSchema = z.object({
+  lesson_id: z.string(),
+  title: z.string(),
+  started: z.number().int(),
+  completed: z.number().int(),
+  developing: z.number().int(),
+  assessment_answered: z.number().int(),
+  assessment_correct: z.number().int(),
+  checks: z.array(DashboardCheckRowSchema),
+})
+export const DashboardFailurePatternSchema = z.object({ check_id: z.string(), label: z.string(), count: z.number().int(), learners: z.number().int() })
+export const DashboardChallengeRowSchema = z.object({
+  challenge_id: z.string(),
+  title: z.string(),
+  lesson_id: z.string(),
+  started: z.number().int(),
+  attempting_learners: z.number().int(),
+  attempts: z.number().int(),
+  solved_learners: z.number().int(),
+  failed_attempts: z.number().int(),
+  failure_patterns: z.array(DashboardFailurePatternSchema),
+})
+export const DashboardMisconceptionSchema = z.object({
+  kind: z.string(),
+  category: z.string(),
+  lesson_id: z.string(),
+  challenge_id: z.string().nullable(),
+  learners_affected: z.number().int(),
+  still_incorrect: z.number().int().nullable(),
+  sample_size: z.number().int(),
+  explanation: z.string().nullable(),
+})
+export const DashboardRecentSchema = z.object({
+  alias: z.string(),
+  kind: z.string(),
+  subject_id: z.string(),
+  subject_label: z.string(),
+  outcome: z.string().nullable(),
+  created_at: z.string(),
+})
+export const ClassDashboardResponseSchema = z.object({
+  class_info: z.object({ class_code: z.string(), title: z.string(), created_at: z.string() }),
+  sample: z.object({
+    learners_in_class: z.number().int(),
+    learners_left: z.number().int(),
+    active_learners: z.number().int(),
+    active_window_days: z.number().int(),
+    events_total: z.number().int(),
+  }),
+  empty: z.boolean(),
+  data_note: z.string(),
+  lessons: z.array(DashboardLessonRowSchema),
+  challenges: z.array(DashboardChallengeRowSchema),
+  misconceptions: z.array(DashboardMisconceptionSchema),
+  recent: z.array(DashboardRecentSchema),
+})
+export type ClassDashboardResponse = z.infer<typeof ClassDashboardResponseSchema>
+
+// A structured refusal from a classroom endpoint: `{detail: {code, message}}`.
+export const ClassroomErrorDetailSchema = z.object({ code: z.string(), message: z.string() }).passthrough()

@@ -11,7 +11,14 @@ import asyncio
 from qentor.api import app as app_module
 
 
-def http(method: str, path: str, body: bytes | None = None, content_type: str = "application/json") -> tuple[int, bytes]:
+def http(
+    method: str,
+    path: str,
+    body: bytes | None = None,
+    content_type: str = "application/json",
+    headers: dict[str, str] | None = None,
+    client: tuple[str, int] = ("127.0.0.1", 1234),
+) -> tuple[int, bytes]:
     async def run() -> tuple[int, bytes]:
         sent: list[dict] = []
         pending = [{"type": "http.request", "body": body or b"", "more_body": False}]
@@ -22,9 +29,11 @@ def http(method: str, path: str, body: bytes | None = None, content_type: str = 
         async def send(message: dict) -> None:
             sent.append(message)
 
-        headers = [(b"host", b"testserver")]
+        header_list = [(b"host", b"testserver")]
         if body is not None:
-            headers += [(b"content-type", content_type.encode()), (b"content-length", str(len(body)).encode())]
+            header_list += [(b"content-type", content_type.encode()), (b"content-length", str(len(body)).encode())]
+        for name, value in (headers or {}).items():
+            header_list.append((name.lower().encode(), value.encode()))
         scope = {
             "type": "http",
             "asgi": {"version": "3.0"},
@@ -34,9 +43,9 @@ def http(method: str, path: str, body: bytes | None = None, content_type: str = 
             "path": path,
             "raw_path": path.encode(),
             "query_string": b"",
-            "headers": headers,
+            "headers": header_list,
             "server": ("testserver", 80),
-            "client": ("127.0.0.1", 1234),
+            "client": client,
             "root_path": "",
         }
         await app_module.app(scope, receive, send)

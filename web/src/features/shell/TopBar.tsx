@@ -25,8 +25,9 @@
  */
 import type { ReactNode } from 'react'
 import { useBuildStore } from '@/features/build/store'
+import { ClassChip } from '@/features/classroom/ClassChip'
 
-export type Screen = 'lab' | 'learn' | 'challenges' | 'progress'
+export type Screen = 'lab' | 'learn' | 'challenges' | 'progress' | 'classroom'
 
 const isMock = import.meta.env.VITE_USE_MOCK_API === 'true'
 
@@ -127,6 +128,7 @@ export function TopBar({
       <div data-testid="guide-slot" className="relative order-2 mx-1 h-10 min-w-11 flex-1 sm:mx-3 md:order-none md:h-full">
         {guideSlot}
       </div>
+      <ClassChip active={screen === 'classroom'} onOpen={() => onNavigate('classroom')} />
 
       {screen === 'lab' && (
         <div className="order-3 flex items-center gap-2.5 md:order-none">

@@ -39,6 +39,8 @@ import {
   type LessonSectionResponse,
   type TraceResponse,
 } from '@/provenance/schema'
+import * as classroom from './classroomHttp'
+import { learnerHeaders } from './learnerToken'
 import {
   BackendUnavailableError,
   GenerationFailedError,
@@ -51,7 +53,13 @@ import {
   type Challenge,
   type ChallengeSubmission,
   type CircuitProposal,
+  type ClassCreated,
+  type ClassDashboard,
+  type ClassJoined,
+  type ClassMembership,
+  type ClassSyncResult,
   type CodeViewsResult,
+  type LearnerEventKind,
   type GenerationRequestInput,
   type GenerationStatus,
   type ConceptCheckGrade,
@@ -279,12 +287,12 @@ export class RealApiClient implements ApiClient {
    * POST a JSON body, parse the answer with `schema`. Used by the read-only Lab endpoints below: each sends the
    * canonical circuit(s) and nothing else, so no probability, statevector, verdict or piece of code can be attached.
    */
-  private async postParsed<S extends z.ZodType>(path: string, body: unknown, schema: S): Promise<z.infer<S>> {
+  private async postParsed<S extends z.ZodType>(path: string, body: unknown, schema: S, extraHeaders: Record<string, string> = {}): Promise<z.infer<S>> {
     let res: Response
     try {
       res = await fetch(`${this.baseUrl}${path}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...extraHeaders },
         body: JSON.stringify(body),
       })
     } catch (err) {
@@ -395,6 +403,7 @@ export class RealApiClient implements ApiClient {
       `/api/challenges/${encodeURIComponent(challengeId)}/submit`,
       { circuit: CircuitSchema.parse(circuit) },
       ChallengeSubmitResponseSchema,
+      learnerHeaders(),
     )
     return {
       attemptId: response.attempt_id,
@@ -562,6 +571,38 @@ export class RealApiClient implements ApiClient {
     }
   }
 
+  createClass(title?: string): Promise<ClassCreated> {
+    return classroom.createClass(this.baseUrl, title)
+  }
+
+  joinClass(classCode: string, learnerToken: string | null): Promise<ClassJoined> {
+    return classroom.joinClass(this.baseUrl, classCode, learnerToken)
+  }
+
+  getMyClass(learnerToken: string): Promise<ClassMembership> {
+    return classroom.getMyClass(this.baseUrl, learnerToken)
+  }
+
+  leaveClass(learnerToken: string): Promise<boolean> {
+    return classroom.leaveClass(this.baseUrl, learnerToken)
+  }
+
+  syncClassProgress(learnerToken: string, answers: SavedAnswer[]): Promise<ClassSyncResult> {
+    return classroom.syncClassProgress(this.baseUrl, learnerToken, answers)
+  }
+
+  reportLearnerEvent(learnerToken: string, kind: LearnerEventKind, subjectId: string): Promise<'RECORDED' | 'DUPLICATE'> {
+    return classroom.reportLearnerEvent(this.baseUrl, learnerToken, kind, subjectId)
+  }
+
+  getClassDashboard(classCode: string, instructorKey: string): Promise<ClassDashboard> {
+    return classroom.getClassDashboard(this.baseUrl, classCode, instructorKey)
+  }
+
+  deleteClass(classCode: string, instructorKey: string): Promise<{ eventsDeleted: number }> {
+    return classroom.deleteClass(this.baseUrl, classCode, instructorKey)
+  }
+
   async listLessons(): Promise<Lesson[]> {
     let res: Response
     try {
@@ -601,7 +642,7 @@ export class RealApiClient implements ApiClient {
         `${this.baseUrl}/api/lessons/${encodeURIComponent(lessonId)}/concept-checks/${encodeURIComponent(checkId)}/grade`,
         {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...learnerHeaders() },
           body: JSON.stringify({ selected_option_id: selectedOptionId }),
         },
       )

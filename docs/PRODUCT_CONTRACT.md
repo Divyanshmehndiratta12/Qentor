@@ -50,7 +50,7 @@ The deck defines six stages. The owner's eight-stage brief maps onto them as fol
 ## 5. Users
 
 - **Primary:** undergraduate learners in Indian colleges meeting quantum algorithms for the first time, with no lab access.
-- **Secondary:** instructors. The deck mentions misconception tracking for learners (Deck p3). Instructor dashboards appear only in a draft slide, so they are P2.
+- **Secondary:** instructors. The deck mentions misconception tracking for learners (Deck p3). Instructor dashboards appear only in a draft slide, so they are P2; the anonymous class dashboard exists (no accounts, no personal data; `ARCHITECTURE.md` §15).
 - **Demo user:** an SIH judge who will try to break the AI and will ask whether hardware results are real.
 
 ## 6. Scope

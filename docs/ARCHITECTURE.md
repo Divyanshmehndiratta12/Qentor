@@ -23,15 +23,17 @@ FastAPI  ───────────────────────�
   content/        cross-catalog content validation (lessons, challenges, gate support, routes, the simulator); run by tests and a script, never at request time
   tutor/          fact sheets, LLM adapter, claim guard, deterministic answers, debugger, comparison facts
   provenance/     provenance records and store, challenge attempt log (writers: only api/ calls them)
+  classroom/      anonymous classes: capability tokens, learner events, the instructor's aggregate (a writer: only api/ calls it; see §15)
   storage/        SQLite connection and schema (QENTOR_DB_PATH)
-  (not built: recorded/live hardware adapters, learning/ on the server: learner state is browser-local)
+  (not built: recorded/live hardware adapters; lesson progress itself is browser-local, the server holds only the classroom events of a learner who joined a class)
 ────────────────────────────────────────────────────────────────────────
 ```
 
 Dependency direction is one way: `api → tutor → verification / challenges → execution → circuit`
 (`content` sits beside `api`: it reads `lessons`, `challenges` and `execution`, and nothing imports it at runtime).
 **Nothing in `execution`, `verification` or `challenges` imports `tutor`, and `tutor` never imports a
-provenance writer** (`provenance.store`, `provenance.attempts`); both are enforced by import-graph tests.
+provenance writer** (`provenance.store`, `provenance.attempts`) **or the classroom writer** (`classroom`); all are enforced by import-graph tests.
+`classroom` itself imports only `lessons`, `challenges` and `storage`: it computes no quantum value and nothing below `api` imports it.
 The LLM sits at the top of the stack and can only read results.
 
 ## 2. Repository layout
@@ -161,7 +163,7 @@ Details in `AI_BOUNDARY.md`.
 - **Challenges** are backend-owned data (`backend/qentor/challenges/`): goal, constraints (qubits, allowed gates, size, required gates, a locked "anchor" (the fixed oracle, decoder or corrections, named by `anchor_name`), gates limited to certain qubits, required measurements), checks, authored hints and coaching, and a reference solution that must pass its own spec (tested). Fourteen exist: create |1>, |+>, |->, a Bell state, a phase change, interference, phase kickback, ONE fixed Deutsch-Jozsa and ONE fixed Bernstein-Vazirani oracle, and (Sprint 2) create |+> and verify its Bloch direction, a Bell state shown through each qubit's own reduced state, superdense coding of message 10 (fixed decoder; the encoding gates may only act on Alice's qubit), teleportation of the fixed ry(1.0) state (fixed deferred corrections) and Grover's search for the item 01 (fixed oracle). There is no oracle synthesis.
 - **Evaluation is deterministic and on the server** (`challenges/evaluate.py`): structure rules on the canonical model, then the learner's circuit is traced on Aer (every step a provenance record) and each check compares backend statevectors with states the same adapter produced for reference circuits. No LLM is involved in any verdict. Reference solutions and target circuits are never sent to the browser. Besides whole-state and probability checks there is a per-qubit check (the backend compares one qubit's own Bloch vector, from its reduced density matrix, with that qubit in a reference run) and a substitution option: a check can run the learner's circuit AGAIN with the locked part swapped (Grover with an oracle marking |10> instead) and judge that second backend run, which is recorded as its own provenance step. A circuit that hard-codes the answer passes the plain check and fails the substituted one. The locked part is matched exactly, except that a CZ with its two qubits named the other way round is the same gate.
 - **Mastery, misconceptions and recommendation** are pure functions of what the browser saved (`web/src/features/learn/`): completion, concept-check accuracy (mastered at 80%), misconception signals, prerequisites and challenge outcomes. The recommendation (`recommendation.ts`) is a fixed rule order, carries its evidence, and says no AI is involved.
-- **Learner report:** Progress shows one learner's record from this browser. There is no cohort or instructor data because there are no accounts, and none is invented.
+- **Learner report:** Progress shows one learner's record from this browser. A learner who joins a class (§15) is also counted, anonymously, in that class's instructor view; there are still no accounts, and no cohort figure is ever invented: with nobody in a class the dashboard says so.
 
 ## 10. Internationalisation
 
@@ -177,6 +179,8 @@ Details in `AI_BOUNDARY.md`.
 | Provenance log (every execution, trace step, agreement and comparison) | SQLite table `results` | Tutor and debugger fact lookup; audit trail |
 | Challenge attempt log (server verdicts, per-check outcomes, result ids) | SQLite table `challenge_attempts` | The debugger reads a judged attempt by id; no user column, so it is not a learner profile |
 | Lesson progress, challenge outcomes, activity streak, welcome dismissal | Browser `localStorage`, versioned keys | No accounts; each is shape-checked and reconciled on load |
+| Classroom: classes (code, hash of the instructor key), anonymous learners (hash of the token), memberships, learner events | SQLite tables `classes`, `learners`, `memberships`, `learner_events` | Only for a learner who joined a class; no name, email or address column exists. Events older than `QENTOR_CLASSROOM_RETENTION_DAYS` (default 180) are purged at start; deleting a class deletes its events |
+| Class code, learner token, instructor keys of classes this browser created | Browser `localStorage` key `qentor.classroom.v1` | The token is this browser's anonymous identity; the instructor key is the only way back into a dashboard |
 | Content | Python data modules (lessons, challenges) | Reviewable, testable |
 
 The database path is `backend/data/qentor.db` (git-ignored) or `QENTOR_DB_PATH`. SQLite is enough for one
@@ -218,4 +222,59 @@ server process. Recorded hardware runs are not built.
 | `POST /api/tutor`, `GET /api/lessons`, `GET /api/health` | Tutor (result, lesson, trace-step context), lesson catalog (a concept check is served as its question and options only: no answer key, no explanation), liveness |
 | `POST /api/lessons/{lesson_id}/concept-checks/{check_id}/grade`, `POST /api/assessments/regrade` | The server grades a concept-check selection against the lesson's own key and returns correctness and the explanation; the batch form grades saved selections again after a reload (each on its own, so one stale entry cannot sink the rest). A malformed body is `422 GRADE_REQUEST_INVALID`, structured like every other refusal |
 
+| `POST /api/classes`, `POST /api/classes/join`, `GET /api/classes/me`, `POST /api/classes/leave`, `POST /api/classes/sync-progress` | Create a class (returns the class code and the instructor key, shown once); join by code; where this learner token stands; leave; count what a browser already did (the server grades each answer itself) |
+| `POST /api/learner-events` | A browser may report only `lesson_started`, `lesson_completed` (accepted only when the server's own record shows every concept check answered correctly) and `challenge_started`; identifiers only |
+| `GET /api/classes/{code}/dashboard`, `DELETE /api/classes/{code}` | The instructor's aggregate view and class deletion; both need the instructor key |
+
 Every request schema forbids extra fields, so a client has no field through which to send a result, a state or a verdict.
+
+## 15. Anonymous classroom
+
+A class gives an instructor an aggregate view of the learners who joined it, with no accounts and no personal data. It is a small
+capability model, not an authentication system.
+
+**Capabilities (server-issued bearer secrets).** Nothing is authorised by a field a client says about itself; there is no `role`, no
+instructor id and no learner id in any request.
+
+| Capability | Issued when | Format | What it allows |
+|---|---|---|---|
+| Class code | A class is created | 8 characters from a 31-symbol alphabet with no look-alikes (`ABCD-2345`) | Joining that class. It identifies nobody and opens nothing else |
+| Instructor key | A class is created (shown once) | `qi_` + 192 random bits | Reading that class's dashboard and deleting that class. Bound to that one class |
+| Learner token | A learner first joins | `ql_` + 192 random bits | Being one anonymous learner: reporting that learner's events, leaving, rejoining. Sent only as the `X-Qentor-Learner` header, never in a URL |
+
+Only the SHA-256 of a key or token is stored, compared in constant time. An unknown class and a wrong key get the same 403, and failed
+instructor attempts are rate-limited per client address, so a key cannot be searched for or a class code probed. A learner appears to the
+instructor only as an alias (`Learner 4F2A`, a one-way hash of an internal id), never as a token, id or address.
+
+**Events.** The server records the minimum that is useful: joined class, started and completed a lesson, concept check submitted or corrected
+(or brought from this browser's earlier answers), challenge started, solved or failed, experiment shared. A click is not an event. Most are
+**derived by the server** from requests it already handles: grading a concept check records the check and its server verdict, judging a
+challenge records solved or failed with the ids of the failed checks, sharing records a share. A browser may **claim** only `lesson_started`,
+`lesson_completed` and `challenge_started`, as identifiers: the id is checked against the catalogs, and a lesson counts as finished only if
+the server's own record shows the learner answered every concept check correctly. A replay is a no-op (unique on class, learner and a
+dedupe key), a learner is capped at 5,000 events per class, and a malformed or unknown event is a structured refusal that echoes nothing.
+
+**The dashboard** (`qentor/classroom/dashboard.py`) is computed only from those events, for learners who are in the class now: learners and
+active learners (event in the last 7 days), lesson started / completed / still developing, concept-check correctness (latest answer per
+learner and check), common misconceptions (concept-check categories, and the authored idea behind a failed challenge check), challenge attempts,
+solves and where attempts fail, and recent activity by alias. Every group carries its sample size. With nobody in the class it returns an empty
+view and the page says "No learners have joined this class yet."; no figure is padded, averaged or invented. A learner who leaves is no longer
+in the aggregate (their rows are kept until retention or class deletion).
+
+**Browser side.** `web/src/features/classroom/`: a store (`qentor.classroom.v1`, shape-checked on load), Join class with the code validated by
+the server, a quiet class indicator in the top bar, Leave class (removes the membership only: the token is kept so rejoining is the same
+learner, and no local progress is touched), Teach a class (create, copy the code and the one-time key, open the dashboard, delete). Joining can
+count what the browser already did; the server grades each saved answer itself.
+
+**Limits, stated plainly.**
+
+- A token or key is a bearer secret: whoever holds it is that learner or that instructor. There is no recovery, no revocation (deleting the
+  class is the instructor's only reset) and no second instructor. A learner who clears their browser data is a new anonymous learner.
+- Rate limits are in memory, per process and per client address as the socket reports it. They reset on restart and are not shared between
+  workers; behind a reverse proxy every client may share one address unless the proxy's headers are configured (not done here).
+- Transport security is the deployment's job (HTTPS); nothing here encrypts traffic.
+- Anonymous does not mean unobservable: an instructor of a very small class can often guess who an alias is. The dashboard says how many
+  learners every figure is based on.
+- Retention is `QENTOR_CLASSROOM_RETENTION_DAYS` (default 180) for events, applied at start; there is no export or per-learner erasure other
+  than leaving and deleting the class.
+- No class can be discovered or listed; a class is reachable only by its code, and its dashboard only by its key.

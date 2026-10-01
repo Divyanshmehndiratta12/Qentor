@@ -28,7 +28,13 @@ import type {
   Challenge,
   ChallengeSubmission,
   CircuitProposal,
+  ClassCreated,
+  ClassDashboard,
+  ClassJoined,
+  ClassMembership,
+  ClassSyncResult,
   ConceptCheckGrade,
+  LearnerEventKind,
   DebugReport,
   DebugRequestInput,
   RegradedAnswer,
@@ -182,6 +188,39 @@ export class MockApiClient implements ApiClient {
 
   async regradeConceptChecks(_answers: SavedAnswer[]): Promise<RegradedAnswer[]> {
     throw new EndpointNotImplementedError('POST /api/assessments/regrade (the FIXTURE mock adapter cannot grade)')
+  }
+
+  /** Deliberately NOT faked: classes, learners and events exist only on the server. */
+  async createClass(_title?: string): Promise<ClassCreated> {
+    throw new EndpointNotImplementedError('POST /api/classes (the FIXTURE mock adapter has no classroom)')
+  }
+
+  async joinClass(_classCode: string, _learnerToken: string | null): Promise<ClassJoined> {
+    throw new EndpointNotImplementedError('POST /api/classes/join (the FIXTURE mock adapter has no classroom)')
+  }
+
+  async getMyClass(_learnerToken: string): Promise<ClassMembership> {
+    throw new EndpointNotImplementedError('GET /api/classes/me (the FIXTURE mock adapter has no classroom)')
+  }
+
+  async leaveClass(_learnerToken: string): Promise<boolean> {
+    throw new EndpointNotImplementedError('POST /api/classes/leave (the FIXTURE mock adapter has no classroom)')
+  }
+
+  async syncClassProgress(_learnerToken: string, _answers: SavedAnswer[]): Promise<ClassSyncResult> {
+    throw new EndpointNotImplementedError('POST /api/classes/sync-progress (the FIXTURE mock adapter has no classroom)')
+  }
+
+  async reportLearnerEvent(_learnerToken: string, _kind: LearnerEventKind, _subjectId: string): Promise<'RECORDED' | 'DUPLICATE'> {
+    throw new EndpointNotImplementedError('POST /api/learner-events (the FIXTURE mock adapter has no classroom)')
+  }
+
+  async getClassDashboard(_classCode: string, _instructorKey: string): Promise<ClassDashboard> {
+    throw new EndpointNotImplementedError('GET /api/classes/{code}/dashboard (the FIXTURE mock adapter has no classroom)')
+  }
+
+  async deleteClass(_classCode: string, _instructorKey: string): Promise<{ eventsDeleted: number }> {
+    throw new EndpointNotImplementedError('DELETE /api/classes/{code} (the FIXTURE mock adapter has no classroom)')
   }
 
   /** Deliberately NOT faked: the export bundle is written by the server. */

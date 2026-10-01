@@ -37,6 +37,8 @@ import { NextStep } from '@/features/challenges/NextStep'
 import { WelcomeCard, rememberWelcomeDismissed, welcomeDismissed } from '@/features/shell/WelcomeCard'
 import { ProgressScreen } from '@/features/progress/ProgressScreen'
 import { TutorPanel } from '@/features/tutor/TutorPanel'
+import { ClassroomScreen } from '@/features/classroom/ClassroomScreen'
+import { useClassroomStore } from '@/features/classroom/store'
 import { TopBar, type Screen } from '@/features/shell/TopBar'
 import { decodeShareFragment } from '@/features/share/shareLink'
 import { challengeIdFromPath, pathForChallenge, pathForScreen, screenFromPath } from '@/features/shell/routes'
@@ -73,6 +75,11 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- once, on first load
   }, [])
   const selectLesson = useLearnStore((s) => s.selectLesson)
+  const confirmMembership = useClassroomStore((s) => s.confirmMembership)
+  // Ask the server where this browser's learner token stands, so the class indicator shows the truth (a deleted class, for instance).
+  useEffect(() => {
+    void confirmMembership()
+  }, [confirmMembership])
 
   // The Guide is offered where there is something to be guided through.
   const guideScreen = screen === 'lab' || screen === 'learn' ? screen : null
@@ -205,6 +212,10 @@ function App() {
       ) : screen === 'learn' ? (
         <main id="main-content" tabIndex={-1} className="min-h-0 flex-1 outline-none">
           <LearnScreen onOpenLab={openInLab} onOpenChallenge={openChallenge} />
+        </main>
+      ) : screen === 'classroom' ? (
+        <main id="main-content" tabIndex={-1} className="min-h-0 flex-1 overflow-auto bg-void-950 outline-none">
+          <ClassroomScreen />
         </main>
       ) : screen === 'challenges' ? (
         <ChallengesScreen

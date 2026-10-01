@@ -27,13 +27,17 @@ LLM layer existed.
 from __future__ import annotations
 
 import hashlib
+import os
+from typing import Annotated
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.exception_handlers import request_validation_exception_handler
 from fastapi.responses import JSONResponse
 
 from qentor.challenges import CHALLENGES, evaluate_challenge, get_challenge, public_view
+from qentor.classroom import ClassroomStore
+from qentor.classroom.store import DEFAULT_RETENTION_DAYS
 from qentor.circuit.codegen import CODEGEN_VERSION, generate_all
 from qentor.circuit.hashing import circuit_hash
 from qentor.circuit.qasm import to_qasm3
@@ -90,6 +94,7 @@ from qentor.verification.multi_input_harness import (
 )
 from qentor.verification.optimizer import optimize_circuit
 
+from . import classroom as classroom_api
 from .static_site import frontend_dist, mount_frontend
 from .schemas import (
     AgreementBackendResponse,
@@ -183,6 +188,21 @@ _adapters = {
 }
 _store = ProvenanceStore()
 _attempts = AttemptStore()
+# The anonymous classroom layer (qentor.classroom): classes, anonymous learners and the learning events this server derives.
+_classroom = ClassroomStore()
+CLASSROOM_RETENTION_ENV = "QENTOR_CLASSROOM_RETENTION_DAYS"
+
+
+def _purge_old_classroom_events() -> int:
+    """Retention: delete classroom events older than QENTOR_CLASSROOM_RETENTION_DAYS (default 180) when the process starts."""
+    try:
+        days = int(os.environ.get(CLASSROOM_RETENTION_ENV, DEFAULT_RETENTION_DAYS))
+    except ValueError:
+        days = DEFAULT_RETENTION_DAYS
+    return _classroom.purge_events_older_than(max(1, days))
+
+
+_purge_old_classroom_events()
 # None unless QENTOR_TUTOR_LLM_ENABLED and an API key are both set in the
 # server's own environment (qentor.tutor.config) — read once at process
 # startup, like _adapter/_store above. See backend/.env.example.
@@ -1306,7 +1326,12 @@ def list_lessons() -> LessonCatalogResponse:
     "/api/lessons/{lesson_id}/concept-checks/{check_id}/grade",
     response_model=ConceptCheckGradeResponse,
 )
-def grade_concept_check_endpoint(lesson_id: str, check_id: str, request: ConceptCheckGradeRequest) -> ConceptCheckGradeResponse:
+def grade_concept_check_endpoint(
+    lesson_id: str,
+    check_id: str,
+    request: ConceptCheckGradeRequest,
+    x_qentor_learner: Annotated[str | None, Header(alias="X-Qentor-Learner")] = None,
+) -> ConceptCheckGradeResponse:
     """Grade one concept-check selection on the server (``qentor.lessons.grading``).
 
     The request carries the option id the learner picked and nothing else; the server compares it with the lesson's own
@@ -1319,6 +1344,9 @@ def grade_concept_check_endpoint(lesson_id: str, check_id: str, request: Concept
         outcome = grade_concept_check(lesson_id, check_id, request.selected_option_id)
     except GradeError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.detail()) from exc
+    # A learner in a class has this grading recorded as a classroom event, derived from the verdict computed just above; any other request
+    # (no token, an unknown token, a learner in no class) records nothing.
+    classroom_api.hook_concept_check(x_qentor_learner, lesson_id, check_id, request.selected_option_id, outcome.correct)
     return ConceptCheckGradeResponse(**outcome.model_dump())
 
 
@@ -1347,7 +1375,11 @@ def get_challenge_definition(challenge_id: str):
 
 
 @app.post("/api/challenges/{challenge_id}/submit", response_model=ChallengeSubmitResponse)
-def submit_challenge(challenge_id: str, request: ChallengeSubmitRequest) -> ChallengeSubmitResponse:
+def submit_challenge(
+    challenge_id: str,
+    request: ChallengeSubmitRequest,
+    x_qentor_learner: Annotated[str | None, Header(alias="X-Qentor-Learner")] = None,
+) -> ChallengeSubmitResponse:
     """Judge a circuit against a challenge, on the server, deterministically (``qentor.challenges.evaluate``).
 
     The learner's circuit is traced on Qiskit Aer; every step is an ordinary provenance record, and each check names the
@@ -1398,6 +1430,9 @@ def submit_challenge(challenge_id: str, request: ChallengeSubmitRequest) -> Chal
         checks=[c.model_dump(mode="json") for c in evaluation.checks],
     )
     _attempts.insert(attempt)
+    classroom_api.hook_challenge_attempt(
+        x_qentor_learner, challenge.id, evaluation.passed, [c.id for c in evaluation.checks if not c.passed]
+    )
 
     named = {c.result_id for c in evaluation.checks if c.result_id} | ({evaluation.final_result_id} - {None})
     provenance = {
@@ -1435,6 +1470,13 @@ def submit_challenge(challenge_id: str, request: ChallengeSubmitRequest) -> Chal
         success_message=challenge.success_message if evaluation.passed else None,
         created_at=attempt.created_at,
     )
+
+
+# The feature routers' routes are added to the app's own route list rather than through `include_router`, which in this FastAPI version wraps a
+# router in a lazy container: `app.routes` then no longer lists those endpoints as plain `APIRoute`s, and the route-inventory tests and the content
+# validator read it that way. They are registered here, before `mount_frontend`, so the SPA fallback can never shadow them.
+for _router in (classroom_api.router,):
+    app.router.routes.extend(_router.routes)
 
 
 # Last, so every /api route above wins: serve the production web build (web/dist) from this same process, with the

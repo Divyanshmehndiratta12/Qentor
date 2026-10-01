@@ -15,6 +15,7 @@ import { getApiClient, BackendUnavailableError, EndpointNotImplementedError } fr
 import type { Challenge, ChallengeSubmission } from '@/api'
 import type { Circuit } from '@/circuit/types'
 import { useBuildStore } from '@/features/build/store'
+import { reportClassroomEvent } from '@/features/classroom/events'
 import { recordChallengeActivity } from '@/features/learn/store'
 import {
   emptyRecord,
@@ -104,7 +105,10 @@ export const useChallengeStore = create<ChallengeState>((set, get) => ({
     const challenge = id === null ? null : get().challenges.find((c) => c.id === id)
     if (id !== null && !challenge) return // an unknown id selects nothing rather than pointing at nothing
     set({ selectedId: id, submission: null, submitError: null, submitErrorStatus: null, isSubmitting: false })
-    if (challenge) useBuildStore.getState().loadCircuit(challenge.starterCircuit)
+    if (challenge) {
+      useBuildStore.getState().loadCircuit(challenge.starterCircuit)
+      reportClassroomEvent('challenge_started', challenge.id) // a no-op unless this browser is in a class
+    }
   },
 
   revealHintsThrough: (challengeId, index) => {

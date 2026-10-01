@@ -551,6 +551,70 @@ WEB = [
 ]
 
 
+# --- Sprint 5: the anonymous classroom (capability tokens, server-derived events, the instructor's aggregate view) ---
+BACKEND += [
+    Mutant("classroom: a learner token is accepted whatever its shape", "backend/qentor/classroom/codes.py",
+           "    return isinstance(text, str) and bool(_RE_LEARNER.fullmatch(text))", "    return isinstance(text, str)", ["test_classroom.py"]),
+    Mutant("classroom: a wrong instructor key opens the class (instructor spoofing)", "backend/qentor/classroom/store.py",
+           'if row is None or not secrets_match(instructor_key, row["instructor_key_hash"]):', "if row is None:", ["test_classroom.py"]),
+    Mutant("classroom: failed instructor attempts are not rate-limited", "backend/qentor/api/classroom.py",
+           'enforce_limit("instructor_failures", ip)', "pass", ["test_classroom.py"]),
+    Mutant("classroom: the instructor key is stored in the clear", "backend/qentor/classroom/codes.py",
+           'return hashlib.sha256(secret.encode("utf-8")).hexdigest()\n\n\ndef secrets_match', "return secret\n\n\ndef secrets_match", ["test_classroom.py"]),
+    Mutant("classroom: the dashboard counts learners who left", "backend/qentor/classroom/store.py",
+           'm.learner_id = e.learner_id AND m.left_at IS NULL"', 'm.learner_id = e.learner_id"', ["test_classroom.py"]),
+    Mutant("classroom: a browser may claim a lesson finished without the server's record", "backend/qentor/classroom/service.py",
+           'if kind == "lesson_completed" and not self._lesson_complete_on_server(member, subject_id):', "if False:", ["test_classroom.py"]),
+    Mutant("classroom: a browser may claim a challenge solved (client-supplied metrics)", "backend/qentor/classroom/service.py",
+           'CLIENT_CLAIMABLE = ("lesson_started", "lesson_completed", "challenge_started")',
+           'CLIENT_CLAIMABLE = ("lesson_started", "lesson_completed", "challenge_started", "challenge_solved")', ["test_classroom.py"]),
+    Mutant("classroom: a replayed event is recorded again", "backend/qentor/classroom/service.py",
+           'subject_id, None, {}, dedupe_key=f"{kind}:{subject_id}")', "subject_id, None, {}, dedupe_key=None)", ["test_classroom.py"]),
+    Mutant("classroom: a synced answer is counted correct whatever the server grades", "backend/qentor/classroom/service.py",
+           '"correct" if graded.correct else "incorrect",\n                {"concept": self._concept(lesson_id, check_id), "option": option_id},',
+           '"correct",\n                {"concept": self._concept(lesson_id, check_id), "option": option_id},', ["test_classroom.py"]),
+    Mutant("classroom: the dashboard names a learner by its id, not an alias", "backend/qentor/classroom/dashboard.py",
+           "RecentRow(alias=alias_for(e.learner_id),", "RecentRow(alias=e.learner_id,", ["test_classroom.py"]),
+    Mutant("classroom: request bodies accept extra fields (a role, another learner, a metric)", "backend/qentor/api/classroom.py",
+           'class _Body(BaseModel):\n    model_config = ConfigDict(extra="forbid")', 'class _Body(BaseModel):\n    model_config = ConfigDict(extra="allow")', ["test_classroom.py"]),
+    Mutant("classroom: joining is not rate-limited (class codes can be guessed)", "backend/qentor/api/classroom.py",
+           'enforce_limit("join", client_key(http))', "pass", ["test_classroom.py"]),
+]
+
+WEB += [
+    Mutant("web: the learner token is sent after leaving the class", "web/src/features/classroom/store.ts",
+           "return learnerToken && membership ? learnerToken : null", "return learnerToken", ["src/features/classroom/classroom.test.tsx"]),
+    Mutant("web: events are reported by a learner who has left", "web/src/features/classroom/events.ts",
+           "if (!learnerToken || !membership) return", "if (!learnerToken) return", ["src/features/classroom/classroom.test.tsx"]),
+    Mutant("web: leaving forgets the anonymous learner", "web/src/features/classroom/store.ts",
+           "set({ membership: null, busy: 'idle' })", "set({ membership: null, learnerToken: null, busy: 'idle' })", ["src/features/classroom/classroom.test.tsx"]),
+    Mutant("web: rejoining does not present the token this browser already holds", "web/src/features/classroom/store.ts",
+           "await getApiClient().joinClass(classCode, get().learnerToken)", "await getApiClient().joinClass(classCode, null)", ["src/features/classroom/classroom.test.tsx"]),
+    Mutant("web: a class the server no longer has is still shown as joined", "web/src/features/classroom/store.ts",
+           "if (!me.inClass || !me.classCode) {", "if (false) {", ["src/features/classroom/classroom.test.tsx"]),
+    Mutant("web: an empty class does not say so", "web/src/features/classroom/InstructorDashboard.tsx",
+           "{d.empty ? (", "{false ? (", ["src/features/classroom/classroom.test.tsx"]),
+    Mutant("web: lessons nobody has touched are listed with their zeros", "web/src/features/classroom/InstructorDashboard.tsx",
+           "const lessons = d.lessons.filter((l) => l.started > 0 || l.completed > 0 || l.assessmentAnswered > 0)", "const lessons = d.lessons", ["src/features/classroom/classroom.test.tsx"]),
+    Mutant("web: the completed-lessons total adds the wrong column", "web/src/features/classroom/InstructorDashboard.tsx",
+           "d.lessons.reduce((sum, l) => sum + l.completed, 0)", "d.lessons.reduce((sum, l) => sum + l.started, 0)", ["src/features/classroom/classroom.test.tsx"]),
+    Mutant("web: a refused instructor key offers a retry that could be used to guess", "web/src/features/classroom/InstructorDashboard.tsx",
+           "const denied = err instanceof ClassroomRejectedError && (err.status === 403 || err.status === 401)", "const denied = false", ["src/features/classroom/classroom.test.tsx"]),
+    Mutant("web: earlier progress is sent even when the learner unticked the box", "web/src/features/classroom/ClassroomScreen.tsx",
+           "if (countExisting) setSummary(await syncLocalProgress())", "setSummary(await syncLocalProgress())", ["src/features/classroom/classroom.test.tsx"]),
+    Mutant("web: the stored learner token is not shape-checked", "web/src/features/classroom/storage.ts",
+           "return typeof value === 'string' && LEARNER_TOKEN.test(value)", "return typeof value === 'string'", ["src/features/classroom/storage.test.ts"]),
+    Mutant("web: syncing progress sends a verdict with each answer (client-supplied metric)", "web/src/api/classroomHttp.ts",
+           "lesson_id: a.lessonId, check_id: a.checkId, selected_option_id: a.selectedOptionId }))", "lesson_id: a.lessonId, check_id: a.checkId, selected_option_id: a.selectedOptionId, correct: true }))", ["src/api/realClient.classroom.test.ts"]),
+    Mutant("web: an event report names a role", "web/src/api/classroomHttp.ts",
+           "body: { kind, subject_id: subjectId },", "body: { kind, subject_id: subjectId, role: 'instructor' },", ["src/api/realClient.classroom.test.ts"]),
+    Mutant("web: the dashboard request does not carry the instructor key", "web/src/api/classroomHttp.ts",
+           "    headers: { [INSTRUCTOR_HEADER]: instructorKey },\n  })\n  return {\n    classCode: r.class_info.class_code,", "    headers: {},\n  })\n  return {\n    classCode: r.class_info.class_code,", ["src/api/realClient.classroom.test.ts"]),
+    Mutant("web: the learner token travels in the URL of a join", "web/src/api/classroomHttp.ts",
+           "const r = await call(baseUrl, 'POST', '/api/classes/join', JoinClassResponseSchema, {", "const r = await call(baseUrl, 'POST', `/api/classes/join?t=${learnerToken ?? ''}`, JoinClassResponseSchema, {", ["src/api/realClient.classroom.test.ts"]),
+]
+
+
 def run(cmd: list[str], cwd: Path) -> int:
     return subprocess.run(cmd, cwd=cwd, capture_output=True, text=True).returncode
 

@@ -86,7 +86,7 @@ Demo importance: **Critical** (the story breaks without it) · **High** · **Med
 | F1 | Progress tracking and mastery display | Deck p2 (6 Reflect), p3 step 6 | P0 | Built (browser-local, versioned) | SQLite + local storage | Mastery changes only on verified test events | High |
 | F2 | Misconception detection over time | Deck p3 step 6, p5 | P0 (per attempt) · P1 (history view) | Built (per attempt) | Rules over test reports | Rule unit tests | Medium |
 | F3 | Personalized path / next challenge | Deck p2 "next challenge", p3, p5 | P0 (rule-based) | Built (rule-based, with evidence) | Learning engine | Deterministic recommender unit tests | Medium |
-| F4 | Instructor misconception dashboards | Draft-Layered only | P2 | Partial (single-learner report; no cohort data exists) | SQLite aggregate | — | Low |
+| F4 | Instructor misconception dashboards | Draft-Layered only | P2 | Built for anonymous classes (Sprint 5): class code, one-time instructor key, server-derived events, aggregate misconceptions with sample sizes; no accounts, no cohort data invented | SQLite aggregate | `tests/test_classroom.py` | Low |
 
 ## Platform
 

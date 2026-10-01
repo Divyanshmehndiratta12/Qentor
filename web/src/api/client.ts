@@ -791,6 +791,165 @@ export interface ApiClient {
    * when a run is named, that run's provenance metadata (never its numbers). Sends only the circuit and an optional result id.
    */
   exportCircuit(circuit: Circuit, resultId?: string | null): Promise<CircuitExport>
+
+  /**
+   * POST /api/classes - create an anonymous class. Returns the class code to give learners and the instructor key, which the
+   * server shows ONCE (only its hash is stored). No name, email or account is involved.
+   */
+  createClass(title?: string): Promise<ClassCreated>
+
+  /**
+   * POST /api/classes/join - join a class by its code. The code is validated by the server. A learner token this browser already
+   * holds is sent so leaving and rejoining keeps the same anonymous learner; otherwise the server issues a new one.
+   */
+  joinClass(classCode: string, learnerToken: string | null): Promise<ClassJoined>
+
+  /** GET /api/classes/me - where the server says this learner token stands (in a class, or not). */
+  getMyClass(learnerToken: string): Promise<ClassMembership>
+
+  /** POST /api/classes/leave - leave the class. Nothing in this browser is deleted. Resolves with whether a membership ended. */
+  leaveClass(learnerToken: string): Promise<boolean>
+
+  /**
+   * POST /api/classes/sync-progress - tell the class which concept checks this browser already answered. Identifiers only: the
+   * server grades every selection itself, so an answer cannot claim to be right.
+   */
+  syncClassProgress(learnerToken: string, answers: SavedAnswer[]): Promise<ClassSyncResult>
+
+  /**
+   * POST /api/learner-events - report that the learner started a lesson, completed one or started a challenge. The server checks
+   * the id against its catalogs and accepts a completion only when its own record shows the lesson's checks answered correctly.
+   */
+  reportLearnerEvent(learnerToken: string, kind: LearnerEventKind, subjectId: string): Promise<'RECORDED' | 'DUPLICATE'>
+
+  /** GET /api/classes/{code}/dashboard - the instructor's aggregate view. Needs the instructor key issued at creation. */
+  getClassDashboard(classCode: string, instructorKey: string): Promise<ClassDashboard>
+
+  /** DELETE /api/classes/{code} - delete the class and every event recorded in it (instructor key required). */
+  deleteClass(classCode: string, instructorKey: string): Promise<{ eventsDeleted: number }>
+}
+
+export interface ClassCreated {
+  classCode: string
+  instructorKey: string
+  title: string
+  createdAt: string
+  notice: string
+}
+
+export interface ClassJoined {
+  learnerToken: string
+  alias: string
+  classCode: string
+  classTitle: string
+  rejoined: boolean
+  newIdentity: boolean
+}
+
+export interface ClassMembership {
+  inClass: boolean
+  tokenKnown: boolean
+  classCode: string | null
+  classTitle: string | null
+  alias: string | null
+  joinedAt: string | null
+}
+
+export interface ClassSyncResult {
+  recorded: number
+  duplicates: number
+  unknown: number
+}
+
+/** The only events a browser may report; everything else the server derives itself (answers, verdicts, shares). */
+export type LearnerEventKind = 'lesson_started' | 'lesson_completed' | 'challenge_started'
+
+export interface DashboardCheck {
+  checkId: string
+  concept: string
+  answered: number
+  correct: number
+}
+
+export interface DashboardLesson {
+  lessonId: string
+  title: string
+  started: number
+  completed: number
+  developing: number
+  assessmentAnswered: number
+  assessmentCorrect: number
+  checks: DashboardCheck[]
+}
+
+export interface DashboardFailurePattern {
+  checkId: string
+  label: string
+  count: number
+  learners: number
+}
+
+export interface DashboardChallenge {
+  challengeId: string
+  title: string
+  lessonId: string
+  started: number
+  attemptingLearners: number
+  attempts: number
+  solvedLearners: number
+  failedAttempts: number
+  failurePatterns: DashboardFailurePattern[]
+}
+
+export interface DashboardMisconception {
+  kind: string
+  category: string
+  lessonId: string
+  challengeId: string | null
+  learnersAffected: number
+  stillIncorrect: number | null
+  sampleSize: number
+  explanation: string | null
+}
+
+export interface DashboardRecent {
+  alias: string
+  kind: string
+  subjectId: string
+  subjectLabel: string
+  outcome: string | null
+  createdAt: string
+}
+
+/** Everything is a count the server made from events it recorded. `empty` is true when no learner is in the class. */
+export interface ClassDashboard {
+  classCode: string
+  title: string
+  createdAt: string
+  learnersInClass: number
+  learnersLeft: number
+  activeLearners: number
+  activeWindowDays: number
+  eventsTotal: number
+  empty: boolean
+  dataNote: string
+  lessons: DashboardLesson[]
+  challenges: DashboardChallenge[]
+  misconceptions: DashboardMisconception[]
+  recent: DashboardRecent[]
+}
+
+/** A structured refusal from a classroom endpoint (`detail = {code, message}`): a bad code, an unknown class, a rate limit. */
+export class ClassroomRejectedError extends Error {
+  readonly code: string
+  readonly status: number
+
+  constructor(code: string, message: string, status: number) {
+    super(message)
+    this.name = 'ClassroomRejectedError'
+    this.code = code
+    this.status = status
+  }
 }
 
 export interface CircuitExport {

@@ -6,7 +6,7 @@
  */
 import type { Screen } from './TopBar'
 
-const PATHS: Record<Screen, string> = { lab: '/', learn: '/learn', challenges: '/challenges', progress: '/progress' }
+const PATHS: Record<Screen, string> = { lab: '/', learn: '/learn', challenges: '/challenges', progress: '/progress', classroom: '/classroom' }
 
 function normalise(pathname: string): string {
   return pathname.length > 1 ? pathname.replace(/\/+$/, '') : pathname
