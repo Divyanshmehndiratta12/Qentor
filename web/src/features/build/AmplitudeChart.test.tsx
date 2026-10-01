@@ -147,6 +147,20 @@ describe('provenance and explanation', () => {
   })
 })
 
+describe('the bar can actually be seen (found in a real browser: the track was an inline span, so it had no size)', () => {
+  // jsdom does no layout, so the DOM tests above cannot tell a drawn bar from an invisible one. A real Chrome run measured the
+  // track at 0 x 0: it is a <span> and was display:inline, so its height and width were ignored. The track and the bar now
+  // carry Tailwind's `block` explicitly (and the stylesheet says display:block too), which is checkable here.
+  it('the track and the bar are explicitly block boxes (a <span> is inline, and inline boxes ignore height and width)', () => {
+    show()
+    const bar = screen.getByTestId('amplitude-bar-0')
+    const track = bar.parentElement!
+    expect(track.tagName).toBe('SPAN')
+    expect(track.classList.contains('amp-track') && track.classList.contains('block')).toBe(true)
+    expect(bar.classList.contains('amp-bar') && bar.classList.contains('block')).toBe(true)
+  })
+})
+
 describe('no quantum calculation happens while rendering the chart', () => {
   it('never calls a math primitive', () => {
     const spies = (['sqrt', 'hypot', 'pow', 'random', 'atan2', 'atan', 'cos', 'sin', 'acos', 'asin', 'exp', 'log'] as const).map((fn) => vi.spyOn(Math, fn))

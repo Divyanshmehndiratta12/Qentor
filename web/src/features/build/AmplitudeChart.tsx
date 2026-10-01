@@ -57,15 +57,17 @@ export function AmplitudeChart({ view, numQubits, labelled }: AmplitudeChartProp
             be observed.
           </p>
           <div className="max-h-64 overflow-auto">
-            <table className="w-full text-left text-xs">
+            <table className="w-full text-left text-[11px]">
               <thead>
                 <tr className="text-void-200">
-                  <th className="pb-1.5 font-medium">{labelled ? 'basis state' : 'index'}</th>
-                  <th className="pb-1.5 font-medium">size</th>
-                  <th className="pb-1.5 font-medium">phase</th>
-                  <th className="pb-1.5 text-right font-medium">amplitude</th>
-                  <th className="pb-1.5 text-right font-medium">angle</th>
-                  <th className="pb-1.5 text-right font-medium">outcome weight</th>
+                  <th className="pr-1.5 pb-1.5 font-medium">{labelled ? 'basis state' : 'index'}</th>
+                  <th className="pr-1.5 pb-1.5 font-medium">size</th>
+                  <th className="pr-1.5 pb-1.5 font-medium">phase</th>
+                  <th className="pr-1.5 pb-1.5 text-right font-medium">amplitude</th>
+                  <th className="pr-1.5 pb-1.5 text-right font-medium">angle</th>
+                  <th className="pb-1.5 text-right font-medium" title="outcome weight: the backend's figure for the chance of this outcome if the state were measured now">
+                    weight
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -76,17 +78,17 @@ export function AmplitudeChart({ view, numQubits, labelled }: AmplitudeChartProp
                     data-has-phase={row.phase === null ? 'false' : 'true'}
                     className={`border-t border-void-600 ${row.phase === null ? 'text-void-300' : 'text-slate-200'}`}
                   >
-                    <td className="py-1.5 font-mono-qasm">{labelled ? basisLabel(index, numQubits) : index}</td>
-                    <td className="w-24 py-1.5 pr-2">
-                      <span className="amp-track" role="img" aria-label={`amplitude size ${formatComponent(row.magnitude)}`}>
-                        <span className="amp-bar" data-testid={`amplitude-bar-${index}`} style={{ '--amp': row.magnitude } as CSSProperties} />
+                    <td className="py-1.5 pr-1.5 font-mono-qasm whitespace-nowrap">{labelled ? basisLabel(index, numQubits) : index}</td>
+                    <td className="w-10 min-w-10 py-1.5 pr-1.5">
+                      <span className="amp-track block" role="img" aria-label={`amplitude size ${formatComponent(row.magnitude)}`}>
+                        <span className="amp-bar block" data-testid={`amplitude-bar-${index}`} style={{ '--amp': row.magnitude } as CSSProperties} />
                       </span>
                     </td>
-                    <td className="py-1.5">
+                    <td className="py-1.5 pr-1.5">
                       {row.phase === null ? (
                         <span className="text-[10px] text-void-300">none</span>
                       ) : (
-                        <svg viewBox="0 0 24 24" className="h-6 w-6" role="img" aria-label={`phase ${formatAngle(row.phase)}`}>
+                        <svg viewBox="0 0 24 24" className="h-5 w-5" role="img" aria-label={`phase ${formatAngle(row.phase)}`}>
                           <circle cx={12} cy={12} r={10} fill="none" className="stroke-void-400" strokeWidth={1} />
                           <line
                             x1={12}
@@ -100,13 +102,13 @@ export function AmplitudeChart({ view, numQubits, labelled }: AmplitudeChartProp
                         </svg>
                       )}
                     </td>
-                    <td className="py-1.5 text-right" data-testid={`amplitude-size-${index}`}>
+                    <td className="py-1.5 pr-1.5 text-right whitespace-nowrap" data-testid={`amplitude-size-${index}`}>
                       <VerifiedValueInline quantum={toQuantumValue(row.magnitude, view.provenance)} render={formatComponent} />
                     </td>
-                    <td className="py-1.5 text-right" data-testid={`amplitude-angle-${index}`}>
+                    <td className="py-1.5 pr-1.5 text-right whitespace-nowrap" data-testid={`amplitude-angle-${index}`}>
                       <VerifiedValueInline quantum={toQuantumValue(row.phase, view.provenance)} render={formatAngle} />
                     </td>
-                    <td className="py-1.5 text-right" data-testid={`amplitude-weight-${index}`}>
+                    <td className="py-1.5 text-right whitespace-nowrap" data-testid={`amplitude-weight-${index}`}>
                       <VerifiedValueInline quantum={toQuantumValue(row.probability, view.provenance)} render={formatComponent} />
                     </td>
                   </tr>

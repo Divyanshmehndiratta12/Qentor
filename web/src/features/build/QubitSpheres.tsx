@@ -50,7 +50,9 @@ export function QubitSpheres({ qubitStates, numQubits }: QubitSpheresProps) {
             by the backend from this step’s statevector. An arrow of length 1 is a qubit in a pure state of its own; an
             arrow of length 0 is a qubit entangled with the rest of the register.
           </p>
-          <div className="grid gap-3 sm:grid-cols-2">
+          {/* as many columns as fit at 14rem each: the Lab's results panel is narrow even on a wide screen, so this is by the
+              panel's own width, not the viewport's (two cards squeezed into ~340px clipped their contents) */}
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(14rem,1fr))] gap-3">
             {qubitStates.map((state) => (
               <QubitCard key={state.qubit} state={state} />
             ))}
@@ -104,7 +106,7 @@ function QubitCard({ state }: { state: TraceQubitState }) {
 
   return (
     <div data-testid={`qubit-card-${state.qubit}`} data-status="OK" className={common}>
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="font-mono-qasm text-xs font-semibold text-slate-100">{name}</span>
         <ProvenanceBadge provenance={bloch.provenance} />
       </div>

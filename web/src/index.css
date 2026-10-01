@@ -72,6 +72,8 @@ body {
    and CSS lays them out. The bar is that fraction of the track; the arrow is turned by that many radians
    (counter-clockwise, so the SVG's downward y axis is undone here) and coloured by the matching hue. */
 .amp-track {
+  /* a <span>: without display:block its height and width are ignored and the bar has nothing to fill */
+  display: block;
   position: relative;
   height: 0.5rem;
   border-radius: 9999px;
