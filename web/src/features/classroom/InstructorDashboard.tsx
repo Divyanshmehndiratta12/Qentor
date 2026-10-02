@@ -143,6 +143,9 @@ export function InstructorDashboard({ classCode, instructorKey }: { classCode: s
             <h3 id="lessons-h" className={H2}>
               Lesson progress
             </h3>
+            <p className="mt-1 text-xs text-slate-400" data-testid="lessons-sample">
+              Each count is a number of learners, out of {noun(d.learnersInClass, 'anonymous learner')} in this class.
+            </p>
             {lessons.length === 0 ? (
               <p className="mt-2 text-sm text-slate-400">No lesson activity yet.</p>
             ) : (
@@ -203,6 +206,9 @@ export function InstructorDashboard({ classCode, instructorKey }: { classCode: s
             <h3 id="challenges-h" className={H2}>
               Challenges
             </h3>
+            <p className="mt-1 text-xs text-slate-400" data-testid="challenges-sample">
+              Learner columns count people, out of {noun(d.learnersInClass, 'anonymous learner')} in this class; the Attempts column counts attempts, so one learner can add several.
+            </p>
             {challenges.length === 0 ? (
               <p className="mt-2 text-sm text-slate-400">No challenge activity yet.</p>
             ) : (

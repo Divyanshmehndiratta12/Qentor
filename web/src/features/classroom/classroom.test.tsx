@@ -588,6 +588,29 @@ describe('the instructor dashboard', () => {
     expect(screen.getByText(/1 learner left this class; they are not counted above/)).toBeInTheDocument()
   })
 
+  it('says in words, above each table, how many anonymous learners the counts are out of', async () => {
+    client.getClassDashboard.mockResolvedValue(populated())
+    show()
+    await screen.findByTestId('lessons-table')
+    expect(screen.getByTestId('lessons-sample')).toHaveTextContent('Each count is a number of learners, out of 3 anonymous learners in this class.')
+    expect(screen.getByTestId('challenges-sample')).toHaveTextContent('out of 3 anonymous learners in this class')
+    expect(screen.getByTestId('challenges-sample')).toHaveTextContent('the Attempts column counts attempts')
+  })
+
+  it('the sample line uses the singular for one learner', async () => {
+    client.getClassDashboard.mockResolvedValue({ ...populated(), learnersInClass: 1 })
+    show()
+    await screen.findByTestId('lessons-table')
+    expect(screen.getByTestId('lessons-sample')).toHaveTextContent('out of 1 anonymous learner in this class.')
+  })
+
+  it('an empty class shows no table and so no sample line, only the empty state', async () => {
+    client.getClassDashboard.mockResolvedValue(emptyDashboard())
+    show()
+    await screen.findByTestId('dashboard-empty')
+    expect(screen.queryByTestId('lessons-sample')).toBeNull()
+  })
+
   it('lists only lessons and challenges that have activity, with the sample next to every figure', async () => {
     client.getClassDashboard.mockResolvedValue(populated())
     show()

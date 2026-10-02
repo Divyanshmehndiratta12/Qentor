@@ -153,6 +153,9 @@ let agreementRequestSeq = 0
 let optimizationRequestSeq = 0
 // And for the what-if preview.
 let whatIfRequestSeq = 0
+// And for the Bell verification and the multi-input test, which were the two Lab checks that showed a late answer against an edited circuit.
+let verificationRequestSeq = 0
+let multiInputRequestSeq = 0
 
 interface BuildState {
   circuit: Circuit
@@ -422,10 +425,13 @@ export const useBuildStore = create<BuildState>((set, get) => ({
   },
 
   selectOp: (index) => {
-    const { circuit, selectedOpIndex } = get()
+    const { circuit, selectedOpIndex, trace, selectedTraceStep } = get()
     const next = index !== null && index >= 0 && index < circuit.ops.length ? index : null
     if (next === selectedOpIndex) return // nothing to write: no churn for subscribers
-    set({ selectedOpIndex: next })
+    // With a trace loaded, picking a gate on the canvas also picks the trace step that applied it, so the canvas, the trace and the
+    // Tutor's "what changed" always talk about the same operation. A gate with no step of its own (a terminal measurement) leaves the step alone.
+    const step = next === null || !trace ? -1 : trace.steps.findIndex((s) => s.operationIndex === next)
+    set(step >= 0 && step !== selectedTraceStep ? { selectedOpIndex: next, selectedTraceStep: step } : { selectedOpIndex: next })
   },
 
   setInsertAt: (index) => {
@@ -589,12 +595,21 @@ export const useBuildStore = create<BuildState>((set, get) => ({
     // Only ever verify a real, already-executed result — the resultId comes
     // from the provenance the backend returned for it, never a client guess.
     if (!result) return
+    const seq = ++verificationRequestSeq
     set({ isVerifying: true, verificationError: null })
+    // A verdict is about ONE run of ONE circuit: if either changed in flight (the change already cleared the verification) or a newer
+    // request superseded this one, the answer is dropped, never shown against a circuit it was not made for.
+    const isStale = () => seq !== verificationRequestSeq || get().circuit !== circuit || get().result !== result
+    const dropStale = () => {
+      if (seq === verificationRequestSeq) set({ isVerifying: false })
+    }
     try {
       const client = getApiClient()
       const verification = await client.verifyBellState(result.provenance.resultId, circuit)
+      if (isStale()) return dropStale()
       set({ verification, isVerifying: false })
     } catch (err) {
+      if (isStale()) return dropStale()
       const message =
         err instanceof BackendUnavailableError || err instanceof EndpointNotImplementedError
           ? err.message
@@ -732,12 +747,21 @@ export const useBuildStore = create<BuildState>((set, get) => ({
     // Multi-input testing operates on the circuit itself, not an execution
     // result — same as runOptimization, it never gates on `result` existing.
     if (inputQubits.length === 0 || outputQubits.length === 0 || cases.length === 0) return
+    const seq = ++multiInputRequestSeq
     set({ isMultiInputTesting: true, multiInputTestError: null })
+    // The report belongs to the circuit it was asked about: an edit in flight (which already cleared the report) or a newer request
+    // makes this answer stale, and it is dropped rather than shown against another circuit.
+    const isStale = () => seq !== multiInputRequestSeq || get().circuit !== circuit
+    const dropStale = () => {
+      if (seq === multiInputRequestSeq) set({ isMultiInputTesting: false })
+    }
     try {
       const client = getApiClient()
       const multiInputTest = await client.runMultiInputTest(circuit, inputQubits, outputQubits, cases, backend)
+      if (isStale()) return dropStale()
       set({ multiInputTest, isMultiInputTesting: false })
     } catch (err) {
+      if (isStale()) return dropStale()
       const message =
         err instanceof BackendUnavailableError || err instanceof EndpointNotImplementedError
           ? err.message
@@ -801,16 +825,19 @@ export const useBuildStore = create<BuildState>((set, get) => ({
     if (!result && !stepContext) return
     const resultId = result ? result.provenance.resultId : null
 
+    const learnerTurn: TutorTurn = { role: 'learner', text: trimmed }
     set((state) => ({
-      tutorTurns: [...state.tutorTurns, { role: 'learner', text: trimmed }],
+      tutorTurns: [...state.tutorTurns, learnerTurn],
       isAskingTutor: true,
     }))
 
     // If the circuit/result changes while this request is in flight, the
     // reset above (setMode/addOp/runExecution/...) already clears tutorTurns
     // and isAskingTutor — discard this response rather than resurrecting a
-    // stale conversation grounded in a circuit that no longer applies.
-    const isStale = () => (get().result?.provenance.resultId ?? null) !== resultId
+    // stale conversation grounded in a circuit that no longer applies. A step
+    // question has no result id to compare, so the question's own turn is the
+    // witness: once the conversation was cleared the turn is gone.
+    const isStale = () => (get().result?.provenance.resultId ?? null) !== resultId || !get().tutorTurns.includes(learnerTurn)
 
     try {
       const client = getApiClient()

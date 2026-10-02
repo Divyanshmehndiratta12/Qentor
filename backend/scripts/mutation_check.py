@@ -1036,6 +1036,77 @@ BACKEND += [
 ]
 
 
+# ---- Final quality sprint: late answers dropped, canvas/trace selection, honest AI status, the Lab flow strip, challenge wording, lesson limits
+_IF = ["src/features/build/inFlightStale.test.ts"]
+_AI = ["src/features/tutor/aiStatus.test.tsx"]
+_LF = ["src/features/build/labFlow.test.tsx"]
+_CW = ["test_challenge_wording.py"]
+_AH = ["test_algorithm_lesson_honesty.py"]
+WEB += [
+    Mutant("final: a late Bell verification is shown against an edited circuit", "web/src/features/build/store.ts",
+           "const isStale = () => seq !== verificationRequestSeq || get().circuit !== circuit || get().result !== result", "const isStale = () => false", _IF),
+    Mutant("final: a late multi-input report is shown against an edited circuit", "web/src/features/build/store.ts",
+           "const isStale = () => seq !== multiInputRequestSeq || get().circuit !== circuit", "const isStale = () => false", _IF),
+    Mutant("final: a late trace-step tutor answer lands in the new conversation", "web/src/features/build/store.ts",
+           " || !get().tutorTurns.includes(learnerTurn)", "", _IF),
+    Mutant("final: picking a gate on the canvas leaves the trace step alone", "web/src/features/build/store.ts",
+           "const step = next === null || !trace ? -1 : trace.steps.findIndex((s) => s.operationIndex === next)", "const step = -1", _IF),
+    Mutant("final: the canvas gate is matched to the wrong trace step", "web/src/features/build/store.ts",
+           "trace.steps.findIndex((s) => s.operationIndex === next)", "trace.steps.findIndex((s) => s.stepIndex === next)", _IF),
+    Mutant("final: the AI note appears when a model IS configured", "web/src/features/tutor/AiStatusNote.tsx",
+           "if (availability?.available !== false) return null", "if (availability === null) return null", _AI),
+    Mutant("final: the AI note appears when the server could not be asked", "web/src/features/tutor/AiStatusNote.tsx",
+           "if (availability?.available !== false) return null", "if (availability?.available === true) return null", _AI),
+    Mutant("final: the AI note promises something else", "web/src/features/tutor/AiStatusNote.tsx",
+           "grounded guidance remains available.", "AI guidance is available.", _AI),
+    Mutant("final: a template answer carries the AI avatar", "web/src/features/tutor/TutorPanel.tsx",
+           "{generated ? 'AI' : 'Q'}", "{'AI'}", _AI),
+    Mutant("final: the avatar reads the fallback flag the wrong way round", "web/src/features/tutor/TutorPanel.tsx",
+           "<AiAvatar generated={!answer.usedFallbackTemplate} />", "<AiAvatar generated={answer.usedFallbackTemplate} />", _AI),
+    Mutant("final: the Trace stage runs the trace even when one is loaded", "web/src/features/build/LabFlow.tsx",
+           "if (trace) onReveal('trace')\n              else if (canTrace) void runTrace()", "if (canTrace) void runTrace()", _LF),
+    Mutant("final: the Result stage names the wrong mode", "web/src/features/build/LabFlow.tsx",
+           "result.value.statevector ? 'statevector' : 'shots'", "result.value.statevector ? 'shots' : 'statevector'", _LF),
+    Mutant("final: a trace that arrives scrolls the page instead of the Results column", "web/src/features/build/ResultsPanel.tsx",
+           "if (typeof box.scrollTo === 'function') box.scrollTo({ top: Math.max(0, top), behavior: 'smooth' })", "window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' })", _LF),
+    Mutant("final: a trace that is not loaded is revealed anyway", "web/src/features/build/ResultsPanel.tsx",
+           "    if (trace) reveal('trace')", "    reveal('trace')", _LF),
+]
+_DS = ["src/features/classroom/classroom.test.tsx"]
+WEB += [
+    Mutant("final: the lesson table's sample is the active learners, not the class", "web/src/features/classroom/InstructorDashboard.tsx",
+           "Each count is a number of learners, out of {noun(d.learnersInClass, 'anonymous learner')}", "Each count is a number of learners, out of {noun(d.activeLearners, 'anonymous learner')}", _DS),
+    Mutant("final: the challenge table stops saying attempts are not people", "web/src/features/classroom/InstructorDashboard.tsx",
+           "the Attempts column counts attempts, so one learner can add several.", "the Attempts column counts learners.", _DS),
+]
+_QS = ["src/circuit/qasmStatements.test.ts"]
+_QP = "web/src/circuit/qasmParser.ts"
+WEB += [
+    Mutant("final: the editor reads one statement per line again", _QP,
+           "if (ch === ';') flush()", "if (ch === ';' || ch === '\\n') flush()", _QS),
+    Mutant("final: the editor no longer ignores line comments", _QP,
+           "if (ch === '/' && text[i + 1] === '/') {", "if (ch === '/' && text[i + 1] === '#') {", _QS),
+    Mutant("final: the editor no longer ignores block comments", _QP,
+           "if (ch === '/' && text[i + 1] === '*') {", "if (ch === '/' && text[i + 1] === '#') {", _QS),
+    Mutant("final: a refusal names the wrong editor line (line breaks not counted)", _QP,
+           "if (ch === '\\n') line++\n    if (buffer.trim()", "if (buffer.trim()", _QS),
+    Mutant("final: a statement is reported on the line it ends on, not starts on", _QP,
+           "if (buffer.trim() === '' && ch.trim() !== '') start = line", "start = line", _QS),
+    Mutant("final: text after the last semicolon is silently dropped", _QP,
+           "  flush()\n  return out", "  return out", _QS),
+]
+BACKEND += [
+    Mutant("final: a count of one is pluralised in a challenge message", "backend/qentor/challenges/evaluate.py",
+           'return noun if count == 1 else f"{noun}s"', 'return f"{noun}s"', _CW),
+    Mutant("final: the fixed part's message agrees with a plural name wrongly", "backend/qentor/challenges/evaluate.py",
+           'f"Keep the fixed {name} as given: exactly these gates', 'f"The fixed {name} is exactly these gates', _CW),
+    Mutant("final: the QFT lesson stops saying it makes no scaling claim", "backend/qentor/lessons/content_algorithms.py",
+           "nothing about how a larger QFT scales.", "nothing more.", _AH),
+    Mutant("final: the teleportation opening stops saying it is a small educational example", "backend/qentor/lessons/content_batch1.py",
+           " It is a small educational example of the protocol, not a communication system.", "", _AH),
+]
+
+
 def run(cmd: list[str], cwd: Path) -> int:
     return subprocess.run(cmd, cwd=cwd, capture_output=True, text=True).returncode
 

@@ -6,7 +6,7 @@
  * `statevector` mode this renders the backend's own amplitude components
  * (re, im) as given, with no client-side arithmetic on them.
  */
-import type { ReactNode } from 'react'
+import { useCallback, useEffect, useRef, type ReactNode } from 'react'
 import createPlotlyComponent from 'react-plotly.js/factory'
 import Plotly from 'plotly.js-basic-dist-min'
 import { useBuildStore } from './store'
@@ -14,6 +14,7 @@ import { VerificationPanel } from './VerificationPanel'
 import { OptimizePanel } from './OptimizePanel'
 import { MultiInputTestPanel } from './MultiInputTestPanel'
 import { TracePanel } from './TracePanel'
+import { LabFlow, type FlowTarget } from './LabFlow'
 import { ComparePanel } from '@/features/compare/ComparePanel'
 import { ExportPanel } from '@/features/share/ExportPanel'
 import { AgreementPanel } from './AgreementPanel'
@@ -38,6 +39,22 @@ export function ResultsPanel({ showOptimize = true }: { showOptimize?: boolean }
   const runExecution = useBuildStore((s) => s.runExecution)
   const hasMeasurement = useBuildStore((s) => s.circuit.ops.some((op) => op.gate === 'measure'))
   const hasOps = useBuildStore((s) => s.circuit.ops.length > 0)
+  const trace = useBuildStore((s) => s.trace)
+
+  // Bring a part of the Results column into view inside ITS OWN scroller (the page itself never moves). A folded group is opened first.
+  const scroller = useRef<HTMLDivElement>(null)
+  const reveal = useCallback((target: FlowTarget) => {
+    const box = scroller.current
+    if (!box) return
+    const group = target === 'result' ? null : box.querySelector<HTMLDetailsElement>(`[data-testid="results-group-${target}"]`)
+    if (group) group.open = true
+    const top = group ? group.getBoundingClientRect().top - box.getBoundingClientRect().top + box.scrollTop - 8 : 0
+    if (typeof box.scrollTo === 'function') box.scrollTo({ top: Math.max(0, top), behavior: 'smooth' })
+  }, [])
+  // A trace that has just arrived is shown: it is below the result, and a learner who asked for it should see it.
+  useEffect(() => {
+    if (trace) reveal('trace')
+  }, [trace, reveal])
 
   return (
     <div className="flex h-full flex-col">
@@ -84,7 +101,9 @@ export function ResultsPanel({ showOptimize = true }: { showOptimize?: boolean }
         )}
       </div>
 
-      <div className="min-h-0 flex-1 overflow-auto p-4">
+      <LabFlow onReveal={reveal} />
+
+      <div ref={scroller} className="min-h-0 flex-1 overflow-auto p-4">
         {isExecuting && <StateNotice kind="loading" title="Running on backend…" />}
 
         {!isExecuting && executionError && (

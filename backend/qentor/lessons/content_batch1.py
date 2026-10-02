@@ -217,7 +217,7 @@ BATCH1_LESSONS: list[Lesson] = [
                     "Alice has a qubit in a state she does not want to measure, and Bob holds the other half of a shared Bell "
                     "pair. Teleportation moves that STATE onto Bob's qubit, while no qubit travels between them. This lesson is "
                     "ONE fixed 3-qubit example: q0 is Alice's message, prepared by a fixed RY rotation of 1 radian; q1 is Alice's "
-                    "half of the pair; q2 is Bob's half."
+                    "half of the pair; q2 is Bob's half. It is a small educational example of the protocol, not a communication system."
                 ),
             ),
             ExplanationSection(

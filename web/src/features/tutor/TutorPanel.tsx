@@ -36,6 +36,7 @@ import { useBuildStore } from '@/features/build/store'
 import { LabDebug } from '@/features/debug/LabDebug'
 import { GeneratePanel } from '@/features/generate/GeneratePanel'
 import { ProvenanceBadge } from '@/provenance/ProvenanceBadge'
+import { AiStatusNote } from './AiStatusNote'
 import { LandmarkSuffix } from './LandmarkSuffix'
 import { ReasoningActions } from './ReasoningActions'
 import { ReasoningCard } from './ReasoningCard'
@@ -166,8 +167,9 @@ export function TutorPanel({
   return (
     <LandmarkSuffix.Provider value={landmarkSuffix}>
     <div className="flex h-full flex-col" data-tutor-context={tutorContextKey(context)}>
-      <div className="flex items-center justify-between border-b border-void-500 px-4 py-2">
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b border-void-500 px-4 py-2">
         <h2 className="text-xs font-semibold tracking-wider text-slate-200 uppercase">Tutor</h2>
+        <AiStatusNote />
         <div className="flex items-center gap-2.5">
           <select
             aria-label="Tutor answer language"
@@ -351,10 +353,17 @@ function ContextBadge({ context }: { context: TutorContext }) {
   )
 }
 
-function AiAvatar() {
+/** "AI" only for an answer a language model actually wrote. A template or a reasoning-engine answer is Qentor's own wording of the
+ * server's facts, so it carries "Q", not a claim about a model. */
+function AiAvatar({ generated }: { generated: boolean }) {
   return (
-    <span className="flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full bg-slate-100 font-mono-qasm text-[9px] font-semibold text-void-950">
-      AI
+    <span
+      data-testid="tutor-avatar"
+      data-generated={generated}
+      aria-hidden="true"
+      className="flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full bg-slate-100 font-mono-qasm text-[9px] font-semibold text-void-950"
+    >
+      {generated ? 'AI' : 'Q'}
     </span>
   )
 }
@@ -378,7 +387,7 @@ function TurnBubble({ turn }: { turn: TutorTurn }) {
   if (turn.role === 'analysis') {
     return (
       <div className="flex items-start gap-2.5">
-        <AiAvatar />
+        <AiAvatar generated={!turn.result.usedFallbackTemplate} />
         <ReasoningCard result={turn.result} />
       </div>
     )
@@ -387,7 +396,7 @@ function TurnBubble({ turn }: { turn: TutorTurn }) {
   const { answer } = turn
   return (
     <div className="flex items-start gap-2.5">
-      <AiAvatar />
+      <AiAvatar generated={!answer.usedFallbackTemplate} />
       <div className="min-w-0 flex-1">
         {answer.usedFallbackTemplate && (
           <span className="mb-1.5 inline-block rounded-full border border-amber-glow/50 bg-amber-dim/40 px-1.5 py-0.5 text-[10px] font-medium text-amber-glow">

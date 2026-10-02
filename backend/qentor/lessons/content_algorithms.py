@@ -130,7 +130,8 @@ ALGORITHM_LESSONS: list[Lesson] = [
                     "number, it returns every basis state at the same size, with the number written into how the phases differ. "
                     "This lesson is ONE fixed 3-qubit example: the input is the number one, made by X on q0. It is a small "
                     "educational example. It does not claim that the QFT is fast or useful by itself: its main use is as a part of "
-                    "other algorithms."
+                    "other algorithms. The same ladder extends to more qubits, but this lesson runs only the 3-qubit case and says "
+                    "nothing about how a larger QFT scales."
                 ),
             ),
             ExplanationSection(

@@ -24,7 +24,7 @@ export function TracePanel() {
   const selectTraceStep = useBuildStore((s) => s.selectTraceStep)
 
   return (
-    <section aria-labelledby="trace-heading" className="mt-4 flex flex-col gap-3 border-t border-void-500 pt-4">
+    <section aria-labelledby="trace-heading" className="flex flex-col gap-3 pt-3">
       <div className="flex items-center justify-between">
         <h3 id="trace-heading" className="text-[13px] font-semibold text-slate-100">
           Trace

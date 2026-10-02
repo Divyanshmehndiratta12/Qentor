@@ -132,6 +132,10 @@ def marginal(state: State, qubits: list[int] | None, num_qubits: int) -> dict[st
 # ------------------------------------------------------------------------------------------------------ structure
 
 
+def _plural(count: int, noun: str) -> str:
+    return noun if count == 1 else f"{noun}s"
+
+
 def describe_op(op: GateOp) -> str:
     """``cx q[0]→q[2]`` style text for a gate, for feedback messages."""
     controls = [f"q[{c}]" for c in op.controls]
@@ -191,10 +195,10 @@ def _structure_checks(challenge: Challenge, circuit: Circuit) -> tuple[list[Chec
 
     add(
         "structure.size",
-        f"Uses at most {rules.max_ops} operations",
+        f"Uses at most {rules.max_ops} {_plural(rules.max_ops, 'operation')}",
         len(circuit.ops) <= rules.max_ops,
         "The circuit is within the size limit.",
-        f"The circuit has {len(circuit.ops)} operations; this challenge allows at most {rules.max_ops}.",
+        f"The circuit has {len(circuit.ops)} {_plural(len(circuit.ops), 'operation')}; this challenge allows at most {rules.max_ops}.",
     )
 
     for gate, needed in sorted(rules.min_gate_counts.items(), key=lambda kv: kv[0].value):
@@ -236,11 +240,11 @@ def _structure_checks(challenge: Challenge, circuit: Circuit) -> tuple[list[Chec
             "structure.oracle",
             f"Keeps the fixed {name} exactly as given",
             len(starts) == 1,
-            f"The fixed {name} is present once, unchanged and in order.",
+            f"The fixed {name}: present once, unchanged and in order.",
             (
-                f"The fixed {name} is exactly these gates, once, back to back and in this order: {describe_ops(rules.anchor)}."
+                f"Keep the fixed {name} as given: exactly these gates, once, back to back and in this order: {describe_ops(rules.anchor)}."
                 if not starts
-                else f"The fixed {name} appears more than once; it must appear exactly once."
+                else f"Keep the fixed {name} as given: it appears more than once here, and it must appear exactly once."
             ),
         )
 

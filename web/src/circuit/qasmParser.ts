@@ -42,18 +42,62 @@ const RE_MEASURE =/^c\[(\d+)\]\s*=\s*measure\s+q\[(\d+)\];$/
 const RE_QUBIT_DECL = /^qubit\[(\d+)\]\s+q;$/
 const RE_BIT_DECL = /^bit\[(\d+)\]\s+c;$/
 
+/** One statement of the program: its text on a single line, and the line of the editor it STARTS on (the line a learner is sent to). */
+interface Statement {
+  text: string
+  line: number
+}
+
+/**
+ * Splits program text into statements the way OpenQASM does: a statement ends at ";", so it may run over several lines, and several may
+ * share a line. `//` and block comments are dropped (their line breaks still count, so a reported line is the editor's own line number).
+ * Whitespace inside a statement is collapsed to single spaces. Text left over after the last ";" is returned as it is, so it is reported
+ * as an unrecognised statement instead of being dropped.
+ */
+export function splitStatements(text: string): Statement[] {
+  const out: Statement[] = []
+  let buffer = ''
+  let start = 1
+  let line = 1
+  const flush = () => {
+    const joined = buffer.replace(/\s+/g, ' ').replace(/ ;$/, ';').trim()
+    if (joined) out.push({ text: joined, line: start })
+    buffer = ''
+  }
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i]!
+    if (ch === '/' && text[i + 1] === '/') {
+      while (i < text.length && text[i] !== '\n') i++
+      i-- // the line break itself is handled by the next pass
+      continue
+    }
+    if (ch === '/' && text[i + 1] === '*') {
+      i += 2
+      while (i < text.length && !(text[i] === '*' && text[i + 1] === '/')) {
+        if (text[i] === '\n') line++
+        i++
+      }
+      i++ // past the "/" of "*/" (or past the end, for a comment that never closes)
+      buffer += ' '
+      continue
+    }
+    if (ch === '\n') line++
+    if (buffer.trim() === '' && ch.trim() !== '') start = line
+    buffer += ch
+    if (ch === ';') flush()
+  }
+  flush()
+  return out
+}
+
 export function parseQasm3(text: string): Circuit {
-  const lines = text
-    .split('\n')
-    .map((l) => l.trim())
-    .filter((l) => l.length > 0)
+  const statements = splitStatements(text)
 
   let numQubits: number | null = null
   let numClbits = 0
   const ops: GateOp[] = []
 
-  lines.forEach((line, i) => {
-    const lineNo = i + 1
+  statements.forEach(({ text: line, line: lineNo }) => {
 
     if (line === 'OPENQASM 3.0;' || line === 'include "stdgates.inc";') {
       return
