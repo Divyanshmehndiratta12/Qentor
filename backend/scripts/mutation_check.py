@@ -900,6 +900,40 @@ WEB += [
 ]
 
 
+# --- Final sprint: the Deutsch-Jozsa 72-oracle family (verification/dj_family.py) ---
+_DJ = ["test_dj_family.py"]
+_DJF = "backend/qentor/verification/dj_family.py"
+BACKEND += [
+    Mutant("dj: the family has one balanced function too many", _DJF,
+           "combinations(range(TABLE_SIZE), TABLE_SIZE // 2)", "combinations(range(TABLE_SIZE), TABLE_SIZE // 2 + 1)", _DJ),
+    Mutant("dj: a promise violation is accepted as balanced", _DJF,
+           "if ones == TABLE_SIZE // 2:", "if ones >= TABLE_SIZE // 2 - 1:", _DJ),
+    Mutant("dj: the oracle skips the inputs it should flip on", _DJF,
+           "        if not bit:\n            continue", "        if bit:\n            continue", _DJ),
+    Mutant("dj: the oracle selects the wrong input pattern", _DJF,
+           "zeros = [q for q in INPUT_QUBITS if not (x >> q) & 1]", "zeros = [q for q in INPUT_QUBITS if (x >> q) & 1]", _DJ),
+    Mutant("dj: the work qubit is left dirty", _DJF,
+           '            _g("ccx", controls=[WORK, 2], targets=[ANCILLA]),\n            _g("ccx", controls=[0, 1], targets=[WORK]),\n',
+           '            _g("ccx", controls=[WORK, 2], targets=[ANCILLA]),\n', _DJ),
+    Mutant("dj: the oracle sweep expects the wrong ancilla bit", _DJF,
+           'expected_output="0" + str(oracle.outputs[x])', 'expected_output="0" + str(1 - oracle.outputs[x])', _DJ),
+    Mutant("dj: the oracle sweep forgets the work qubit", _DJF,
+           "output_qubits=[0, 1, 2, ANCILLA, WORK]", "output_qubits=[0, 1, 2, ANCILLA]", _DJ),
+    Mutant("dj: a decision is never ambiguous", _DJF,
+           '    return "ambiguous"', '    return "balanced"', _DJ),
+    Mutant("dj: constant needs only half the probability", _DJF,
+           "if probability_000 >= 1 - PROBABILITY_TOLERANCE:", "if probability_000 >= 0.5:", _DJ),
+    Mutant("dj: every case passes whatever the decision", _DJF,
+           "passed = decision == oracle.kind", "passed = True", _DJ),
+    Mutant("dj: the reference algorithm forgets the ancilla's X", _DJF,
+           'ops = [_g("x", targets=[ANCILLA])]\n    ops += [_g("h"', 'ops = []\n    ops += [_g("h"', _DJ),
+    Mutant("dj: the reference algorithm omits the final Hadamards", _DJF,
+           '    ops += oracle_ops(oracle)\n    ops += [_g("h", targets=[q]) for q in INPUT_QUBITS]\n', "    ops += oracle_ops(oracle)\n", _DJ),
+    Mutant("dj: the sweep reads the wrong register", _DJF,
+           "sorted(INPUT_QUBITS, reverse=True))\n        p_zero", "[ANCILLA])\n        p_zero", _DJ),
+]
+
+
 def run(cmd: list[str], cwd: Path) -> int:
     return subprocess.run(cmd, cwd=cwd, capture_output=True, text=True).returncode
 

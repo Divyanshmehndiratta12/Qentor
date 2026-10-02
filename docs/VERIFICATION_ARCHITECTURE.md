@@ -184,6 +184,40 @@ tolerance 1e-9.
 72 oracles. Each is built as a bit-flip oracle from multi-controlled X gates. A unit test asserts
 the count and that the reference solution passes all 72.
 
+**As built (`qentor/verification/dj_family.py`, `tests/test_dj_family.py`).** The 72 cases are exactly these and no others:
+
+| Cases | What they are |
+|---|---|
+| 2 constant | truth tables `00000000` (f ≡ 0) and `11111111` (f ≡ 1) |
+| 70 balanced | every choice of 4 of the 8 inputs that map to 1: C(8,4) = 70 tables |
+
+A truth table lists f(0) … f(7) left to right, and the input x is the integer whose binary string is `q2 q1 q0` (so x = 1
+is `001`, q0 set). Qubits: q0–q2 are the input bits, q3 is the oracle's output (ancilla) qubit, q4 is one clean work qubit
+(the gate set has `ccx` but no 3-control X, so each multi-controlled X is a Toffoli ladder through it and the work qubit
+must come back to 0). Each oracle is the bit-flip oracle |x⟩|b⟩|0⟩ → |x⟩|b⊕f(x)⟩|0⟩: for every x with f(x) = 1, X gates select
+the pattern, the ladder flips the ancilla, and the X gates are undone. A function that is neither constant nor balanced
+is refused (`classify` raises); there is no generator for other sizes or functions. The order is fixed: indices 0 and 1 are
+the constants, 2–71 the balanced tables in `itertools.combinations` order.
+
+Two checks run on the backend for every oracle (Aer by default; Cirq agrees on the algorithm decisions):
+
+1. **Oracle behaviour.** A basis sweep of the oracle alone through the existing harness: for each x the output over
+   `q4 q3 q2 q1 q0` must be `0`, f(x), x with probability 1, so a wrong truth table, a disturbed input or a dirty work
+   qubit fails with the harness's counterexample.
+2. **Algorithm decision.** The reference circuit (ancilla to |1⟩, Hadamard on all, one oracle call, Hadamard on the inputs)
+   is run in exact statevector mode. The decision is read from the backend's probability of `q2 q1 q0 = 000`: ≥ 1 − 1e-9 is
+   "constant", ≤ 1e-9 is "balanced", anything between is "ambiguous" and fails. A case passes when the decision equals the
+   oracle's class. The only classical inputs are the truth table and its class, which define the case; no quantum number is
+   supplied by the test.
+
+The sweep reports, per oracle: index, class, truth table, the decision, the backend's probability, the circuit hash and (when
+a recorder is given) the result id; failures carry the measured input distribution as the counterexample. Measured on this
+machine: 72 decisions in about 0.1 s, with the 576 oracle-behaviour runs about 0.8 s. The tests include broken oracle
+structure (a dropped Toffoli, a missing uncompute, a wrong control wire), a changed expected result, the pinned bit
+order, two known-buggy algorithms (no final Hadamards: every case "ambiguous"; no ancilla X: all 70 balanced cases fail),
+a scripted backend that returns the zero state, and an unavailable backend (an error, never a pass). It is a library
+and test suite; the Lab does not yet expose a "run all 72" button, so the hero path's step 4 is still not wired to it.
+
 **Bernstein–Vazirani, n=3:** all 8 secret strings. Pass means the measured string equals the secret with probability 1.
 
 **Oracle correctness beyond basis states.** A basis sweep checks the classical truth table. It

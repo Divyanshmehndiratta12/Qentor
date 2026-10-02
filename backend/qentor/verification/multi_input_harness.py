@@ -7,7 +7,8 @@ output qubits reads the expected basis value with probability >= 1 - 1e-9 ("no
 sampling"). The other three documented kinds (``oracle-slot``, ``state-prep``,
 ``unitary-match``) are deliberately not built here: ``oracle-slot`` needs an
 ``oracle`` gate the canonical model doesn't have yet (docs/ARCHITECTURE.md §4
-lists it as future work), and the other two need a fidelity/equivalence
+lists it as future work; the fixed Deutsch-Jozsa n=3 family lives in
+``qentor.verification.dj_family`` and uses this harness for its oracle sweeps), and the other two need a fidelity/equivalence
 checker this codebase hasn't built yet either. Building only what the model
 and existing verification layer already support is why Deutsch-Jozsa is not
 hard-coded anywhere in this module.
@@ -302,6 +303,11 @@ def _build_prepared_circuit(circuit: Circuit, sorted_input_qubits: list[int], in
     ]
     body = [op for op in circuit.ops if op.gate is not GateName.MEASURE]
     return Circuit(num_qubits=circuit.num_qubits, num_clbits=circuit.num_clbits, ops=[*x_preps, *body])
+
+
+def project_distribution(statevector: list[list[float]], sorted_output_qubits: list[int]) -> dict[str, float]:
+    """Public name for ``_project_distribution`` (used by ``dj_family``); ``sorted_output_qubits`` is highest first."""
+    return _project_distribution(statevector, sorted_output_qubits)
 
 
 def _project_distribution(
