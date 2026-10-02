@@ -36,8 +36,8 @@ class TestPublicCatalogFixture(unittest.TestCase):
         )
 
     def test_it_has_the_whole_catalog(self) -> None:
-        self.assertEqual(len(self.fixture["lessons"]["lessons"]), 16)
-        self.assertEqual(len(self.fixture["challenges"]["challenges"]), 18)
+        self.assertEqual(len(self.fixture["lessons"]["lessons"]), 17)
+        self.assertEqual(len(self.fixture["challenges"]["challenges"]), 19)
 
     def test_it_holds_no_answer_key_explanation_reference_or_target(self) -> None:
         for forbidden in (

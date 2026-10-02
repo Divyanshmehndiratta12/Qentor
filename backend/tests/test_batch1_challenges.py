@@ -549,7 +549,7 @@ class TestTheSubmitEndpointForTheNewChallenges(ApiCase):
     def test_the_catalog_endpoint_carries_the_new_constraint_fields_and_no_answers(self) -> None:
         catalog = app_module.list_challenges()
         by_id = {c.id: c for c in catalog.challenges}
-        self.assertEqual(len(by_id), 18)
+        self.assertEqual(len(by_id), 19)
         self.assertEqual(by_id["superdense-encode-10"].constraints.anchor_name, "decoder")
         self.assertEqual({k.value: v for k, v in by_id["superdense-encode-10"].constraints.gate_qubits.items()}, {"x": [0], "z": [0]})
         blob = json.dumps(catalog.model_dump(mode="json"))

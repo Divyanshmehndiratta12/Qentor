@@ -76,7 +76,7 @@ def qpe(ops_after_anchor, anchor=T_POWERS, prepare=PREPARE):
 class TestDefinitions(unittest.TestCase):
     def test_the_three_are_appended_after_the_fifteen_and_each_belongs_to_its_lesson(self) -> None:
         ids = [c.id for c in CHALLENGES]
-        self.assertEqual(ids[15:], [QFT, QPE, QEC])
+        self.assertEqual(ids[15:18], [QFT, QPE, QEC])  # the variational challenge follows (test_variational_lesson.py)
         self.assertEqual({c: CHALLENGE_BY_ID[c].lesson_id for c in (QFT, QPE, QEC)},
                          {QFT: "quantum-fourier-transform", QPE: "quantum-phase-estimation", QEC: "quantum-error-correction"})  # fmt: skip
 

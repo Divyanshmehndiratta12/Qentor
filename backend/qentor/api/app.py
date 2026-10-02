@@ -103,6 +103,7 @@ from . import classroom as classroom_api
 from . import code_input as code_input_api
 from . import reasoning as reasoning_api
 from . import sharing as sharing_api
+from . import variational as variational_api
 from .static_site import frontend_dist, mount_frontend
 from .schemas import (
     AgreementBackendResponse,
@@ -1614,7 +1615,7 @@ def _reasoning_deps() -> reasoning_api.ReasoningDeps:
 
 reasoning_api.configure(_reasoning_deps)
 
-for _router in (classroom_api.router, sharing_api.router, code_input_api.router, reasoning_api.router):
+for _router in (classroom_api.router, sharing_api.router, code_input_api.router, reasoning_api.router, variational_api.router):
     app.router.routes.extend(_router.routes)
 
 

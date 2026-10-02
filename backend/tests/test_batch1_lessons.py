@@ -104,8 +104,8 @@ def _section(lesson_id: str, section_id: str):
 class TestBatch1Structure(unittest.TestCase):
     def test_they_are_lessons_eleven_to_thirteen_after_the_original_ten_with_stable_ids(self) -> None:
         self.assertEqual([lesson.id for lesson in LESSONS][10:13], BATCH1_IDS)  # lessons 14-16 follow (test_algorithm_lessons)
-        self.assertEqual(len(LESSONS), 16)
-        self.assertEqual(len({lesson.id for lesson in LESSONS}), 16)
+        self.assertEqual(len(LESSONS), 17)
+        self.assertEqual(len({lesson.id for lesson in LESSONS}), 17)
         self.assertEqual(
             [lesson.id for lesson in LESSONS][:10],
             ["qubits-measurement", "bloch-sphere", "superposition", "phase", "interference", "entanglement", "bell-state", "phase-kickback", "deutsch-jozsa", "bernstein-vazirani"],
@@ -223,7 +223,7 @@ class TestBatch1Structure(unittest.TestCase):
         from qentor.api import app as app_module
 
         served = {lesson.id: lesson for lesson in app_module.list_lessons().lessons}
-        self.assertEqual(len(served), 16)
+        self.assertEqual(len(served), 17)
         for lesson in BATCH1:
             self.assertEqual([s.model_dump() for s in served[lesson.id].sections], [s.model_dump() for s in public_lesson(lesson).sections])
             blob = json.dumps(served[lesson.id].model_dump(mode="json"))
@@ -823,8 +823,8 @@ class TestBatch1ChallengeAndProgressionLinks(unittest.TestCase):
             self.skipTest(str(exc))
         report = validate_content()
         self.assertTrue(report.ok, "\n" + str(report))
-        self.assertEqual(report.checked["lessons"], 16)
-        self.assertEqual(report.checked["challenges"], 18)
+        self.assertEqual(report.checked["lessons"], 17)
+        self.assertEqual(report.checked["challenges"], 19)
 
     def test_the_original_ten_lessons_are_unchanged_apart_from_losing_the_stale_no_challenge_reason(self) -> None:
         self.assertEqual([len(lesson.sections) for lesson in LESSONS[:10]], [9] * 7 + [10] * 3)

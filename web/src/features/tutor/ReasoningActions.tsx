@@ -40,11 +40,25 @@ export function ReasoningActions() {
   const clearWhatIfPreview = useBuildStore((s) => s.clearWhatIfPreview)
   const [open, setOpen] = useState<Open>(null)
 
+  const isExecuting = useBuildStore((s) => s.isExecuting)
+  const executionError = useBuildStore((s) => s.executionError)
+
   const hasOps = circuit.ops.length > 0
+  // The Lab runs a circuit a moment after it changes, and starting that run clears this conversation (an answer about an earlier result
+  // is stale). An answer asked in the gap before the run starts would be wiped as soon as it arrived, so while the Lab has neither run
+  // the circuit nor failed to, the actions wait and say so; they appear as soon as it has.
+  const waiting = hasOps && result === null && executionError === null && !isExecuting
   const canProbability = result !== null
   const canOptimize = hasOps
   const canWhatIf = hasOps
   const canExplain = hasTraceStep
+  if (waiting) {
+    return (
+      <p role="status" className="mb-3 rounded-lg border border-void-500 bg-void-800 px-3 py-2 text-[12px] text-void-200" data-testid="reasoning-waiting">
+        Waiting for the Lab to run this circuit before the analysis actions appear…
+      </p>
+    )
+  }
   if (!canProbability && !canOptimize && !canWhatIf && !canExplain) return null
 
   const toggle = (which: Exclude<Open, null>) => {

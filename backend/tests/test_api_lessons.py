@@ -77,7 +77,7 @@ class TestListLessonsEndpoint(unittest.TestCase):
         # Mirrors the trust boundary this endpoint must respect: a lab section
         # can only point at a real, already-existing backend endpoint, never
         # carry a computed result or invent a new capability.
-        known_capabilities = {"execute", "verify_bell_state", "multi_input_test", "optimize"}
+        known_capabilities = {"execute", "verify_bell_state", "multi_input_test", "optimize", "variational_sweep"}
         response = app_module.list_lessons()
 
         for lesson in response.lessons:

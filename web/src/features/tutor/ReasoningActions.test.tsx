@@ -30,6 +30,8 @@ import { useBuildStore } from '@/features/build/store'
 import { TutorPanel } from './TutorPanel'
 
 const INITIAL = useBuildStore.getState()
+// The Lab has finished with the circuit (here: failed to run it, which is all these tests need): the analysis actions wait for that.
+const SETTLED = { isExecuting: false, executionError: 'the Lab has no result in this test' }
 const HASH_A = 'a'.repeat(64)
 const HASH_B = 'b'.repeat(64)
 
@@ -50,7 +52,7 @@ const ONE_H: Circuit = { ...emptyCircuit(1, 0), ops: [H0] }
 
 function setRun(circuit: Circuit, mode: 'statevector' | 'shots' = 'statevector') {
   const payload: ExecutePayload = { executionId: 'aer-local-1', theoreticalProbabilities: { '0': 0.5, '1': 0.5 }, statevector: [[0.7071, 0], [0.7071, 0]] } as unknown as ExecutePayload
-  useBuildStore.setState({ circuit, result: toQuantumValue(payload, { ...RUN, executionMode: mode }), isExecuting: false, executionError: null })
+  useBuildStore.setState({ ...SETTLED, circuit, result: toQuantumValue(payload, { ...RUN, executionMode: mode }), isExecuting: false, executionError: null })
 }
 
 const common = (intent: ReasoningResult['intent'], over: Partial<ReasoningResult> = {}) => ({
@@ -176,12 +178,29 @@ function reset() {
 
 function loadTrace() {
   const trace = hzh('t') // a 1-qubit trace with three steps; only its identity is used here
-  useBuildStore.setState({ circuit: ONE_H, trace, selectedTraceStep: 1 })
+  useBuildStore.setState({ ...SETTLED, circuit: ONE_H, trace, selectedTraceStep: 1 })
 }
 
 describe('reasoning actions are contextual', () => {
   beforeEach(reset)
   afterEach(reset)
+
+  it('while the Lab has not yet run a changed circuit the actions wait, and say so, instead of asking into the gap before the run starts', () => {
+    useBuildStore.setState({ circuit: ONE_H, result: null, isExecuting: false, executionError: null })
+    render(<TutorPanel />)
+    expect(screen.getByTestId('reasoning-waiting')).toHaveTextContent(/waiting for the lab to run this circuit/i)
+    for (const name of [/optimize circuit/i, /what if/i, /analyze probability/i]) expect(screen.queryByRole('button', { name })).toBeNull()
+    act(() => useBuildStore.setState({ isExecuting: true })) // the run has started: its start already cleared the conversation
+    expect(screen.queryByTestId('reasoning-waiting')).toBeNull()
+    expect(screen.getByRole('button', { name: /optimize circuit/i })).toBeInTheDocument()
+  })
+
+  it('a Lab run that failed does not keep the actions waiting: the circuit can still be analysed', () => {
+    useBuildStore.setState({ circuit: ONE_H, result: null, isExecuting: false, executionError: 'the backend is unavailable' })
+    render(<TutorPanel />)
+    expect(screen.queryByTestId('reasoning-waiting')).toBeNull()
+    expect(screen.getByRole('button', { name: /optimize circuit/i })).toBeInTheDocument()
+  })
 
   it('shows nothing when there is no circuit, no result and no trace step', () => {
     render(<TutorPanel />)
@@ -190,7 +209,7 @@ describe('reasoning actions are contextual', () => {
   })
 
   it('a circuit alone offers Optimize and What if…, not a probability or a step', () => {
-    useBuildStore.setState({ circuit: ONE_H })
+    useBuildStore.setState({ ...SETTLED, circuit: ONE_H })
     render(<TutorPanel />)
     expect(screen.getByRole('button', { name: /optimize circuit/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /what if/i })).toBeInTheDocument()
@@ -217,7 +236,7 @@ describe('reasoning actions are contextual', () => {
   })
 
   it('the actions say who computes the answer', () => {
-    useBuildStore.setState({ circuit: ONE_H })
+    useBuildStore.setState({ ...SETTLED, circuit: ONE_H })
     render(<TutorPanel />)
     expect(screen.getByTestId('reasoning-actions')).toHaveTextContent(/server computes each answer/i)
   })
@@ -304,7 +323,7 @@ describe('Optimize circuit', () => {
   afterEach(reset)
 
   it('asks with the circuit only and shows an explicit no-improvement result', async () => {
-    useBuildStore.setState({ circuit: BELL })
+    useBuildStore.setState({ ...SETTLED, circuit: BELL })
     client.analyzeReasoning.mockResolvedValue(NO_IMPROVEMENT)
     render(<TutorPanel />)
     fireEvent.click(screen.getByRole('button', { name: /optimize circuit/i }))
@@ -317,7 +336,7 @@ describe('Optimize circuit', () => {
   })
 
   it('a verified shorter circuit shows the server’s counts, rewrites and checker verdict, and applying it is one undo step', async () => {
-    useBuildStore.setState({ circuit: { ...emptyCircuit(1, 0), ops: [H0, H0, op('x', { targets: [0] })] } })
+    useBuildStore.setState({ ...SETTLED, circuit: { ...emptyCircuit(1, 0), ops: [H0, H0, op('x', { targets: [0] })] } })
     client.analyzeReasoning.mockResolvedValue(SHORTER_RESULT)
     render(<TutorPanel />)
     fireEvent.click(screen.getByRole('button', { name: /optimize circuit/i }))
@@ -340,7 +359,7 @@ describe('Optimize circuit', () => {
   })
 
   it('an answer that arrives after the circuit changed is dropped', async () => {
-    useBuildStore.setState({ circuit: BELL })
+    useBuildStore.setState({ ...SETTLED, circuit: BELL })
     let resolve!: (r: ReasoningResult) => void
     client.analyzeReasoning.mockReturnValue(new Promise<ReasoningResult>((r) => (resolve = r)))
     render(<TutorPanel />)
@@ -354,7 +373,7 @@ describe('Optimize circuit', () => {
   })
 
   it('a refusal is shown as an error, with no answer', async () => {
-    useBuildStore.setState({ circuit: BELL })
+    useBuildStore.setState({ ...SETTLED, circuit: BELL })
     client.analyzeReasoning.mockRejectedValue(new BackendUnavailableError('11 qubits is over the equivalence limit', 422))
     render(<TutorPanel />)
     fireEvent.click(screen.getByRole('button', { name: /optimize circuit/i }))
@@ -373,7 +392,7 @@ describe('What if…', () => {
   }
 
   it('builds nothing and runs nothing until the learner asks to see the new circuit', () => {
-    useBuildStore.setState({ circuit: BELL })
+    useBuildStore.setState({ ...SETTLED, circuit: BELL })
     openForm()
     expect(screen.getByTestId('whatif-form')).toBeInTheDocument()
     expect(client.previewWhatIf).not.toHaveBeenCalled()
@@ -381,7 +400,7 @@ describe('What if…', () => {
   })
 
   it('shows the counterfactual circuit the SERVER built before anything runs; running then sends the hashes it showed', async () => {
-    useBuildStore.setState({ circuit: BELL, selectedOpIndex: 1 })
+    useBuildStore.setState({ ...SETTLED, circuit: BELL, selectedOpIndex: 1 })
     client.previewWhatIf.mockResolvedValue(PREVIEW)
     client.analyzeReasoning.mockResolvedValue(WHAT_IF_RESULT)
     openForm()
@@ -415,7 +434,7 @@ describe('What if…', () => {
   })
 
   it('a preview belongs to one circuit: changing the circuit removes it, and there is nothing to run', async () => {
-    useBuildStore.setState({ circuit: BELL })
+    useBuildStore.setState({ ...SETTLED, circuit: BELL })
     client.previewWhatIf.mockResolvedValue(PREVIEW)
     openForm()
     fireEvent.click(screen.getByRole('button', { name: /show the new circuit/i }))
@@ -428,7 +447,7 @@ describe('What if…', () => {
   })
 
   it('changing a choice discards the old preview', async () => {
-    useBuildStore.setState({ circuit: BELL })
+    useBuildStore.setState({ ...SETTLED, circuit: BELL })
     client.previewWhatIf.mockResolvedValue(PREVIEW)
     openForm()
     fireEvent.click(screen.getByRole('button', { name: /show the new circuit/i }))
@@ -438,7 +457,7 @@ describe('What if…', () => {
   })
 
   it('a preview refused by the server is shown as an error and builds no circuit', async () => {
-    useBuildStore.setState({ circuit: BELL })
+    useBuildStore.setState({ ...SETTLED, circuit: BELL })
     client.previewWhatIf.mockRejectedValue(new BackendUnavailableError('operation 9 does not exist', 422))
     openForm()
     fireEvent.click(screen.getByRole('button', { name: /show the new circuit/i }))
@@ -447,7 +466,7 @@ describe('What if…', () => {
   })
 
   it('replace offers only gates the server would accept for that operation', () => {
-    useBuildStore.setState({ circuit: BELL, selectedOpIndex: 0 })
+    useBuildStore.setState({ ...SETTLED, circuit: BELL, selectedOpIndex: 0 })
     openForm()
     fireEvent.change(screen.getByLabelText(/one change to try/i), { target: { value: 'replace_gate' } })
     const options = within(screen.getByLabelText(/replace it with/i)).getAllByRole('option').map((o) => o.textContent)
@@ -457,7 +476,7 @@ describe('What if…', () => {
   })
 
   it('replace of an operation that cannot be replaced says so and cannot be sent', () => {
-    useBuildStore.setState({ circuit: { ...emptyCircuit(2, 0), ops: [op('swap', { targets: [0, 1] })] } })
+    useBuildStore.setState({ ...SETTLED, circuit: { ...emptyCircuit(2, 0), ops: [op('swap', { targets: [0, 1] })] } })
     openForm()
     fireEvent.change(screen.getByLabelText(/one change to try/i), { target: { value: 'replace_gate' } })
     expect(screen.getByText(/cannot be replaced here/i)).toBeInTheDocument()
@@ -465,7 +484,7 @@ describe('What if…', () => {
   })
 
   it('a rotation replacing a fixed gate needs an angle, read the way the editor reads one', async () => {
-    useBuildStore.setState({ circuit: ONE_H })
+    useBuildStore.setState({ ...SETTLED, circuit: ONE_H })
     client.previewWhatIf.mockResolvedValue(PREVIEW)
     openForm()
     fireEvent.change(screen.getByLabelText(/one change to try/i), { target: { value: 'replace_gate' } })
@@ -481,7 +500,7 @@ describe('What if…', () => {
   })
 
   it('change angle needs a rotation', () => {
-    useBuildStore.setState({ circuit: ONE_H })
+    useBuildStore.setState({ ...SETTLED, circuit: ONE_H })
     openForm()
     fireEvent.change(screen.getByLabelText(/one change to try/i), { target: { value: 'set_angle' } })
     expect(screen.getByText(/has no angle/i)).toBeInTheDocument()
@@ -489,7 +508,7 @@ describe('What if…', () => {
   })
 
   it('change angle on a rotation sends the angle', async () => {
-    useBuildStore.setState({ circuit: { ...emptyCircuit(1, 0), ops: [op('ry', { targets: [0], params: [1] })] } })
+    useBuildStore.setState({ ...SETTLED, circuit: { ...emptyCircuit(1, 0), ops: [op('ry', { targets: [0], params: [1] })] } })
     client.previewWhatIf.mockResolvedValue(PREVIEW)
     openForm()
     fireEvent.change(screen.getByLabelText(/one change to try/i), { target: { value: 'set_angle' } })
@@ -500,7 +519,7 @@ describe('What if…', () => {
   })
 
   it('add a gate: a controlled gate needs two different qubits and sends control and target', async () => {
-    useBuildStore.setState({ circuit: BELL })
+    useBuildStore.setState({ ...SETTLED, circuit: BELL })
     client.previewWhatIf.mockResolvedValue(PREVIEW)
     openForm()
     fireEvent.change(screen.getByLabelText(/one change to try/i), { target: { value: 'insert_gate' } })
@@ -519,7 +538,7 @@ describe('What if…', () => {
   })
 
   it('the form has no free-text field a program could be typed into', () => {
-    useBuildStore.setState({ circuit: BELL })
+    useBuildStore.setState({ ...SETTLED, circuit: BELL })
     openForm()
     const form = within(screen.getByTestId('whatif-form'))
     for (const kind of ['remove_gate', 'replace_gate', 'set_angle', 'insert_gate']) {
@@ -557,7 +576,7 @@ describe('multilingual and responsive', () => {
   afterEach(reset)
 
   it('the chosen answer language travels with every reasoning request', async () => {
-    useBuildStore.setState({ circuit: BELL, tutorLanguage: 'kn' })
+    useBuildStore.setState({ ...SETTLED, circuit: BELL, tutorLanguage: 'kn' })
     client.analyzeReasoning.mockResolvedValue(NO_IMPROVEMENT)
     render(<TutorPanel />)
     fireEvent.click(screen.getByRole('button', { name: /optimize circuit/i }))
@@ -587,7 +606,7 @@ describe('multilingual and responsive', () => {
   })
 
   it('every table sits in a focusable, scrollable region so a phone can reach all of it', async () => {
-    useBuildStore.setState({ circuit: BELL })
+    useBuildStore.setState({ ...SETTLED, circuit: BELL })
     client.analyzeReasoning.mockResolvedValue(WHAT_IF_RESULT)
     useBuildStore.setState({
       whatIfPending: { modification: { op: 'remove_gate', index: 1 }, preview: PREVIEW, circuit: BELL },
@@ -611,12 +630,12 @@ describe('multilingual and responsive', () => {
   })
 
   it('has no axe violations with the actions, the what-if form and an analysis on screen', async () => {
-    useBuildStore.setState({ circuit: BELL })
+    useBuildStore.setState({ ...SETTLED, circuit: BELL })
     setRun(BELL)
     client.analyzeReasoning.mockResolvedValue(TRACE_RESULT)
     useBuildStore.setState({ whatIfPending: { modification: { op: 'remove_gate', index: 1 }, preview: PREVIEW, circuit: BELL } })
     loadTrace()
-    useBuildStore.setState({ circuit: BELL, whatIfPending: { modification: { op: 'remove_gate', index: 1 }, preview: PREVIEW, circuit: BELL } })
+    useBuildStore.setState({ ...SETTLED, circuit: BELL, whatIfPending: { modification: { op: 'remove_gate', index: 1 }, preview: PREVIEW, circuit: BELL } })
     render(<TutorPanel />)
     fireEvent.click(screen.getByRole('button', { name: /what if/i }))
     fireEvent.click(screen.getByRole('button', { name: /explain change/i }))

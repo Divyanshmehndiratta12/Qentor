@@ -15,7 +15,7 @@ export type LessonDifficulty = z.infer<typeof LessonDifficultySchema>
 // backend/qentor/lessons/models.py::LabCapability — the set of already-real
 // backend endpoints an interactive_lab section may point at. Never a new
 // capability invented client-side.
-export const LabCapabilitySchema = z.enum(['execute', 'verify_bell_state', 'multi_input_test', 'optimize'])
+export const LabCapabilitySchema = z.enum(['execute', 'verify_bell_state', 'multi_input_test', 'optimize', 'variational_sweep'])
 export type LabCapability = z.infer<typeof LabCapabilitySchema>
 
 // backend/qentor/lessons/models.py's four section models, discriminated on
@@ -1142,3 +1142,52 @@ export const WhatIfPreviewResponseSchema = z.object({
   changes: z.array(OpChangeSchema),
 })
 export type WhatIfPreviewResponse = z.infer<typeof WhatIfPreviewResponseSchema>
+
+// ---------------------------------------------------------------------------
+// Variational (VQE-style) demonstration - backend/qentor/api/variational.py
+// Every <Z>, Bloch vector and probability is read by the server from a backend statevector; each point names the run (provenance) it
+// came from. The browser parses it and draws it.
+// ---------------------------------------------------------------------------
+
+const VariationalPointSchema = z.object({
+  theta: z.number(),
+  expectation_z: z.number(),
+  bloch: z.object({ x: z.number(), y: z.number(), z: z.number() }),
+  probabilities: z.object({ '0': z.number(), '1': z.number() }),
+  result_id: z.string(),
+  execution_id: z.string(),
+  circuit_hash: z.string(),
+  provenance: TraceProvenanceSchema,
+})
+
+const variationalCommon = {
+  method: z.string(),
+  expectation_method: z.string(),
+  ansatz: z.string(),
+  observable: z.string(),
+  label: z.string(),
+  backend: z.string(),
+  backend_version: z.string(),
+  provenance: TraceProvenanceSchema,
+}
+
+export const VariationalSweepResponseSchema = z.object({
+  ...variationalCommon,
+  points: z.array(VariationalPointSchema).min(1),
+  minimum_index: z.number().int().nonnegative(),
+  maximum_index: z.number().int().nonnegative(),
+})
+export type VariationalSweepResponse = z.infer<typeof VariationalSweepResponseSchema>
+
+export const VariationalOptimizeResponseSchema = z.object({
+  ...variationalCommon,
+  steps: z
+    .array(z.object({ step: z.number().int().nonnegative(), point: VariationalPointSchema, gradient: z.number(), plus: VariationalPointSchema, minus: VariationalPointSchema }))
+    .min(1),
+  lowest_index: z.number().int().nonnegative(),
+  converged: z.boolean(),
+  learning_rate: z.number(),
+  shift: z.number(),
+  notes: z.array(z.string()),
+})
+export type VariationalOptimizeResponse = z.infer<typeof VariationalOptimizeResponseSchema>

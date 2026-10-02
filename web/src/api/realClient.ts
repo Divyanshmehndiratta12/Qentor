@@ -34,6 +34,8 @@ import {
   TraceErrorDetailSchema,
   TraceResponseSchema,
   TutorResponseSchema,
+  VariationalOptimizeResponseSchema,
+  VariationalSweepResponseSchema,
   VerifyBellStateResponseSchema,
   WhatIfPreviewResponseSchema,
   type ComparisonBodyResponse,
@@ -93,6 +95,11 @@ import {
   type TutorLanguage,
   type TutorLessonContext,
   type TutorTraceStepContext,
+  type VariationalOptimizationResult,
+  type VariationalOptimizeInput,
+  type VariationalPoint,
+  type VariationalSweepInput,
+  type VariationalSweepResult,
   type VerifyBellStateResult,
   type WhatIfPreview,
 } from './client'
@@ -618,6 +625,46 @@ export class RealApiClient implements ApiClient {
       }
       default:
         return { ...common, intent: response.intent }
+    }
+  }
+
+  async variationalSweep(input: VariationalSweepInput): Promise<VariationalSweepResult> {
+    // Angles and a point count: the learner's own choices. Defaults are the server's. There is no field through which a value could go.
+    const body: Record<string, unknown> = {}
+    if (input.thetaMin !== undefined) body.theta_min = input.thetaMin
+    if (input.thetaMax !== undefined) body.theta_max = input.thetaMax
+    if (input.points !== undefined) body.points = input.points
+    if (input.backend) body.backend = input.backend
+    const r = await this.postParsed('/api/variational/sweep', body, VariationalSweepResponseSchema)
+    return {
+      ...variationalCommon(r),
+      points: r.points.map(variationalPoint),
+      minimumIndex: r.minimum_index,
+      maximumIndex: r.maximum_index,
+    }
+  }
+
+  async variationalOptimize(input: VariationalOptimizeInput): Promise<VariationalOptimizationResult> {
+    const body: Record<string, unknown> = { theta_start: input.thetaStart }
+    if (input.steps !== undefined) body.steps = input.steps
+    if (input.learningRate !== undefined) body.learning_rate = input.learningRate
+    if (input.backend) body.backend = input.backend
+    const r = await this.postParsed('/api/variational/optimize', body, VariationalOptimizeResponseSchema)
+    return {
+      ...variationalCommon(r),
+      steps: r.steps.map((s) => ({
+        step: s.step,
+        point: variationalPoint(s.point),
+        // the gradient is built from the three runs of this step; it carries the provenance of the step's own run
+        gradient: toQuantumValue(s.gradient, provenanceFromTraceStep(s.point.provenance)),
+        plus: variationalPoint(s.plus),
+        minus: variationalPoint(s.minus),
+      })),
+      lowestIndex: r.lowest_index,
+      converged: r.converged,
+      learningRate: r.learning_rate,
+      shift: r.shift,
+      notes: r.notes,
     }
   }
 
@@ -1185,6 +1232,53 @@ async function traceErrorFromResponse(res: Response): Promise<Error> {
 
   const raw = (body as { detail?: unknown } | null)?.detail
   return new BackendUnavailableError(typeof raw === 'string' ? raw : JSON.stringify(body), res.status)
+}
+
+/** One variational run: each number wrapped with the provenance of the run it was read from. */
+function variationalPoint(p: {
+  theta: number
+  expectation_z: number
+  bloch: { x: number; y: number; z: number }
+  probabilities: { '0': number; '1': number }
+  result_id: string
+  execution_id: string
+  circuit_hash: string
+  provenance: Parameters<typeof provenanceFromTraceStep>[0]
+}): VariationalPoint {
+  const prov = provenanceFromTraceStep(p.provenance)
+  return {
+    theta: toQuantumValue(p.theta, prov),
+    expectationZ: toQuantumValue(p.expectation_z, prov),
+    bloch: toQuantumValue({ x: p.bloch.x, y: p.bloch.y, z: p.bloch.z }, prov),
+    probabilityZero: toQuantumValue(p.probabilities['0'], prov),
+    probabilityOne: toQuantumValue(p.probabilities['1'], prov),
+    resultId: p.result_id,
+    executionId: p.execution_id,
+    circuitHash: p.circuit_hash,
+    provenance: prov,
+  }
+}
+
+function variationalCommon(r: {
+  method: string
+  expectation_method: string
+  ansatz: string
+  observable: string
+  label: string
+  backend: string
+  backend_version: string
+  provenance: Parameters<typeof provenanceFromTraceStep>[0]
+}) {
+  return {
+    method: r.method,
+    expectationMethod: r.expectation_method,
+    ansatz: r.ansatz,
+    observable: r.observable,
+    label: r.label,
+    backend: r.backend,
+    backendVersion: r.backend_version,
+    provenance: provenanceFromTraceStep(r.provenance),
+  }
 }
 
 /** The wire shape of an OpChange from the optimiser's diff (kept / removed / added), in the domain shape. */

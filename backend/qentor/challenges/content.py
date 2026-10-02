@@ -1,4 +1,4 @@
-"""The eighteen challenges. Data only: every verdict is computed by ``qentor.challenges.evaluate`` from backend statevectors.
+"""The nineteen challenges. Data only: every verdict is computed by ``qentor.challenges.evaluate`` from backend statevectors.
 
 Hints are written to be deterministic and safe to show: they name gates and ideas, never a quantum result the learner has
 not produced (no probabilities or amplitudes appear here).
@@ -34,6 +34,10 @@ Sprint 4 adds three algorithm challenges (each a fixed, small, educational examp
   The learner encodes before it, then extracts the syndrome and applies the deferred correction; the server checks the encoding, the
   injected error, the syndrome, the corrected qubit and the whole restored register.
 
+Sprint 6 adds one variational challenge (``vqe-find-theta``): the circuit is one RY gate on one qubit, and the check is the expectation value
+of Pauli Z read from the backend's state (``ExpectationMatches``). It is the cost of an educational one-parameter VQE-style demonstration; the
+challenge asks for the angle at which that cost is lowest and judges what the backend's state gives, never the angle typed.
+
 Every challenge builds its circuit by appending gates (the Lab canvas appends), so the fixed oracle is something the
 learner places, exactly as given, and the evaluator checks it is there once, unchanged and in order.
 """
@@ -49,6 +53,7 @@ from .models import (
     Constraints,
     EndsInBasisState,
     EquivalentTo,
+    ExpectationMatches,
     PassesThroughSuperposition,
     Point,
     ProbabilitiesMatch,
@@ -884,5 +889,37 @@ RAW_CHALLENGES: list[Challenge] = [
         ],
         success_message="The syndrome pointed at q[1] without revealing the encoded state, and the controlled correction put it back: a fixed injected flip, repaired.",
         reference_solution=circ(5, [*_QEC_ENCODE, *_QEC_ERROR, *_QEC_SYNDROME, *_QEC_FIX_Q1]),
+    ),
+    Challenge(
+        id="vqe-find-theta",
+        lesson_id="variational-vqe",
+        title="Find θ where ⟨Z⟩ = -1",
+        goal=(
+            "Build a one-qubit circuit with a single RY gate and choose its angle θ so that the expectation value of Z, which the backend reads "
+            "from the state your circuit prepares, is -1: the lowest value the cost can take. This is the cost of a one-parameter variational "
+            "demonstration, searched by hand."
+        ),
+        difficulty="intermediate",
+        success_condition="The circuit is one RY gate on q[0], and the backend's expectation value of Z for the state it prepares is -1 (within one millionth).",
+        constraints=Constraints(num_qubits=1, allowed_gates=[GateName.RY], max_ops=1, min_gate_counts={GateName.RY: 1}),
+        starter_circuit=circ(1, []),
+        checks=[
+            ExpectationMatches(
+                id="final.expectation_z",
+                label="The expectation value of Z for the prepared state is -1",
+                hint_index=1,
+                misconception="The expectation value of Z says how far the qubit's arrow points up or down: it is largest when the arrow points at the north pole (the state zero), smallest when it points at the south pole (the state one), and in between on the way. An angle that leaves the arrow short of the south pole leaves the value above its lowest.",
+                experiment="Run the circuit, open the qubit's own sphere in the trace and look where the arrow ends: how far is it from the south pole?",
+                qubit=0,
+                value=-1.0,
+            ),
+        ],
+        hints=[
+            "The whole circuit is one RY gate. Its angle is a rotation about the y axis of the Bloch sphere, set in the angle box before you place the gate; you can write it as a multiple of pi.",
+            "The expectation value of Z is lowest when the arrow points straight down. Run your circuit and watch the arrow in the trace: RY turns it from the north pole towards the south pole as the angle grows.",
+            "Turning the arrow all the way from the north pole to the south pole is a half turn: the angle is pi.",
+        ],
+        success_message="The backend's state for your angle has the lowest expectation value of Z: the arrow points straight down. In a variational algorithm, the classical loop searches for exactly this kind of angle.",
+        reference_solution=circ(1, [g("ry", 0, angle=math.pi)]),
     ),
 ]

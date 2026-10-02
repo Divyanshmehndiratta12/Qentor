@@ -45,7 +45,7 @@ def outcome(evaluation, check_id: str):
 
 
 class TestCatalog(unittest.TestCase):
-    def test_the_eighteen_challenges_exist_in_catalog_order(self) -> None:
+    def test_the_nineteen_challenges_exist_in_catalog_order(self) -> None:
         self.assertEqual(
             [c.id for c in CHALLENGES],
             [
@@ -67,6 +67,7 @@ class TestCatalog(unittest.TestCase):
                 "qft-2qubit",
                 "qpe-estimate-t",
                 "qec-correct-flip-q1",
+                "vqe-find-theta",
             ],
         )
 
@@ -522,7 +523,7 @@ class TestSubmitEndpoint(ApiCase):
 
     def test_catalog_endpoint_lists_all_without_answers(self) -> None:
         catalog = app_module.list_challenges()
-        self.assertEqual(len(catalog.challenges), 18)
+        self.assertEqual(len(catalog.challenges), 19)
         self.assertNotIn("reference_solution", json.dumps(catalog.model_dump(mode="json")))
         one = app_module.get_challenge_definition("create-one")
         self.assertEqual(one.id, "create-one")

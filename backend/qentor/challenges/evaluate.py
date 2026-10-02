@@ -25,6 +25,7 @@ from pydantic import BaseModel, ConfigDict
 from qentor.circuit.hashing import circuit_hash
 from qentor.circuit.model import Circuit, GateName, GateOp
 from qentor.execution.adapter import ExecutionAdapter, ExecutionResult
+from qentor.execution.expectation import z_expectation
 from qentor.execution.reduced_state import qubit_bloch
 from qentor.execution.trace import (
     ExecutionTrace,
@@ -40,6 +41,7 @@ from .models import (
     Challenge,
     EndsInBasisState,
     EquivalentTo,
+    ExpectationMatches,
     PassesThroughSuperposition,
     Point,
     ProbabilitiesMatch,
@@ -422,6 +424,35 @@ def _judge_states(
             else:
                 detail = f"The backend could not decide whether the circuits are equivalent, so this does not pass: {report.reason or 'unverifiable'}."
             outcomes.append(CheckOutcome(**base, passed=ok, detail=detail, result_id=steps[last].result_id))
+
+        elif isinstance(check, ExpectationMatches):
+            step = steps[last]
+            value = z_expectation(step.statevector, check.qubit, n) if check.qubit < n else None
+            if value is None:
+                outcomes.append(
+                    CheckOutcome(
+                        **base,
+                        passed=False,
+                        detail="The expectation value could not be read from the backend's state, so it is not accepted.",
+                        result_id=step.result_id,
+                    )
+                )
+                continue
+            gap = abs(value - check.value)
+            ok = gap <= check.tolerance
+            outcomes.append(
+                CheckOutcome(
+                    **base,
+                    passed=ok,
+                    detail=(
+                        "The expectation value is the one the challenge asks for."
+                        if ok
+                        else "The expectation value is not the one the challenge asks for yet."
+                    ),
+                    evidence=[Evidence(name=f"expectation_{check.observable.lower()}", value=value)],
+                    result_id=step.result_id,
+                )
+            )
 
         elif isinstance(check, PassesThroughSuperposition):
             middle = steps[1:last]

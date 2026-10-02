@@ -1204,6 +1204,47 @@
         },
         "success_condition": "The register is encoded before the error; the injected error is on q[1]; the syndrome reads the pattern for q[1]; q[1] is back to its encoded state; and the whole register is the restored encoded state.",
         "title": "Correct the flip on qubit 1"
+      },
+      {
+        "checks": [
+          {
+            "id": "final.expectation_z",
+            "label": "The expectation value of Z for the prepared state is -1"
+          }
+        ],
+        "constraints": {
+          "allowed_gates": [
+            "ry"
+          ],
+          "anchor": [],
+          "anchor_name": "oracle",
+          "gate_qubits": {},
+          "max_ops": 1,
+          "min_gate_counts": {
+            "ry": 1
+          },
+          "must_measure": [],
+          "num_clbits": 0,
+          "num_qubits": 1
+        },
+        "difficulty": "intermediate",
+        "fixed_oracle": false,
+        "goal": "Build a one-qubit circuit with a single RY gate and choose its angle θ so that the expectation value of Z, which the backend reads from the state your circuit prepares, is -1: the lowest value the cost can take. This is the cost of a one-parameter variational demonstration, searched by hand.",
+        "hints": [
+          "The whole circuit is one RY gate. Its angle is a rotation about the y axis of the Bloch sphere, set in the angle box before you place the gate; you can write it as a multiple of pi.",
+          "The expectation value of Z is lowest when the arrow points straight down. Run your circuit and watch the arrow in the trace: RY turns it from the north pole towards the south pole as the angle grows.",
+          "Turning the arrow all the way from the north pole to the south pole is a half turn: the angle is pi."
+        ],
+        "id": "vqe-find-theta",
+        "lesson_id": "variational-vqe",
+        "starter_circuit": {
+          "num_clbits": 0,
+          "num_qubits": 1,
+          "ops": [],
+          "schema": "qentor.circuit/1"
+        },
+        "success_condition": "The circuit is one RY gate on q[0], and the backend's expectation value of Z for the state it prepares is -1 (within one millionth).",
+        "title": "Find θ where ⟨Z⟩ = -1"
       }
     ]
   },
@@ -4386,6 +4427,146 @@
         ],
         "short_description": "Spreading a state over three qubits, finding a bit flip with a syndrome and undoing it, in one fixed example with an injected error.",
         "title": "Quantum Error Correction"
+      },
+      {
+        "concept": "variational-algorithms",
+        "difficulty": "advanced",
+        "estimated_minutes": 22,
+        "id": "variational-vqe",
+        "learning_objectives": [
+          "Say what a parameterised circuit is and why its angle acts as a knob.",
+          "Read the expectation value of Z as how far the qubit's arrow points up or down.",
+          "Explain how a classical loop lowers a cost using only values the quantum side returns.",
+          "Describe the cost curve and what the optimisation path does on it.",
+          "Say plainly what this one-parameter demonstration is not."
+        ],
+        "linked_circuit": {
+          "num_clbits": 0,
+          "num_qubits": 1,
+          "ops": [
+            {
+              "clbits": [],
+              "controls": [],
+              "gate": "ry",
+              "params": [
+                1.5707963267948966
+              ],
+              "targets": [
+                0
+              ]
+            }
+          ],
+          "schema": "qentor.circuit/1"
+        },
+        "prerequisite_lesson_ids": [
+          "bloch-sphere",
+          "superposition"
+        ],
+        "sections": [
+          {
+            "body": "A variational algorithm has two halves. A quantum circuit with an adjustable angle prepares a trial state, and a classical computer adjusts that angle to make a chosen cost as low as it can. This lesson is ONE fixed one-parameter example: a single RY gate on one qubit, with the Z observable as the cost. It is a small educational example, VQE-style in shape only. It is not a chemistry calculation, it is not a scalable VQE, and it needs no hardware.",
+            "id": "s1",
+            "title": "A circuit with a knob",
+            "type": "explanation"
+          },
+          {
+            "body": "RY turns the qubit's arrow about the y axis of the Bloch sphere, starting from the north pole, the state zero. A small angle leaves the arrow near the north pole; a larger angle swings it through the equator towards the south pole, the state one. Every angle prepares a different trial state. This is textbook reasoning about the gate; the trace shows the arrow the backend actually produced.",
+            "id": "s2",
+            "title": "The trial state moves with the angle",
+            "type": "explanation"
+          },
+          {
+            "body": "The cost is the expectation value of the Z observable, written ⟨Z⟩. It is the average result of many measurements, counting a zero as plus one and a one as minus one, so it is highest when the arrow points up, in the middle on the equator and lowest when the arrow points down. This is textbook reasoning. In Qentor the server reads the number from the state the backend produced; it is never worked out from the angle.",
+            "id": "s3",
+            "title": "The cost is an expectation value",
+            "type": "explanation"
+          },
+          {
+            "body": "The classical half is an ordinary loop. It asks the quantum side for the cost at the current angle, estimates which way is downhill and nudges the angle that way. One way to estimate the slope needs only more cost values: run the same circuit with the angle shifted a little each way and compare the two. This is textbook reasoning, the parameter-shift rule for a gate like this one. The loop never sees the state, only cost values.",
+            "id": "s4",
+            "title": "A classical loop searches for the lowest cost",
+            "type": "explanation"
+          },
+          {
+            "concept": "variational-algorithms",
+            "id": "s5",
+            "options": [
+              {
+                "id": "a",
+                "text": "The measurement outcomes, until the cost looks the way the loop wants it to"
+              },
+              {
+                "id": "b",
+                "text": "The angle of the rotation gate, guided by cost values that the quantum side returned"
+              },
+              {
+                "id": "c",
+                "text": "The state of the qubit itself, set directly without going through the circuit"
+              },
+              {
+                "id": "d",
+                "text": "The observable that defines the cost, until the cost reaches the target value"
+              }
+            ],
+            "prompt": "Think about what the loop is allowed to touch, and what it is told.",
+            "question": "In this variational example, what does the classical loop change from one step to the next?",
+            "title": "Check: what the classical loop changes",
+            "type": "concept_check"
+          },
+          {
+            "capability": "variational_sweep",
+            "id": "s6",
+            "instructions": "Open the lab circuit: one RY gate on one qubit. Run it on the backend, then open the trace and look at the qubit's own sphere. Then use the parameter sweep: the server runs the circuit at many angles and reads the expectation value of Z from each state, which draws the cost curve. Pick a point on the curve to see the arrow for that angle, then run the small optimisation. Every value on the curve and on the path is computed by the server from a backend run.",
+            "title": "Lab: sweep the angle and run the loop",
+            "type": "interactive_lab"
+          },
+          {
+            "concept": "variational-algorithms",
+            "id": "s7",
+            "options": [
+              {
+                "id": "a",
+                "text": "The angle at which the circuit stops being a valid quantum circuit and cannot be run"
+              },
+              {
+                "id": "b",
+                "text": "The angle at which a measurement of the qubit is certain to read zero"
+              },
+              {
+                "id": "c",
+                "text": "The angle whose trial state has the lowest cost, which is the angle the loop is searching for"
+              },
+              {
+                "id": "d",
+                "text": "The angle at which the quantum side has done more work than at any other angle"
+              }
+            ],
+            "prompt": "Think about what the horizontal and the vertical axes show.",
+            "question": "On the cost curve, what does the lowest point stand for?",
+            "title": "Check: reading the cost curve",
+            "type": "concept_check"
+          },
+          {
+            "body": "A downhill search only moves if it can tell which way is downhill. At the very top and the very bottom of this curve the slope is flat, so the loop stays where it is. Start exactly at the top and the search never leaves it; start anywhere else and it slides towards the bottom. This is textbook reasoning about this one curve, and a small taste of why variational searches can get stuck.",
+            "id": "s8",
+            "title": "A downhill search can stall",
+            "type": "explanation"
+          },
+          {
+            "body": "This example shows the shape of a variational algorithm: a parameterised circuit, a cost read from its state and a classical loop. It is not a chemistry simulation, because no molecule is involved. It is not a scalable VQE: real ones tune many angles on many qubits and face noise and a hard search. And it does not use hardware: every cost here comes from a statevector simulator on the server.",
+            "id": "s9",
+            "title": "What this demonstration is and is not",
+            "type": "explanation"
+          },
+          {
+            "id": "s10",
+            "prompt": "The loop changed only an angle and saw only cost values. Why is that enough to steer the qubit to the state it wants? And what would you expect to be harder if the circuit had many angles instead of one?",
+            "title": "Reflect",
+            "type": "reflection"
+          }
+        ],
+        "short_description": "One rotation angle, a cost read from the state it prepares, and a classical loop that searches for the lowest cost: a small educational example, not chemistry.",
+        "title": "Variational Circuits: a VQE-Style Demonstration"
       }
     ]
   }

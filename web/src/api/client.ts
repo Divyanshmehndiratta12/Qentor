@@ -44,7 +44,7 @@ export type LessonDifficulty = 'beginner' | 'intermediate' | 'advanced'
 /** The already-existing backend endpoints an interactive lab may point a
  * learner at (matches `backend/qentor/lessons/models.py::LabCapability`
  * exactly) — never a capability invented client-side. */
-export type LabCapability = 'execute' | 'verify_bell_state' | 'multi_input_test' | 'optimize'
+export type LabCapability = 'execute' | 'verify_bell_state' | 'multi_input_test' | 'optimize' | 'variational_sweep'
 
 export interface LessonExplanationSection {
   type: 'explanation'
@@ -625,7 +625,94 @@ export class GenerationFailedError extends Error {
   }
 }
 
+// ---------------------------------------------------------------------------------------------------------------------
+// Variational (VQE-style) demonstration (POST /api/variational/sweep, POST /api/variational/optimize).
+// One qubit, RY(theta), the cost <Z>. The browser sends angles and loop settings (its own choices) and nothing that could be a result.
+// ---------------------------------------------------------------------------------------------------------------------
+
+/** One run of the one-qubit ansatz. Every number is the backend's, wrapped with the provenance of THIS run. */
+export interface VariationalPoint {
+  /** The angle of this run (radians). */
+  theta: QuantumValue<number>
+  /** <Z>, read by the server from the statevector this run produced. */
+  expectationZ: QuantumValue<number>
+  bloch: QuantumValue<BlochCoordinates>
+  /** The backend's probability of the qubit reading 0 and reading 1. */
+  probabilityZero: QuantumValue<number>
+  probabilityOne: QuantumValue<number>
+  resultId: string
+  executionId: string
+  circuitHash: string
+  provenance: Provenance
+}
+
+interface VariationalCommon {
+  method: string
+  expectationMethod: string
+  ansatz: string
+  observable: string
+  /** The server's own statement of what this is: educational, one parameter, not chemistry, not a scalable VQE, no hardware. */
+  label: string
+  backend: string
+  backendVersion: string
+  /** The whole demonstration as one provenance record (it lists every run). */
+  provenance: Provenance
+}
+
+export interface VariationalSweepResult extends VariationalCommon {
+  points: VariationalPoint[]
+  /** Positions in `points` of the lowest and highest <Z> (found by the server comparing the backend's values). */
+  minimumIndex: number
+  maximumIndex: number
+}
+
+export interface VariationalStep {
+  step: number
+  point: VariationalPoint
+  /** (<Z>(theta + shift) - <Z>(theta - shift)) / 2 from two more backend runs (the parameter-shift rule). */
+  gradient: QuantumValue<number>
+  plus: VariationalPoint
+  minus: VariationalPoint
+}
+
+export interface VariationalOptimizationResult extends VariationalCommon {
+  steps: VariationalStep[]
+  lowestIndex: number
+  converged: boolean
+  /** The learner's own setting, echoed. */
+  learningRate: number
+  shift: number
+  notes: string[]
+}
+
+export interface VariationalSweepInput {
+  thetaMin?: number
+  thetaMax?: number
+  points?: number
+  backend?: Backend
+}
+
+export interface VariationalOptimizeInput {
+  thetaStart: number
+  steps?: number
+  learningRate?: number
+  backend?: Backend
+}
+
 export interface ApiClient {
+  /**
+   * POST /api/variational/sweep - the cost <Z> of RY(theta) at evenly spaced angles, each read by the server from its own backend
+   * run. Sends an angle range and a point count only; there is no field for a value. Every number comes back wrapped with the
+   * provenance of the run it was read from.
+   */
+  variationalSweep(input: VariationalSweepInput): Promise<VariationalSweepResult>
+
+  /**
+   * POST /api/variational/optimize - a fixed-length gradient-descent loop on <Z>: three backend runs per step. Sends the start angle
+   * and the loop settings (the learner's own choices). Every cost and gradient is the server's.
+   */
+  variationalOptimize(input: VariationalOptimizeInput): Promise<VariationalOptimizationResult>
+
   /** GET /api/generate/status — whether AI circuit generation exists on this server. */
   getGenerationStatus(): Promise<GenerationStatus>
 

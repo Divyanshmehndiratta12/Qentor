@@ -101,9 +101,9 @@ def _ops(lesson_id):
 
 class TestAlgorithmStructure(unittest.TestCase):
     def test_they_are_lessons_fourteen_to_sixteen_after_the_original_thirteen_with_stable_ids(self) -> None:
-        self.assertEqual([lesson.id for lesson in LESSONS][13:], IDS)
-        self.assertEqual(len(LESSONS), 16)
-        self.assertEqual(len({lesson.id for lesson in LESSONS}), 16)
+        self.assertEqual([lesson.id for lesson in LESSONS][13:16], IDS)  # lesson 17 follows (test_variational_lesson.py)
+        self.assertEqual(len(LESSONS), 17)
+        self.assertEqual(len({lesson.id for lesson in LESSONS}), 17)
         self.assertEqual(
             [lesson.id for lesson in LESSONS][:13],
             ["qubits-measurement", "bloch-sphere", "superposition", "phase", "interference", "entanglement", "bell-state",
@@ -234,7 +234,7 @@ class TestAlgorithmStructure(unittest.TestCase):
         from qentor.api import app as app_module
 
         served = {lesson.id: lesson for lesson in app_module.list_lessons().lessons}
-        self.assertEqual(len(served), 16)
+        self.assertEqual(len(served), 17)
         for lesson in ALGO:
             self.assertEqual([s.model_dump() for s in served[lesson.id].sections], [s.model_dump() for s in public_lesson(lesson).sections])
             blob = json.dumps(served[lesson.id].model_dump(mode="json"))
@@ -944,7 +944,7 @@ class TestAlgorithmChallengeAndProgressionLinks(unittest.TestCase):
              "bernstein-vazirani-fixed", "bloch-plus-direction", "entangle-bell-pair", "superdense-encode-10", "teleport-ry-fixed", "grover-find-01",
              "optimize-redundant"],
         )  # fmt: skip
-        self.assertEqual(len(CHALLENGES), 18)
+        self.assertEqual(len(CHALLENGES), 19)
 
     def test_the_challenge_register_size_matches_what_the_lab_circuits_use_where_the_brief_says_they_agree(self) -> None:
         self.assertEqual(CHALLENGE_BY_ID["qpe-estimate-t"].constraints.num_qubits, get_lesson(QPE).linked_circuit.num_qubits)
@@ -977,10 +977,10 @@ class TestAlgorithmChallengeAndProgressionLinks(unittest.TestCase):
             self.skipTest(str(exc))
         report = validate_content()
         self.assertTrue(report.ok, "\n" + str(report))
-        self.assertEqual(report.checked["lessons"], 16)
-        self.assertEqual(report.checked["challenges"], 18)
-        self.assertEqual(report.checked["concept_checks"], 32)
-        self.assertEqual(report.checked["circuits_executed"], 16)
+        self.assertEqual(report.checked["lessons"], 17)
+        self.assertEqual(report.checked["challenges"], 19)
+        self.assertEqual(report.checked["concept_checks"], 34)
+        self.assertEqual(report.checked["circuits_executed"], 17)
 
     def test_the_original_thirteen_lessons_are_unchanged(self) -> None:
         self.assertEqual([len(lesson.sections) for lesson in LESSONS[:13]], [9] * 7 + [10] * 6)

@@ -109,6 +109,21 @@ class EquivalentTo(_Check):
     target: Circuit
 
 
+class ExpectationMatches(_Check):
+    """The expectation value of the Pauli ``observable`` on ``qubit`` in the final state equals ``value`` within ``tolerance``. The value is
+    read from the statevector the backend produced for the learner's circuit (``qentor.execution.expectation``); it is never computed from the
+    angles in the circuit and never taken from the browser. This is the check a variational challenge needs: "find the angle where the cost is
+    at its lowest" is judged on what the backend's state gives, whatever circuit produced it."""
+
+    kind: Literal["expectation_matches"] = "expectation_matches"
+    qubit: int = Field(ge=0)
+    observable: Literal["Z"] = "Z"
+    # A number, NOT a circuit: the one check whose "target" is not a reference circuit, so it is named ``value`` (the model's consistency
+    # rules read ``target`` as a circuit).
+    value: float = Field(ge=-1.0, le=1.0)
+    tolerance: float = Field(gt=0, le=1e-3, default=1e-6)
+
+
 class PassesThroughSuperposition(_Check):
     """Some state after the first operation and before the last is a genuine superposition: its most likely outcome has
     probability no greater than 1/2 (within tolerance), so it is not one computational-basis state."""
@@ -123,7 +138,16 @@ class EndsInBasisState(_Check):
 
 
 Check = Annotated[
-    Union[StateMatches, StateDiffers, ProbabilitiesMatch, QubitStateMatches, EquivalentTo, PassesThroughSuperposition, EndsInBasisState],
+    Union[
+        StateMatches,
+        StateDiffers,
+        ProbabilitiesMatch,
+        QubitStateMatches,
+        EquivalentTo,
+        ExpectationMatches,
+        PassesThroughSuperposition,
+        EndsInBasisState,
+    ],
     Field(discriminator="kind"),
 ]
 

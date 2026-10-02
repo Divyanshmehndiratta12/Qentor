@@ -97,13 +97,15 @@ const FIRST_THIRTEEN = () => LESSONS.slice(0, 13).map((l) => l.id)
 const FIRST_FIFTEEN_CHALLENGES = () => CHALLENGES.slice(0, 15).map((c) => c.id)
 
 describe('the real catalog, through the real client', () => {
-  it('maps 16 lessons and 18 challenges, the algorithm ones last and in order', () => {
-    expect(LESSONS).toHaveLength(16)
-    expect(CHALLENGES).toHaveLength(18)
-    expect(LESSONS.slice(13).map((l) => l.id)).toEqual(NEW_LESSON_IDS)
-    expect(CHALLENGES.slice(15).map((c) => c.id)).toEqual(NEW_CHALLENGE_IDS)
-    expect(new Set(LESSONS.map((l) => l.id)).size).toBe(16)
-    expect(new Set(CHALLENGES.map((c) => c.id)).size).toBe(18)
+  it('maps 17 lessons and 19 challenges, the algorithm ones after the first thirteen and in order, the variational one last', () => {
+    expect(LESSONS).toHaveLength(17)
+    expect(CHALLENGES).toHaveLength(19)
+    expect(LESSONS.slice(13, 16).map((l) => l.id)).toEqual(NEW_LESSON_IDS)
+    expect(CHALLENGES.slice(15, 18).map((c) => c.id)).toEqual(NEW_CHALLENGE_IDS)
+    expect(LESSONS[16]?.id).toBe('variational-vqe')
+    expect(CHALLENGES[18]?.id).toBe('vqe-find-theta')
+    expect(new Set(LESSONS.map((l) => l.id)).size).toBe(17)
+    expect(new Set(CHALLENGES.map((c) => c.id)).size).toBe(19)
   })
 
   it('every earlier lesson and challenge is exactly where it was', () => {
@@ -200,7 +202,7 @@ describe('the real catalog, through the real client', () => {
   })
 })
 
-describe('progression over 16 lessons and 18 challenges', () => {
+describe('progression over 17 lessons and 19 challenges', () => {
   it('a new lesson is locked until every one of its prerequisites is complete', () => {
     const none = new Set<string>()
     for (const id of NEW_LESSON_IDS) expect(getLessonState(lesson(id), none)).toBe('locked')
@@ -240,6 +242,11 @@ describe('progression over 16 lessons and 18 challenges', () => {
     done = [...done, QEC]
     expect(recommend(done, cleared)).toMatchObject({ kind: 'try_challenge', challengeId: 'qec-correct-flip-q1', lessonId: QEC })
     cleared = [...cleared, 'qec-correct-flip-q1']
+    // the variational lesson (prerequisites: bloch-sphere and superposition) and its challenge come last
+    expect(recommend(done, cleared)).toMatchObject({ kind: 'next_lesson', lessonId: 'variational-vqe' })
+    done = [...done, 'variational-vqe']
+    expect(recommend(done, cleared)).toMatchObject({ kind: 'try_challenge', challengeId: 'vqe-find-theta', lessonId: 'variational-vqe' })
+    cleared = [...cleared, 'vqe-find-theta']
     expect(recommend(done, cleared).kind).toBe('all_done')
   })
 
@@ -250,17 +257,17 @@ describe('progression over 16 lessons and 18 challenges', () => {
     for (const l of LESSONS.slice(0, 13)) expect(isLessonComplete(l, everything[l.id])).toBe(true)
   })
 
-  it('the overall tally counts 16 lessons and 32 concept checks', () => {
+  it('the overall tally counts 17 lessons and 34 concept checks', () => {
     const everything = progressFor(LESSONS.map((l) => l.id))
     const tally = getOverallLearningProgress(LESSONS, everything, new Set(LESSONS.map((l) => l.id)))
-    expect(tally).toMatchObject({ totalLessons: 16, lessonsCompleted: 16, conceptChecksTotal: 32, conceptChecksCorrect: 32, overallAccuracy: 1 })
+    expect(tally).toMatchObject({ totalLessons: 17, lessonsCompleted: 17, conceptChecksTotal: 34, conceptChecksCorrect: 34, overallAccuracy: 1 })
   })
 
-  it('Progress shows challenge completion out of eighteen, with the new challenges listed and openable', () => {
+  it('Progress shows challenge completion out of nineteen, with the new challenges listed and openable', () => {
     const outcomes: ChallengeOutcomes = { ...emptyOutcomes(), records: solved(['create-one', 'qft-2qubit', 'qec-correct-flip-q1']) }
     const open = vi.fn()
     render(<ChallengeProgress challenges={CHALLENGES} outcomes={outcomes} onOpenChallenge={open} />)
-    expect(screen.getByTestId('challenges-solved')).toHaveTextContent('3 of 18 solved')
+    expect(screen.getByTestId('challenges-solved')).toHaveTextContent('3 of 19 solved')
     for (const id of NEW_CHALLENGE_IDS) fireEvent.click(screen.getByRole('button', { name: new RegExp(challenge(id).title.replace(/[()]/g, '.')) }))
     expect(open.mock.calls.map((c) => c[0])).toEqual(NEW_CHALLENGE_IDS)
     cleanup()

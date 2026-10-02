@@ -57,6 +57,10 @@ import type {
   MultiInputTestCase,
   ModificationInput,
   MultiInputTestResult,
+  VariationalOptimizationResult,
+  VariationalOptimizeInput,
+  VariationalSweepInput,
+  VariationalSweepResult,
   OptimizationResult,
   ReasoningRequestInput,
   ReasoningResult,
@@ -184,6 +188,15 @@ export class MockApiClient implements ApiClient {
   /** Deliberately NOT faked: a comparison is computed by the server from two of its own records. */
   async compareExperiments(_a: { resultId: string; circuit: Circuit }, _b: { resultId: string; circuit: Circuit }): Promise<ExperimentComparison> {
     throw new EndpointNotImplementedError('POST /api/compare/experiments (the FIXTURE mock adapter cannot compare runs)')
+  }
+
+  /** Deliberately NOT faked: every cost is read by the server from a backend run. */
+  async variationalSweep(_input: VariationalSweepInput): Promise<VariationalSweepResult> {
+    throw new EndpointNotImplementedError('POST /api/variational/sweep (the FIXTURE mock adapter cannot run the ansatz)')
+  }
+
+  async variationalOptimize(_input: VariationalOptimizeInput): Promise<VariationalOptimizationResult> {
+    throw new EndpointNotImplementedError('POST /api/variational/optimize (the FIXTURE mock adapter cannot run the ansatz)')
   }
 
   /** Deliberately NOT faked: an analysis is computed by the server from its own backend runs. */

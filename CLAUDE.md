@@ -88,6 +88,7 @@ Test counts and what is not built live in `docs/BUILD_STATE.md`, not here.
 - `docs/VERIFICATION_ARCHITECTURE.md` — how results are trusted
 - `docs/AI_BOUNDARY.md` — what the AI may and may not do
 - `docs/REASONING_ENGINE.md` — the server-side analysis layer (probability, optimise, what-if, trace change) and its trust rules
+- `docs/VARIATIONAL.md` — lesson 17, the one-parameter VQE-style demonstration, where its numbers come from and what it is not
 - `docs/48_HOUR_PLAN.md` — milestones and cut conditions
 - `docs/BUILD_STATE.md` — what is actually built and verified right now, and current blockers
 - `docs/source/PPT_SOURCES.md` — extracted text of the submitted deck and drafts

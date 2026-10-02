@@ -24,6 +24,7 @@ import type { LabCapability, Lesson, LessonSection } from '@/api'
 import { useLearnStore } from './store'
 import { canContinueFromSection, isFullConceptCheck } from './lessonState'
 import { ConceptCheckQuiz } from './ConceptCheckQuiz'
+import { VariationalLab } from './VariationalLab'
 
 const SECTION_LABEL: Record<LessonSection['type'], string> = {
   explanation: 'Explanation',
@@ -37,6 +38,7 @@ const CAPABILITY_LABEL: Record<LabCapability, string> = {
   verify_bell_state: 'verify Bell state',
   multi_input_test: 'multi-input test',
   optimize: 'optimize',
+  variational_sweep: 'variational sweep',
 }
 
 export function LessonPlayer({ lesson, onOpenLab }: { lesson: Lesson; onOpenLab: (circuit: Circuit) => void }) {
@@ -136,7 +138,7 @@ export function LessonPlayer({ lesson, onOpenLab }: { lesson: Lesson; onOpenLab:
             ))}
 
           {section.type === 'interactive_lab' && (
-            <div className="mt-2 flex flex-col items-start gap-2">
+            <div className="mt-2 flex w-full flex-col items-start gap-2">
               <p className="text-sm text-slate-300">{section.instructions}</p>
               <button
                 type="button"
@@ -147,8 +149,11 @@ export function LessonPlayer({ lesson, onOpenLab }: { lesson: Lesson; onOpenLab:
                 Open in Lab
               </button>
               <p className="font-mono-qasm text-[10px] text-void-200">
-                uses the existing {CAPABILITY_LABEL[section.capability]} capability — nothing is computed here
+                {section.capability === 'variational_sweep'
+                  ? 'the sweep and the optimiser below are computed by the server — nothing is computed here'
+                  : `uses the existing ${CAPABILITY_LABEL[section.capability]} capability — nothing is computed here`}
               </p>
+              {section.capability === 'variational_sweep' && <VariationalLab />}
             </div>
           )}
         </div>
