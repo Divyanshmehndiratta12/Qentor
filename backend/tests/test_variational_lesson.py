@@ -60,7 +60,7 @@ def section(section_id: str):
 
 class TestStructure(unittest.TestCase):
     def test_it_is_lesson_seventeen_after_the_error_correction_lesson(self) -> None:
-        self.assertEqual(len(LESSONS), 17)
+        self.assertEqual(len(LESSONS), 18)  # lesson 18 follows (test_shor_lesson.py)
         self.assertEqual(LESSONS[16].id, ID)
         self.assertEqual(LESSONS[15].id, "quantum-error-correction")
 

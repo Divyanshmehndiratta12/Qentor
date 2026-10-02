@@ -934,6 +934,37 @@ BACKEND += [
 ]
 
 
+# --- Final sprint: lesson 18, Shor's algorithm order-finding intuition (lessons/content_shor.py) ---
+_SH = ["test_shor_lesson.py"]
+_SHF = "backend/qentor/lessons/content_shor.py"
+BACKEND += [
+    Mutant("shor: the work register is prepared at the wrong value", _SHF,
+           'SHOR_PREPARE = [_g("x", 3),', 'SHOR_PREPARE = [_g("x", 4),', _SH),
+    Mutant("shor: a controlled swap loses its last cx", _SHF,
+           'return [_g("cx", a, b), _ccx(control, a, b), _g("cx", a, b)]', 'return [_g("cx", a, b), _ccx(control, a, b)]', _SH),
+    Mutant("shor: the times-4 multiplication swaps the wrong pair", _SHF,
+           "*_cswap(1, 3, 5), *_cswap(1, 4, 6)", "*_cswap(1, 3, 4), *_cswap(1, 4, 6)", _SH),
+    Mutant("shor: the times-2 multiplication uses the wrong control", _SHF,
+           "*_cswap(0, 4, 5), *_cswap(0, 3, 4)", "*_cswap(2, 4, 5), *_cswap(0, 3, 4)", _SH),
+    Mutant("shor: the readout loses the inverse QFT", _SHF,
+           "SHOR_READOUT = [*INVERSE_QFT3_OPS, _measure(0, 0)", "SHOR_READOUT = [_measure(0, 0)", _SH),
+    Mutant("shor: the first check's key points at a wrong option", _SHF,
+           'correct_option_id="b",\n                explanation=(\n                    "Each run returns',
+           'correct_option_id="a",\n                explanation=(\n                    "Each run returns', _SH),
+    Mutant("shor: the classical-finish check's key points at a wrong option", _SHF,
+           'correct_option_id="b",\n                explanation=(\n                    "Once the order',
+           'correct_option_id="d",\n                explanation=(\n                    "Once the order', _SH),
+    Mutant("shor: the opening stops saying it is not a scalable algorithm", _SHF,
+           "It \"\n                    \"is not a scalable Shor's algorithm, it factors nothing by itself, and it needs no hardware.", "It \"\n                    \"factors nothing by itself, and it needs no hardware.", _SH),
+    Mutant("shor: the cycle arithmetic loses its textbook label", _SHF,
+           "textbook arithmetic, not a run.", "arithmetic, not a run.", _SH),
+    Mutant("shor: the lesson claims a verified classical finish", _SHF,
+           "not a result from the backend.", "a result verified by the backend.", _SH),
+    Mutant("shor: the prerequisite is dropped", _SHF,
+           'prerequisite_lesson_ids=["quantum-phase-estimation"]', "prerequisite_lesson_ids=[]", _SH),
+]
+
+
 def run(cmd: list[str], cwd: Path) -> int:
     return subprocess.run(cmd, cwd=cwd, capture_output=True, text=True).returncode
 

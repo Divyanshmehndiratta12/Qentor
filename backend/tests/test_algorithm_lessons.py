@@ -101,9 +101,9 @@ def _ops(lesson_id):
 
 class TestAlgorithmStructure(unittest.TestCase):
     def test_they_are_lessons_fourteen_to_sixteen_after_the_original_thirteen_with_stable_ids(self) -> None:
-        self.assertEqual([lesson.id for lesson in LESSONS][13:16], IDS)  # lesson 17 follows (test_variational_lesson.py)
-        self.assertEqual(len(LESSONS), 17)
-        self.assertEqual(len({lesson.id for lesson in LESSONS}), 17)
+        self.assertEqual([lesson.id for lesson in LESSONS][13:16], IDS)  # lessons 17 and 18 follow (test_variational_lesson.py, test_shor_lesson.py)
+        self.assertEqual(len(LESSONS), 18)
+        self.assertEqual(len({lesson.id for lesson in LESSONS}), 18)
         self.assertEqual(
             [lesson.id for lesson in LESSONS][:13],
             ["qubits-measurement", "bloch-sphere", "superposition", "phase", "interference", "entanglement", "bell-state",
@@ -234,7 +234,7 @@ class TestAlgorithmStructure(unittest.TestCase):
         from qentor.api import app as app_module
 
         served = {lesson.id: lesson for lesson in app_module.list_lessons().lessons}
-        self.assertEqual(len(served), 17)
+        self.assertEqual(len(served), 18)
         for lesson in ALGO:
             self.assertEqual([s.model_dump() for s in served[lesson.id].sections], [s.model_dump() for s in public_lesson(lesson).sections])
             blob = json.dumps(served[lesson.id].model_dump(mode="json"))
@@ -977,10 +977,10 @@ class TestAlgorithmChallengeAndProgressionLinks(unittest.TestCase):
             self.skipTest(str(exc))
         report = validate_content()
         self.assertTrue(report.ok, "\n" + str(report))
-        self.assertEqual(report.checked["lessons"], 17)
+        self.assertEqual(report.checked["lessons"], 18)
         self.assertEqual(report.checked["challenges"], 19)
-        self.assertEqual(report.checked["concept_checks"], 34)
-        self.assertEqual(report.checked["circuits_executed"], 17)
+        self.assertEqual(report.checked["concept_checks"], 36)
+        self.assertEqual(report.checked["circuits_executed"], 18)
 
     def test_the_original_thirteen_lessons_are_unchanged(self) -> None:
         self.assertEqual([len(lesson.sections) for lesson in LESSONS[:13]], [9] * 7 + [10] * 6)

@@ -94,12 +94,12 @@ class TestTheShippedContentPassesEveryCheck(unittest.TestCase):
     def test_it_looked_at_everything_so_a_pass_is_not_vacuous(self) -> None:
         aer_or_skip(self)
         report = validate_content(known_routes=ROUTES)
-        self.assertEqual(report.checked["lessons"], 17)
+        self.assertEqual(report.checked["lessons"], 18)
         self.assertEqual(report.checked["sections"], sum(len(l.sections) for l in LESSONS))
-        self.assertEqual(report.checked["concept_checks"], 34)
-        self.assertEqual(report.checked["labs"], 17)
-        self.assertEqual(report.checked["linked_circuits"], 17)
-        self.assertEqual(report.checked["circuits_executed"], 17)
+        self.assertEqual(report.checked["concept_checks"], 36)
+        self.assertEqual(report.checked["labs"], 18)
+        self.assertEqual(report.checked["linked_circuits"], 18)
+        self.assertEqual(report.checked["circuits_executed"], 18)
         self.assertEqual(report.checked["challenges"], 19)
 
     def test_every_lesson_has_valid_prerequisites(self) -> None:
@@ -119,7 +119,7 @@ class TestTheShippedContentPassesEveryCheck(unittest.TestCase):
     def test_every_concept_check_is_graded_and_has_an_explanation(self) -> None:
         self.assertEqual(check_concept_checks(list(LESSONS)), [])  # strict: no prompt-only checks allowed
         checks = [(l, s) for l in LESSONS for s in l.sections if isinstance(s, ConceptCheckSection)]
-        self.assertEqual(len(checks), 34)
+        self.assertEqual(len(checks), 36)
         for lesson, section in checks:
             self.assertTrue(section.explanation and section.explanation.strip(), (lesson.id, section.id))
             self.assertIn(section.correct_option_id, [o.id for o in section.options], (lesson.id, section.id))
@@ -136,7 +136,7 @@ class TestTheShippedContentPassesEveryCheck(unittest.TestCase):
         adapter = aer_or_skip(self)
         problems, skipped, ran = check_linked_circuits_execute(list(LESSONS), adapter)
         self.assertEqual((problems, skipped), ([], []), problem_text(problems))
-        self.assertEqual(ran, 17)
+        self.assertEqual(ran, 18)
 
     def test_every_lab_capability_exists_and_is_served(self) -> None:
         self.assertEqual(check_lab_capabilities(list(LESSONS), known_routes=ROUTES), [])
@@ -153,10 +153,14 @@ class TestTheShippedContentPassesEveryCheck(unittest.TestCase):
         ids = {l.id for l in LESSONS}
         referenced = {c.lesson_id for c in CHALLENGES}
         self.assertTrue(referenced <= ids)
-        # Sprint 2 gave bloch-sphere and entanglement a challenge each: every lesson now has one, so none may still claim it has none.
-        self.assertEqual({l.id for l in LESSONS if l.id not in referenced}, set())
+        # Sprint 2 gave bloch-sphere and entanglement a challenge each. Since the final sprint exactly one lesson, Shor's order-finding
+        # intuition, has none and says why; every other lesson has a challenge and must not claim it has none.
+        self.assertEqual({l.id for l in LESSONS if l.id not in referenced}, {"shors-algorithm"})
         for lesson in LESSONS:
-            self.assertIsNone(lesson.no_challenge_reason, f"{lesson.id} has a challenge, so it should not claim it has none")
+            if lesson.id == "shors-algorithm":
+                self.assertTrue(lesson.no_challenge_reason and lesson.no_challenge_reason.strip(), "a lesson with no challenge must say why")
+            else:
+                self.assertIsNone(lesson.no_challenge_reason, f"{lesson.id} has a challenge, so it should not claim it has none")
 
     def test_the_reasons_are_plain_text_like_the_rest_of_the_lesson_prose(self) -> None:
         for lesson in LESSONS:

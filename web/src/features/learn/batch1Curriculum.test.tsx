@@ -97,13 +97,13 @@ const solved = (ids: string[]): Record<string, ReturnType<typeof emptyRecord>> =
   Object.fromEntries(ids.map((id) => [id, { ...emptyRecord(), attempts: 1, solved: true }]))
 
 describe('the real catalog, through the real client', () => {
-  it('maps 17 lessons and 19 challenges, batch 1 after the original ten and nine, in catalog order', () => {
-    expect(LESSONS).toHaveLength(17)
+  it('maps 18 lessons and 19 challenges, batch 1 after the original ten and nine, in catalog order', () => {
+    expect(LESSONS).toHaveLength(18)
     expect(CHALLENGES).toHaveLength(19)
     expect(LESSONS.slice(10, 13).map((l) => l.id)).toEqual(NEW_LESSON_IDS)
     expect(CHALLENGES.slice(9, 14).map((c) => c.id)).toEqual(NEW_CHALLENGE_IDS)
     expect(CHALLENGES[14]?.id).toBe('optimize-redundant') // the optimisation challenge follows, in the Interference lesson
-    expect(new Set(LESSONS.map((l) => l.id)).size).toBe(17)
+    expect(new Set(LESSONS.map((l) => l.id)).size).toBe(18)
   })
 
   it('each new lesson has ten sections, its prerequisites, and a linked circuit exactly as the server sent it', () => {
@@ -157,14 +157,14 @@ describe('the real catalog, through the real client', () => {
     for (const c of CHALLENGES) expect(Object.keys(c)).not.toContain('referenceSolution')
   })
 
-  it('every lesson now has a challenge, and every challenge a real lesson', () => {
+  it('every lesson but the Shor one has a challenge, and every challenge a real lesson', () => {
     const lessonIds = new Set(LESSONS.map((l) => l.id))
     for (const c of CHALLENGES) expect(lessonIds.has(c.lessonId)).toBe(true)
-    for (const l of LESSONS) expect(CHALLENGES.some((c) => c.lessonId === l.id)).toBe(true)
+    for (const l of LESSONS) expect(CHALLENGES.some((c) => c.lessonId === l.id)).toBe(l.id !== 'shors-algorithm')
   })
 })
 
-describe('progression over 17 lessons and 19 challenges', () => {
+describe('progression over 18 lessons and 19 challenges', () => {
   it('a new lesson is locked until every one of its prerequisites is complete', () => {
     const none = new Set<string>()
     for (const id of NEW_LESSON_IDS) expect(getLessonState(lesson(id), none)).toBe('locked')
@@ -224,10 +224,10 @@ describe('progression over 17 lessons and 19 challenges', () => {
     expect(recommend(done, cleared)).toMatchObject({ kind: 'next_lesson', lessonId: 'quantum-fourier-transform' })
   })
 
-  it('the overall tally counts 17 lessons and 34 concept checks', () => {
+  it('the overall tally counts 18 lessons and 36 concept checks', () => {
     const everything = progressFor(LESSONS.map((l) => l.id))
     const tally = getOverallLearningProgress(LESSONS, everything, new Set(LESSONS.map((l) => l.id)))
-    expect(tally).toMatchObject({ totalLessons: 17, lessonsCompleted: 17, conceptChecksTotal: 34, conceptChecksCorrect: 34, overallAccuracy: 1 })
+    expect(tally).toMatchObject({ totalLessons: 18, lessonsCompleted: 18, conceptChecksTotal: 36, conceptChecksCorrect: 36, overallAccuracy: 1 })
     expect(LESSONS.every((l) => isLessonComplete(l, everything[l.id]))).toBe(true)
   })
 

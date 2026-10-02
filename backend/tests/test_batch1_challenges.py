@@ -85,7 +85,8 @@ class TestTheFiveChallengesAreDefinedAndLinked(unittest.TestCase):
     def test_every_lesson_has_at_least_one_challenge(self) -> None:
         from qentor.lessons import LESSONS
 
-        self.assertEqual({l.id for l in LESSONS} - {c.lesson_id for c in CHALLENGES}, set())
+        # every lesson but the Shor order-finding one (it has a validated no_challenge_reason instead; see test_shor_lesson.py)
+        self.assertEqual({l.id for l in LESSONS} - {c.lesson_id for c in CHALLENGES}, {"shors-algorithm"})
 
     def test_the_titles_are_the_ones_the_brief_asked_for(self) -> None:
         self.assertEqual(CHALLENGE_BY_ID["superdense-encode-10"].title, "Encode message 10")

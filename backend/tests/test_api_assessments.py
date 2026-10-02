@@ -140,7 +140,7 @@ class TestTheCatalogCarriesNoAnswerKey(unittest.TestCase):
         self.catalog = json.loads(self.text)
 
     def test_there_are_graded_checks_to_protect(self) -> None:
-        self.assertEqual(len(graded_checks()), 34)  # 14 foundation + 6 advanced + 6 batch 1 + 6 algorithms + 2 variational: a guard against a vacuous pass
+        self.assertEqual(len(graded_checks()), 36)  # 14 foundation + 6 advanced + 6 batch 1 + 6 algorithms + 2 variational + 2 Shor: a guard against a vacuous pass
 
     def test_no_key_anywhere_in_the_response_body(self) -> None:
         self.assertNotIn("correct_option_id", self.text)

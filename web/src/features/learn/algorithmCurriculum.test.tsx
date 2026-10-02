@@ -97,14 +97,15 @@ const FIRST_THIRTEEN = () => LESSONS.slice(0, 13).map((l) => l.id)
 const FIRST_FIFTEEN_CHALLENGES = () => CHALLENGES.slice(0, 15).map((c) => c.id)
 
 describe('the real catalog, through the real client', () => {
-  it('maps 17 lessons and 19 challenges, the algorithm ones after the first thirteen and in order, the variational one last', () => {
-    expect(LESSONS).toHaveLength(17)
+  it('maps 18 lessons and 19 challenges, the algorithm ones after the first thirteen and in order, the variational one and then the Shor lesson last', () => {
+    expect(LESSONS).toHaveLength(18)
     expect(CHALLENGES).toHaveLength(19)
     expect(LESSONS.slice(13, 16).map((l) => l.id)).toEqual(NEW_LESSON_IDS)
     expect(CHALLENGES.slice(15, 18).map((c) => c.id)).toEqual(NEW_CHALLENGE_IDS)
     expect(LESSONS[16]?.id).toBe('variational-vqe')
+    expect(LESSONS[17]?.id).toBe('shors-algorithm') // no challenge: its reason is validated on the server
     expect(CHALLENGES[18]?.id).toBe('vqe-find-theta')
-    expect(new Set(LESSONS.map((l) => l.id)).size).toBe(17)
+    expect(new Set(LESSONS.map((l) => l.id)).size).toBe(18)
     expect(new Set(CHALLENGES.map((c) => c.id)).size).toBe(19)
   })
 
@@ -194,15 +195,15 @@ describe('the real catalog, through the real client', () => {
     expect(challenge('qpe-estimate-t').checks.map((c) => c.id)).toEqual(['before.prepared', 'final.reads_phase', 'final.is_general'])
   })
 
-  it('every lesson has a challenge and every challenge a real lesson', () => {
+  it('every lesson but the Shor one has a challenge and every challenge a real lesson', () => {
     const lessonIds = new Set(LESSONS.map((l) => l.id))
     for (const c of CHALLENGES) expect(lessonIds.has(c.lessonId)).toBe(true)
-    for (const l of LESSONS) expect(CHALLENGES.some((c) => c.lessonId === l.id)).toBe(true)
+    for (const l of LESSONS) expect(CHALLENGES.some((c) => c.lessonId === l.id)).toBe(l.id !== 'shors-algorithm')
     for (const [lessonId, challengeId] of Object.entries(CHALLENGE_OF)) expect(challenge(challengeId).lessonId).toBe(lessonId)
   })
 })
 
-describe('progression over 17 lessons and 19 challenges', () => {
+describe('progression over 18 lessons and 19 challenges', () => {
   it('a new lesson is locked until every one of its prerequisites is complete', () => {
     const none = new Set<string>()
     for (const id of NEW_LESSON_IDS) expect(getLessonState(lesson(id), none)).toBe('locked')
@@ -247,6 +248,9 @@ describe('progression over 17 lessons and 19 challenges', () => {
     done = [...done, 'variational-vqe']
     expect(recommend(done, cleared)).toMatchObject({ kind: 'try_challenge', challengeId: 'vqe-find-theta', lessonId: 'variational-vqe' })
     cleared = [...cleared, 'vqe-find-theta']
+    // Shor's order-finding lesson (prerequisite: quantum-phase-estimation) is last and has no challenge, so finishing it ends the path
+    expect(recommend(done, cleared)).toMatchObject({ kind: 'next_lesson', lessonId: 'shors-algorithm' })
+    done = [...done, 'shors-algorithm']
     expect(recommend(done, cleared).kind).toBe('all_done')
   })
 
@@ -257,10 +261,10 @@ describe('progression over 17 lessons and 19 challenges', () => {
     for (const l of LESSONS.slice(0, 13)) expect(isLessonComplete(l, everything[l.id])).toBe(true)
   })
 
-  it('the overall tally counts 17 lessons and 34 concept checks', () => {
+  it('the overall tally counts 18 lessons and 36 concept checks', () => {
     const everything = progressFor(LESSONS.map((l) => l.id))
     const tally = getOverallLearningProgress(LESSONS, everything, new Set(LESSONS.map((l) => l.id)))
-    expect(tally).toMatchObject({ totalLessons: 17, lessonsCompleted: 17, conceptChecksTotal: 34, conceptChecksCorrect: 34, overallAccuracy: 1 })
+    expect(tally).toMatchObject({ totalLessons: 18, lessonsCompleted: 18, conceptChecksTotal: 36, conceptChecksCorrect: 36, overallAccuracy: 1 })
   })
 
   it('Progress shows challenge completion out of nineteen, with the new challenges listed and openable', () => {
