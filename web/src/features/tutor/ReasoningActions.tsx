@@ -10,13 +10,14 @@
  * The server builds the counterfactual circuit and the learner SEES it (its operations, what differs, its OpenQASM) before anything
  * runs; only then can the comparison be run, and the server checks the hashes it showed.
  */
-import { useId, useState } from 'react'
+import { useContext, useId, useState } from 'react'
 import type { ModificationInput, ProbabilityTargetInput } from '@/api'
 import { parseAngle } from '@/circuit/angle'
 import { GATE_DISPLAY, MULTI_QUBIT_PLACEMENT, gateTakesAngle } from '@/circuit/gateSpec'
 import type { GateName } from '@/circuit/types'
 import { describeOperation } from '@/features/build/traceFormat'
 import { useBuildStore } from '@/features/build/store'
+import { LandmarkSuffix } from './LandmarkSuffix'
 
 const ONE_QUBIT: readonly GateName[] = ['h', 'x', 'y', 'z', 's', 'sdg', 't', 'tdg', 'rx', 'ry', 'rz']
 const INSERTABLE: readonly GateName[] = [...ONE_QUBIT, 'cx', 'cz', 'cp', 'swap', 'ccx']
@@ -32,6 +33,7 @@ const quiet = `${button} border-void-400 text-slate-300 hover:border-void-300 ho
 type Open = null | 'probability' | 'what_if'
 
 export function ReasoningActions() {
+  const landmarkSuffix = useContext(LandmarkSuffix)
   const circuit = useBuildStore((s) => s.circuit)
   const result = useBuildStore((s) => s.result)
   const hasTraceStep = useBuildStore((s) => s.trace !== null && s.trace.steps[s.selectedTraceStep] !== undefined)
@@ -67,7 +69,7 @@ export function ReasoningActions() {
   }
 
   return (
-    <section aria-label="Analyze this circuit" className="mb-3 rounded-lg border border-void-500 bg-void-800 p-3" data-testid="reasoning-actions">
+    <section aria-label={`Analyze this circuit${landmarkSuffix}`} className="mb-3 rounded-lg border border-void-500 bg-void-800 p-3" data-testid="reasoning-actions">
       <h3 className="text-[11px] font-semibold tracking-wider text-slate-400 uppercase">Ask the backend</h3>
       <p className="mt-0.5 text-[11px] text-void-200">The server computes each answer from its own runs; the tutor only words it.</p>
       <div role="group" aria-label="Analysis actions" className="mt-2 flex flex-wrap gap-1.5">

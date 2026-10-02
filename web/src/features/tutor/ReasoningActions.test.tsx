@@ -646,3 +646,43 @@ describe('multilingual and responsive', () => {
     expect(result.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(' ')).slice(0, 3).join(' | ')}`)).toEqual([])
   })
 })
+
+describe('two views of one conversation (the Lab and the Guide) keep every landmark name unique', () => {
+  async function mountTwoViews(suffix: string) {
+    useBuildStore.setState({ ...SETTLED, circuit: BELL })
+    setRun(BELL)
+    client.analyzeReasoning.mockResolvedValue(TRACE_RESULT)
+    loadTrace()
+    useBuildStore.setState({ ...SETTLED, circuit: BELL })
+    render(
+      <>
+        <TutorPanel />
+        <TutorPanel showModes={false} landmarkSuffix={suffix} />
+      </>,
+    )
+    fireEvent.click(screen.getAllByRole('button', { name: /explain change/i })[0]!)
+    await waitFor(() => expect(screen.getAllByTestId('reasoning-card').length).toBe(2))
+    const result = await axe.run(document.body, { runOnly: { type: 'rule', values: ['landmark-unique'] } })
+    return result.violations.map((v) => `${v.id}: ${v.nodes.length}`)
+  }
+
+  it('with the Guide’s suffix there is no duplicate landmark', async () => {
+    expect(await mountTwoViews(' (in the Guide)')).toEqual([])
+    const labels = screen.getAllByRole('region').map((r) => r.getAttribute('aria-label'))
+    expect(new Set(labels).size).toBe(labels.length)
+    expect(screen.getByRole('region', { name: /Analyze this circuit \(in the Guide\)/ })).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: /^Analyze this circuit$/ })).toBeInTheDocument()
+  })
+
+  it('without a suffix the same two views DO duplicate their landmarks, so the check above can fail', async () => {
+    const violations = await mountTwoViews('')
+    expect(violations.some((v) => v.startsWith('landmark-unique'))).toBe(true)
+  })
+
+  it('the Lab’s own Tutor keeps the names it always had', () => {
+    setRun(BELL)
+    useBuildStore.setState({ ...SETTLED, circuit: BELL })
+    render(<TutorPanel />)
+    expect(screen.getByRole('region', { name: 'Analyze this circuit' })).toBeInTheDocument()
+  })
+})

@@ -1,0 +1,157 @@
+{
+  "description": "Educational rewrite examples for the Lab's Optimize panel. The circuits are the only authority here: the verdicts (status, rules, counts) are what the server's optimiser returns for them, pinned by backend/tests/test_optimizer_examples.py; the web copy (web/src/features/build/optimizeExamples.ts) must match this file exactly.",
+  "examples": [
+    {
+      "id": "two-hadamards-cancel",
+      "title": "Two Hadamards in a row",
+      "summary": "H followed straight away by H on the same qubit. The rule 'a self-inverse gate twice cancels' should match, and the backend then checks the shorter circuit does the same thing.",
+      "expected_status": "VERIFIED_SHORTER",
+      "expected_rule_contains": "cancelled adjacent h pair",
+      "expected_op_counts": [
+        3,
+        1
+      ],
+      "circuit": {
+        "schema": "qentor.circuit/1",
+        "num_qubits": 2,
+        "num_clbits": 0,
+        "ops": [
+          {
+            "gate": "h",
+            "targets": [
+              0
+            ],
+            "controls": [],
+            "params": [],
+            "clbits": []
+          },
+          {
+            "gate": "h",
+            "targets": [
+              0
+            ],
+            "controls": [],
+            "params": [],
+            "clbits": []
+          },
+          {
+            "gate": "cx",
+            "targets": [
+              1
+            ],
+            "controls": [
+              0
+            ],
+            "params": [],
+            "clbits": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "rotations-merge",
+      "title": "Two rotations about the same axis",
+      "summary": "Two RZ rotations back to back on one qubit. The rule 'same-axis rotations add their angles' should replace them with one, and the backend checks the result.",
+      "expected_status": "VERIFIED_SHORTER",
+      "expected_rule_contains": "merged adjacent rz ops",
+      "expected_op_counts": [
+        4,
+        3
+      ],
+      "circuit": {
+        "schema": "qentor.circuit/1",
+        "num_qubits": 2,
+        "num_clbits": 0,
+        "ops": [
+          {
+            "gate": "h",
+            "targets": [
+              0
+            ],
+            "controls": [],
+            "params": [],
+            "clbits": []
+          },
+          {
+            "gate": "rz",
+            "targets": [
+              0
+            ],
+            "controls": [],
+            "params": [
+              0.5
+            ],
+            "clbits": []
+          },
+          {
+            "gate": "rz",
+            "targets": [
+              0
+            ],
+            "controls": [],
+            "params": [
+              0.25
+            ],
+            "clbits": []
+          },
+          {
+            "gate": "cx",
+            "targets": [
+              1
+            ],
+            "controls": [
+              0
+            ],
+            "params": [],
+            "clbits": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "no-rule-matches",
+      "title": "Reducible, but no rule for it",
+      "summary": "H, X, H on one qubit has a shorter equivalent (the Z gate, a textbook identity), but this optimizer only knows adjacent cancellations and merges. It proposes nothing rather than guess.",
+      "expected_status": "NO_OPTIMIZATION_FOUND",
+      "expected_rule_contains": null,
+      "expected_op_counts": [
+        3,
+        3
+      ],
+      "circuit": {
+        "schema": "qentor.circuit/1",
+        "num_qubits": 1,
+        "num_clbits": 0,
+        "ops": [
+          {
+            "gate": "h",
+            "targets": [
+              0
+            ],
+            "controls": [],
+            "params": [],
+            "clbits": []
+          },
+          {
+            "gate": "x",
+            "targets": [
+              0
+            ],
+            "controls": [],
+            "params": [],
+            "clbits": []
+          },
+          {
+            "gate": "h",
+            "targets": [
+              0
+            ],
+            "controls": [],
+            "params": [],
+            "clbits": []
+          }
+        ]
+      }
+    }
+  ]
+}

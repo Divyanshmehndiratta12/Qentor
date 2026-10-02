@@ -49,7 +49,7 @@ describe('the Results column is grouped', () => {
     }
     expect([...document.querySelectorAll('[data-testid^="results-group-"] > summary')].map((s) => s.firstElementChild?.firstChild?.textContent?.trim())).toEqual([
       'Step-by-step trace',
-      'Verify and optimise',
+      'Verify and optimize',
       'Compare runs and backends',
       'Equivalence and multi-input tests',
       'Share and export',

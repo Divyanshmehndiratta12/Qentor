@@ -154,3 +154,7 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--color-void-500);
 }
+/* where a horizontal and a vertical scrollbar meet (the circuit canvas) the browser paints a light square unless told otherwise */
+::-webkit-scrollbar-corner {
+  background: var(--color-void-900);
+}

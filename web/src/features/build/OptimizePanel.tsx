@@ -10,10 +10,16 @@
  *
  * Unlike Verify/Tutor, this never gates on an execution `result` existing: optimization operates on the circuit itself.
  */
+import { useState } from 'react'
 import type { OptimizationChange, OptimizationEquivalenceCheckResult, OptimizationResult } from '@/api'
+import type { Circuit } from '@/circuit/types'
 import { OptimizationStatusBadge } from '@/provenance/OptimizationStatusBadge'
 import { ProvenanceBadge } from '@/provenance/ProvenanceBadge'
+import { OPTIMIZE_EXAMPLES } from './optimizeExamples'
 import { useBuildStore } from './store'
+
+/** "1 operation", "3 operations": the count is the server's, only the noun agrees with it. */
+const operations = (n: number) => `${n} ${n === 1 ? 'operation' : 'operations'}`
 
 const CHANGE_LABEL: Record<OptimizationChange['kind'], string> = { kept: 'Kept', removed: 'Removed', added: 'Added' }
 const CHANGE_MARK: Record<OptimizationChange['kind'], string> = { kept: '=', removed: '−', added: '+' }
@@ -25,13 +31,24 @@ const CHANGE_STYLE: Record<OptimizationChange['kind'], string> = {
 
 export function OptimizePanel() {
   const circuit = useBuildStore((s) => s.circuit)
+  const loadCircuit = useBuildStore((s) => s.loadCircuit)
+  // The example whose words are showing. It is shown only while the circuit on the canvas is still exactly the one that example loaded:
+  // any edit, undo or load replaces the circuit object, and the description would then be about a circuit that is no longer there.
+  const [loaded, setLoaded] = useState<{ id: string; circuit: Circuit } | null>(null)
   const isOptimizing = useBuildStore((s) => s.isOptimizing)
   const optimization = useBuildStore((s) => s.optimization)
   const optimizationError = useBuildStore((s) => s.optimizationError)
   const runOptimization = useBuildStore((s) => s.runOptimization)
   const applyOptimizedCircuit = useBuildStore((s) => s.applyOptimizedCircuit)
 
-  if (circuit.ops.length === 0) return null
+  const isEmpty = circuit.ops.length === 0
+  const shownExample = loaded && loaded.circuit === circuit ? OPTIMIZE_EXAMPLES.find((e) => e.id === loaded.id) : undefined
+  const loadExample = (id: string) => {
+    const example = OPTIMIZE_EXAMPLES.find((e) => e.id === id)
+    if (!example) return
+    loadCircuit(example.circuit) // one undo step: the learner's own circuit is one Ctrl+Z away
+    setLoaded({ id, circuit: useBuildStore.getState().circuit })
+  }
 
   return (
     <section aria-labelledby="optimize-heading" className="mt-4 flex flex-col gap-3 border-t border-void-500 pt-4" data-testid="optimize-panel">
@@ -39,22 +56,49 @@ export function OptimizePanel() {
         <h3 id="optimize-heading" className="text-[13px] font-semibold text-slate-100">
           Optimize circuit
         </h3>
-        <button
-          type="button"
-          onClick={() => void runOptimization()}
-          disabled={isOptimizing}
-          className="rounded-md border border-violet-glow/40 bg-violet-dim/20 px-2.5 py-1 text-xs font-medium text-violet-glow hover:bg-violet-dim/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-glow disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {isOptimizing ? 'Optimizing…' : optimization || optimizationError ? 'Optimize again' : 'Optimize'}
-        </button>
+        {!isEmpty && (
+          <button
+            type="button"
+            onClick={() => void runOptimization()}
+            disabled={isOptimizing}
+            className="rounded-md border border-violet-glow/40 bg-violet-dim/20 px-2.5 py-1 text-xs font-medium text-violet-glow hover:bg-violet-dim/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-glow disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {isOptimizing ? 'Optimizing…' : optimization || optimizationError ? 'Optimize again' : 'Optimize'}
+          </button>
+        )}
       </div>
 
-      {!optimization && !optimizationError && !isOptimizing && (
+      {isEmpty && <p className="text-xs text-slate-400">Add gates to the circuit to optimize it, or load one of the examples below.</p>}
+
+      {!isEmpty && !optimization && !optimizationError && !isOptimizing && (
         <p className="text-xs text-slate-400">
           Looks for gates that cancel or merge. A shorter circuit is shown as a proposal only after the backend&apos;s equivalence check says it does
           the same thing as yours.
         </p>
       )}
+
+      <div className="flex flex-col gap-1.5" data-testid="optimize-examples">
+        <h4 className="text-[11px] font-medium text-void-200">Try an example</h4>
+        <ul className="flex flex-wrap gap-1.5" aria-label="Optimization examples">
+          {OPTIMIZE_EXAMPLES.map((example) => (
+            <li key={example.id}>
+              <button
+                type="button"
+                onClick={() => loadExample(example.id)}
+                aria-pressed={shownExample?.id === example.id}
+                className="rounded-md border border-void-300/60 bg-void-800 px-2 py-1 text-[11px] text-slate-200 hover:border-violet-glow/50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-glow aria-pressed:border-violet-glow/60 aria-pressed:text-violet-glow"
+              >
+                {example.title}
+              </button>
+            </li>
+          ))}
+        </ul>
+        {shownExample && (
+          <p className="text-xs text-slate-300" data-testid="optimize-example-summary">
+            {shownExample.summary} <span className="text-slate-400">Loaded into the Lab as one undo step; press Optimize to see what the server does.</span>
+          </p>
+        )}
+      </div>
 
       {isOptimizing && (
         <p role="status" className="flex items-center gap-2 text-sm text-slate-400">
@@ -72,6 +116,12 @@ export function OptimizePanel() {
       )}
 
       {!isOptimizing && !optimizationError && optimization && <OptimizationReport report={optimization} onApply={applyOptimizedCircuit} />}
+
+      <p className="text-[11px] text-void-200" data-testid="optimize-context">
+        About this optimizer: it is a small pass of adjacent cancellations and merges, and the equivalence check is what decides. Compiler toolchains such
+        as Qiskit&apos;s transpiler apply many more passes and also map circuits onto hardware; this optimizer does not implement the Qiskit transpiler and
+        does not claim to match it.
+      </p>
     </section>
   )
 }
@@ -89,7 +139,7 @@ function OptimizationReport({ report, onApply }: { report: OptimizationResult; o
 
       <p className="text-sm text-slate-200" data-testid="optimization-headline">
         {verified
-          ? `The backend verified a shorter circuit that does the same thing: ${report.originalOpCount} operations became ${report.candidateOpCount}.`
+          ? `The backend verified a shorter circuit that does the same thing: ${operations(report.originalOpCount)} became ${report.candidateOpCount}.`
           : report.status === 'NO_OPTIMIZATION_FOUND'
             ? 'No rewrite rule matched this circuit, so there is nothing to propose. It is unchanged.'
             : report.status === 'UNVERIFIABLE'
@@ -97,11 +147,13 @@ function OptimizationReport({ report, onApply }: { report: OptimizationResult; o
               : 'A rewrite was found but the backend did not verify it as equivalent, so it was discarded.'}
       </p>
 
+      <OptimizationSteps report={report} />
+
       <dl className="grid grid-cols-[auto,1fr] gap-x-3 gap-y-1 font-mono-qasm text-[11px] text-void-200" data-testid="optimization-counts">
         <dt>original</dt>
-        <dd className="text-slate-300">{report.originalOpCount} operations</dd>
+        <dd className="text-slate-300">{operations(report.originalOpCount)}</dd>
         <dt>{verified ? 'proposed' : 'candidate'}</dt>
-        <dd className="text-slate-300">{verified ? `${report.candidateOpCount} operations` : 'none shown'}</dd>
+        <dd className="text-slate-300">{verified ? operations(report.candidateOpCount) : 'none shown'}</dd>
         {verified && (
           <>
             <dt>removed</dt>
@@ -191,6 +243,57 @@ function OptimizationReport({ report, onApply }: { report: OptimizationResult; o
         </div>
       )}
     </div>
+  )
+}
+
+const STEP_DECISION: Record<OptimizationResult['status'], { word: string; detail: string }> = {
+  VERIFIED_SHORTER: { word: 'Accepted', detail: 'Offered as a proposal. Your circuit changes only if you press Apply.' },
+  NO_OPTIMIZATION_FOUND: { word: 'Nothing to propose', detail: 'Your circuit is unchanged.' },
+  REJECTED: { word: 'Rejected', detail: 'The rewrite was discarded. Your circuit is unchanged.' },
+  UNVERIFIABLE: { word: 'Not proposed', detail: 'The check could not vouch for a rewrite. Your circuit is unchanged.' },
+}
+
+/**
+ * The four stages the server went through, as an ordered list: original, candidate, equivalence check, decision. Every figure and verdict
+ * is read from the report the server sent; the words only name each stage. A candidate that was not verified is not shown (the server
+ * withholds it), so its stage says so instead of describing it.
+ */
+function OptimizationSteps({ report }: { report: OptimizationResult }) {
+  const verified = report.status === 'VERIFIED_SHORTER'
+  const candidate = verified
+    ? { word: operations(report.candidateOpCount), detail: "Built by the server's rewrite rules; what changed is listed below." }
+    : report.status === 'NO_OPTIMIZATION_FOUND'
+      ? { word: 'None built', detail: 'No rewrite rule matched, so there is no candidate.' }
+      : { word: 'Withheld', detail: 'A rewrite was built but it is not shown, because it was not verified.' }
+  const equivalence = report.equivalence
+    ? report.equivalence.status === 'EQUIVALENT'
+      ? { word: 'Equivalent', detail: 'The backend says the candidate does the same operation as yours, up to a global phase.' }
+      : report.equivalence.status === 'NOT_EQUIVALENT'
+        ? { word: 'Not equivalent', detail: 'The backend says the candidate does something different from yours.' }
+        : { word: 'Could not be checked', detail: report.equivalence.reason ?? 'The backend cannot check this kind of circuit.' }
+    : { word: 'Not run', detail: 'There was no candidate to check.' }
+  const steps = [
+    { name: 'Original', word: operations(report.originalOpCount), detail: 'The circuit you sent.' },
+    { name: 'Candidate', ...candidate },
+    { name: 'Equivalence check', ...equivalence },
+    { name: 'Decision', ...STEP_DECISION[report.status] },
+  ]
+  return (
+    <ol className="flex flex-col gap-1.5 rounded-md border border-void-500 bg-void-900/60 p-2.5" aria-label="How the server reached this result" data-testid="optimization-steps">
+      {steps.map((step, i) => (
+        <li key={step.name} className="flex items-start gap-2 text-xs" data-step={step.name}>
+          <span aria-hidden="true" className="mt-px flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-void-300/60 text-[10px] text-void-200">
+            {i + 1}
+          </span>
+          <span className="text-slate-300">
+            <span className="font-medium text-slate-100">{step.name}</span>
+            {': '}
+            <span className="font-medium text-slate-100">{step.word}</span>
+            <span className="block text-slate-400">{step.detail}</span>
+          </span>
+        </li>
+      ))}
+    </ol>
   )
 }
 

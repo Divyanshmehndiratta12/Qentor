@@ -28,7 +28,7 @@ const theme = EditorView.theme(
     '.cm-content': { fontFamily: 'var(--font-mono-qasm)', caretColor: '#5eead4' },
     '.cm-gutters': {
       backgroundColor: 'var(--color-void-900)',
-      color: '#475569',
+      color: '#94a3b8', // slate-400: line numbers meet 4.5:1 on the editor background (the old slate-600 was 2.45:1)
       border: 'none',
     },
     '.cm-activeLine': { backgroundColor: 'rgba(94, 234, 212, 0.05)' },

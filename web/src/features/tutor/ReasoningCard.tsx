@@ -7,10 +7,12 @@
  * record's own provenance) and is rendered only through `VerifiedValueInline`; counts of operations and indices are structure, not
  * results, and come straight from the response. Bitstrings are written `q[n-1]…q[0]` and the card says so beside each table.
  */
+import { useContext } from 'react'
 import type { ReasoningResult, ReasoningQubit } from '@/api'
 import { useBuildStore } from '@/features/build/store'
 import { ProvenanceBadge } from '@/provenance/ProvenanceBadge'
 import { VerifiedValueInline } from '@/provenance/VerifiedValue'
+import { LandmarkSuffix } from './LandmarkSuffix'
 import type { QuantumValue } from '@/provenance/QuantumValue'
 
 const f6 = (x: number) => x.toFixed(6)
@@ -41,8 +43,9 @@ const th = 'px-2 py-1 text-left text-[10px] font-semibold tracking-wider text-sl
 const td = 'px-2 py-1 align-top text-[12px] text-slate-200'
 
 function Table({ caption, children }: { caption: string; children: React.ReactNode }) {
+  const suffix = useContext(LandmarkSuffix)
   return (
-    <div className="mt-2 overflow-x-auto" tabIndex={0} role="region" aria-label={caption}>
+    <div className="mt-2 overflow-x-auto" tabIndex={0} role="region" aria-label={`${caption}${suffix}`}>
       <table className="w-full min-w-[22rem] border-collapse text-left">
         <caption className="pb-1 text-left text-[11px] text-void-200">{caption}</caption>
         {children}

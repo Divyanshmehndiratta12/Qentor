@@ -127,7 +127,7 @@ export function ResultsPanel({ showOptimize = true }: { showOptimize?: boolean }
         <ResultsGroup id="trace" title="Step-by-step trace" hint="state after each operation" defaultOpen>
           <TracePanel />
         </ResultsGroup>
-        <ResultsGroup id="verify" title="Verify and optimise" hint="checks the server makes" defaultOpen>
+        <ResultsGroup id="verify" title="Verify and optimize" hint="checks the server makes" defaultOpen>
           <VerificationPanel />
           {showOptimize && <OptimizePanel />}
         </ResultsGroup>

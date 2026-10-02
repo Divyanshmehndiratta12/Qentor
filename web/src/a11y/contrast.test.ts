@@ -77,3 +77,22 @@ describe('classes that failed the audit are not used for text', () => {
     expect(lines[0]).toContain('hover:border-cyan-glow')
   })
 })
+
+describe('the code editor’s line numbers are readable', () => {
+  // Found by axe in real Chrome with a long circuit (25 gutter numbers at 2.45:1: the old colour was Tailwind slate-600).
+  const editor = appSources.find(([path]) => path.endsWith('/features/build/QASMEditor.tsx'))![1]
+  const gutter = /'\.cm-gutters':\s*\{[^}]*color:\s*'(#[0-9a-fA-F]{6})'/.exec(editor)
+
+  it('the gutter colour is a plain colour in the editor theme', () => {
+    expect(gutter).not.toBeNull()
+  })
+
+  it('is at least 4.5:1 on the editor background, which is the void-900 surface', () => {
+    expect(editor).toMatch(/'&':\s*\{\s*backgroundColor:\s*'var\(--color-void-900\)'/)
+    expect(contrast(gutter![1]!, token('void-900'))).toBeGreaterThanOrEqual(4.5)
+  })
+
+  it('is not the colour that failed', () => {
+    expect(gutter![1]!.toLowerCase()).not.toBe('#475569')
+  })
+})

@@ -115,7 +115,7 @@ describe('Optimize panel — a verified candidate', () => {
     await optimizeNow()
     const counts = screen.getByTestId('optimization-counts')
     expect(counts).toHaveTextContent('original3 operations')
-    expect(counts).toHaveTextContent('proposed1 operations')
+    expect(counts).toHaveTextContent('proposed1 operation')
     expect(counts).toHaveTextContent('removed2 fewer')
     expect(screen.getByTestId('optimization-headline')).toHaveTextContent('3 operations became 1')
   })
@@ -225,10 +225,12 @@ describe('Optimize panel — nothing to propose', () => {
     expect(screen.getByRole('button', { name: 'Optimize again' })).toBeEnabled()
   })
 
-  it('renders nothing for an empty circuit', () => {
+  it('for an empty circuit offers no Optimize button and no report, only the examples (see optimizeLearning.test.tsx)', () => {
     build().loadCircuit(emptyCircuit(1, 0))
-    const { container } = render(<OptimizePanel />)
-    expect(container).toBeEmptyDOMElement()
+    render(<OptimizePanel />)
+    expect(screen.queryByRole('button', { name: /^optimize/i })).toBeNull()
+    expect(screen.queryByTestId('optimization-report')).toBeNull()
+    expect(screen.getByTestId('optimize-examples')).toBeInTheDocument()
   })
 })
 

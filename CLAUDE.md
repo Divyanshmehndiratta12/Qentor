@@ -89,6 +89,7 @@ Test counts and what is not built live in `docs/BUILD_STATE.md`, not here.
 - `docs/AI_BOUNDARY.md` — what the AI may and may not do
 - `docs/REASONING_ENGINE.md` — the server-side analysis layer (probability, optimise, what-if, trace change) and its trust rules
 - `docs/VARIATIONAL.md` — lesson 17, the one-parameter VQE-style demonstration, where its numbers come from and what it is not
+- `docs/DEMO_JOURNEY.md` — the canonical demo path (Welcome to a forked shared experiment), what each step asserts, and how to re-run it against the production build
 - `docs/SHOR_LESSON.md` — lesson 18, the fixed order-finding instance, what the circuit does, what is verified on Aer, and what it is not
 - `docs/48_HOUR_PLAN.md` — milestones and cut conditions
 - `docs/BUILD_STATE.md` — what is actually built and verified right now, and current blockers

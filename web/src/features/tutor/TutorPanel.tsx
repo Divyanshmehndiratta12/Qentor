@@ -28,7 +28,7 @@
  * browser with computed amplitudes/counts spliced into the prompt — that is
  * exactly what AI_BOUNDARY.md forbids.
  */
-import { useId, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import type { KeyboardEvent } from 'react'
 import type { TutorLanguage } from '@/api'
 import type { TutorTurn } from '@/features/build/store'
@@ -36,8 +36,10 @@ import { useBuildStore } from '@/features/build/store'
 import { LabDebug } from '@/features/debug/LabDebug'
 import { GeneratePanel } from '@/features/generate/GeneratePanel'
 import { ProvenanceBadge } from '@/provenance/ProvenanceBadge'
+import { LandmarkSuffix } from './LandmarkSuffix'
 import { ReasoningActions } from './ReasoningActions'
 import { ReasoningCard } from './ReasoningCard'
+import { scrollLatestExchangeIntoView } from './scrollLatestExchange'
 import { executionStatusLabel } from '@/provenance/executionStatus'
 import type { ExecutionStatus } from '@/provenance/schema'
 import {
@@ -90,6 +92,7 @@ export function TutorPanel({
   showModes = true,
   modes = ALL_MODES,
   challengeId,
+  landmarkSuffix = '',
 }: {
   showStarters?: boolean
   context?: TutorContext
@@ -98,6 +101,8 @@ export function TutorPanel({
   modes?: readonly Mode[]
   /** The challenge on screen, if any: Generate code then asks the model with that challenge's public brief as context. */
   challengeId?: string | null
+  /** Appended to the names of this panel's landmarks, so a second view of the same conversation (the Guide) has names of its own. */
+  landmarkSuffix?: string
 } = {}) {
   const [question, setQuestion] = useState('')
   const [chosenMode, setMode] = useState<Mode>('explain')
@@ -114,6 +119,19 @@ export function TutorPanel({
   const hasTraceStep = useBuildStore((s) => s.trace !== null && s.trace.steps[s.selectedTraceStep] !== undefined)
   const executionError = useBuildStore((s) => s.executionError)
   const turns = useBuildStore((s) => tutorTurnsFor(s, context))
+  // A new turn brings the newest exchange (the question just asked and the start of its answer) to the top of the conversation's own scroll
+  // box: the footer is short, and a long answer would otherwise sit below its fold while the old conversation stays in view. Switching to
+  // another conversation (another lesson, the Lab) is not a new turn and does not scroll.
+  const scrollerRef = useRef<HTMLDivElement>(null)
+  const logRef = useRef<HTMLDivElement>(null)
+  const seen = useRef({ key: '', count: turns.length })
+  const conversationKey = context.kind === 'lesson' ? `lesson:${context.lessonId}` : context.kind
+  useEffect(() => {
+    const previous = seen.current
+    seen.current = { key: conversationKey, count: turns.length }
+    if (previous.key !== conversationKey || turns.length <= previous.count) return
+    if (scrollerRef.current && logRef.current) scrollLatestExchangeIntoView(scrollerRef.current, logRef.current, turns)
+  }, [turns, conversationKey])
   const asking = useBuildStore((s) => isAskingFor(s, context))
   const askTutor = useBuildStore((s) => s.askTutor)
   const tutorLanguage = useBuildStore((s) => s.tutorLanguage)
@@ -146,6 +164,7 @@ export function TutorPanel({
           : 'Run the circuit first…'
 
   return (
+    <LandmarkSuffix.Provider value={landmarkSuffix}>
     <div className="flex h-full flex-col" data-tutor-context={tutorContextKey(context)}>
       <div className="flex items-center justify-between border-b border-void-500 px-4 py-2">
         <h2 className="text-xs font-semibold tracking-wider text-slate-200 uppercase">Tutor</h2>
@@ -201,7 +220,7 @@ export function TutorPanel({
       )}
 
       {conversationShown && (
-      <div role={modesShown ? 'tabpanel' : undefined} id={modesShown ? `${tabsId}-panel` : undefined} aria-labelledby={modesShown ? `${tabsId}-${activeMode}` : undefined} className="min-h-0 flex-1 overflow-auto px-4 py-3">
+      <div ref={scrollerRef} role={modesShown ? 'tabpanel' : undefined} id={modesShown ? `${tabsId}-panel` : undefined} aria-labelledby={modesShown ? `${tabsId}-${activeMode}` : undefined} className="min-h-0 flex-1 overflow-auto px-4 py-3">
         {/* The reasoning engine's actions: each appears only when the context it needs exists (see ReasoningActions). */}
         {context.kind === 'lab' && <ReasoningActions />}
         {activeMode === 'changed' && (
@@ -259,7 +278,7 @@ export function TutorPanel({
           </div>
         )}
 
-        <div role="log" aria-label="Tutor conversation" aria-live="polite" className="flex flex-col gap-2.5">
+        <div ref={logRef} role="log" aria-label="Tutor conversation" aria-live="polite" className="flex flex-col gap-2.5">
           {turns.map((turn, i) => (
             <TurnBubble key={i} turn={turn} />
           ))}
@@ -295,6 +314,7 @@ export function TutorPanel({
       </div>
       )}
     </div>
+    </LandmarkSuffix.Provider>
   )
 }
 

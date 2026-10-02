@@ -258,7 +258,10 @@ export function CircuitCanvas({ lockQubits = false }: { lockQubits?: boolean } =
         )}
       </div>
 
-      <div className="circuit-grid-bg flex-1 overflow-auto p-6 pt-3 pb-6">
+      {/* `relative` makes the scroller the containing block of every absolutely positioned descendant (the screen-reader-only text in the
+          insertion markers is one). Without it such an element keeps its static position far to the right in a long circuit, escapes the clip
+          and widens the whole page (a 29-operation circuit made the page 1481 px wide on any screen). */}
+      <div className="circuit-grid-bg relative flex-1 overflow-auto p-6 pt-3 pb-6">
         <div className="flex flex-col gap-6">
           <div className="flex items-center gap-3">
             <span className="w-8 shrink-0" aria-hidden="true" />

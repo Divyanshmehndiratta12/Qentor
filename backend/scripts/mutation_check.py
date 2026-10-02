@@ -934,6 +934,77 @@ BACKEND += [
 ]
 
 
+# --- Final sprint: the Optimize learning flow (OptimizePanel stages, loadable examples) ---
+_OL = ["src/features/build/optimizeLearning.test.tsx", "src/features/build/optimizeExamples.test.ts"]
+_OLP = "web/src/features/build/OptimizePanel.tsx"
+WEB += [
+    Mutant("optimize flow: a rejected rewrite is reported as accepted", _OLP,
+           "REJECTED: { word: 'Rejected',", "REJECTED: { word: 'Accepted',", _OL),
+    Mutant("optimize flow: the candidate stage shows the original's count", _OLP,
+           "{ word: `${report.candidateOpCount} operations`, detail: \"Built by", "{ word: `${report.originalOpCount} operations`, detail: \"Built by", _OL),
+    Mutant("optimize flow: a candidate is described although none was verified", _OLP,
+           "  const candidate = verified\n", "  const candidate = true\n", _OL),
+    Mutant("optimize flow: a skipped check is reported as equivalent", _OLP,
+           ": { word: 'Not run', detail: 'There was no candidate to check.' }", ": { word: 'Equivalent', detail: 'There was no candidate to check.' }", _OL),
+    Mutant("optimize flow: an example loads the learner's own circuit instead", _OLP,
+           "loadCircuit(example.circuit) //", "loadCircuit(circuit) //", _OL),
+    Mutant("optimize flow: an example's description outlives its circuit", _OLP,
+           "const shownExample = loaded && loaded.circuit === circuit ?", "const shownExample = loaded ?", _OL),
+    Mutant("optimize flow: the context note claims the transpiler is implemented", _OLP,
+           "this optimizer does not implement the Qiskit transpiler and\n        does not claim to match it.", "this optimizer implements the Qiskit transpiler and\n        matches it.", _OL),
+    Mutant("optimize examples: the Hadamard example loses its second H", "web/src/features/build/optimizeExamples.ts",
+           "circuit: circuitOf(2, [op('h', [0]), op('h', [0]), op('cx', [1], [0])]),", "circuit: circuitOf(2, [op('h', [0]), op('x', [0]), op('cx', [1], [0])]),", _OL),
+]
+
+# --- Final sprint: resource guards (api/guards.py) and the provenance log's retention (provenance/store.py) ---
+_RG = ["test_resource_guards.py"]
+_GD = "backend/qentor/api/guards.py"
+_PS = "backend/qentor/provenance/store.py"
+BACKEND += [
+    Mutant("guards: the declared body size is not checked", _GD,
+           "if declared is not None and declared.isdigit() and int(declared) > self.max_bytes:", "if False:", _RG),
+    Mutant("guards: a body exactly at the limit is refused", _GD,
+           "if seen > self.max_bytes:", "if seen >= self.max_bytes:", _RG),
+    Mutant("guards: a body counted in chunks is never stopped", _GD,
+           "                if seen > self.max_bytes:  # a body that did not declare", "                if False:  # a body that did not declare", _RG),
+    Mutant("guards: a finished heavy request keeps its slot", _GD,
+           "        finally:\n            semaphore.release()", "        finally:\n            pass", _RG),
+    Mutant("guards: reads are gated like heavy posts", _GD,
+           'return scope["type"] == "http" and scope.get("method") == "POST" and', 'return scope["type"] == "http" and', _RG),
+    Mutant("guards: a request that waited too long is run anyway", _GD,
+           "        except asyncio.TimeoutError:\n            await _reject(", "        except ZeroDivisionError:\n            await _reject(", _RG),
+    Mutant("provenance: the record just written can be pruned", _PS,
+           "    result_id != ?\n", "    ? != ''\n", _RG),
+    Mutant("provenance: a shared experiment's run can be pruned", _PS,
+           "    AND result_id NOT IN (SELECT result_id FROM shared_experiments WHERE result_id IS NOT NULL)\n", "", _RG),
+    Mutant("provenance: a challenge attempt's run can be pruned", _PS,
+           "    AND result_id NOT IN (SELECT final_result_id FROM challenge_attempts WHERE final_result_id IS NOT NULL)\n", "", _RG),
+    Mutant("provenance: the newest records are pruned instead of the oldest", _PS,
+           "ORDER BY created_at, rowid LIMIT ?", "ORDER BY created_at DESC, rowid LIMIT ?", _RG),
+    Mutant("provenance: pruning empties the log instead of stopping at 80 percent", _PS,
+           "PRUNE_TARGET_FRACTION = 0.8", "PRUNE_TARGET_FRACTION = 0.0", _RG),
+    Mutant("provenance: the byte limit is ignored", _PS,
+           "if self._rows > self.max_rows or self._bytes > self.max_bytes:", "if self._rows > self.max_rows:", _RG),
+]
+
+# --- Final sprint: Lab canvas containment, the Tutor's scroll to the newest exchange ---
+_CC = ["src/features/build/canvasContainment.test.tsx"]
+_SC = ["src/features/tutor/scrollLatestExchange.test.tsx"]
+WEB += [
+    Mutant("canvas: the scroller is no longer the containing block, so a long circuit widens the page", "web/src/features/build/CircuitCanvas.tsx",
+           'className="circuit-grid-bg relative flex-1 overflow-auto p-6 pt-3 pb-6"', 'className="circuit-grid-bg flex-1 overflow-auto p-6 pt-3 pb-6"', _CC),
+    Mutant("tutor scroll: the newest exchange starts at the wrong place", "web/src/features/tutor/scrollLatestExchange.ts",
+           "scroller.scrollTop = Math.max(0, offset - gap)", "scroller.scrollTop = Math.max(0, offset + gap)", _SC),
+    Mutant("tutor scroll: the newest turn is chosen instead of the newest question", "web/src/features/tutor/scrollLatestExchange.ts",
+           "if (turns[i]!.role === 'learner') return i", "if (turns[i]!.role === 'tutor') return i", _SC),
+    Mutant("tutor scroll: switching conversations scrolls", "web/src/features/tutor/TutorPanel.tsx",
+           "if (previous.key !== conversationKey || turns.length <= previous.count) return", "if (turns.length <= 0) return", _SC),
+    Mutant("tutor scroll: a re-render without a new turn scrolls", "web/src/features/tutor/TutorPanel.tsx",
+           "if (previous.key !== conversationKey || turns.length <= previous.count) return", "if (previous.key !== conversationKey) return", _SC),
+    Mutant("tutor scroll: the page is scrolled instead of the box", "web/src/features/tutor/scrollLatestExchange.ts",
+           "scroller.scrollTop = Math.max(0, offset - gap)", "window.scrollTo(0, Math.max(0, offset - gap))", _SC),
+]
+
 # --- Final sprint: lesson 18, Shor's algorithm order-finding intuition (lessons/content_shor.py) ---
 _SH = ["test_shor_lesson.py"]
 _SHF = "backend/qentor/lessons/content_shor.py"

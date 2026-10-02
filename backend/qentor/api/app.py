@@ -105,6 +105,7 @@ from . import code_input as code_input_api
 from . import reasoning as reasoning_api
 from . import sharing as sharing_api
 from . import variational as variational_api
+from .guards import BodySizeLimitMiddleware, HeavyWorkGate
 from .static_site import frontend_dist, mount_frontend
 from .schemas import (
     AgreementBackendResponse,
@@ -163,6 +164,9 @@ from .schemas import (
 )
 
 app = FastAPI(title="Qentor backend", version="0.1.0")
+# Resource guards (qentor/api/guards.py). The later add is the outer layer: the body-size check sees a request first, then the heavy-work gate.
+app.add_middleware(HeavyWorkGate)
+app.add_middleware(BodySizeLimitMiddleware)
 
 GRADE_REQUEST_INVALID = "GRADE_REQUEST_INVALID"
 

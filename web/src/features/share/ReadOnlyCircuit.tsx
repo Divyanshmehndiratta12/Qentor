@@ -46,7 +46,12 @@ export function ReadOnlyCircuit({ circuit }: { circuit: Circuit }) {
 
   return (
     <figure className="m-0" data-testid="readonly-circuit">
-      <div className="overflow-x-auto rounded-lg border border-void-500 bg-void-950 p-2">
+      <div
+        className="overflow-x-auto rounded-lg border border-void-500 bg-void-950 p-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-glow"
+        tabIndex={0}
+        role="region"
+        aria-label="Circuit diagram, scrolls sideways when it is wider than the screen"
+      >
         <svg role="img" aria-label={summary} width={width} height={height} className="block">
           {Array.from({ length: n }, (_, q) => (
             <g key={q}>
