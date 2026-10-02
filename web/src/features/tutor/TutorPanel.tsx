@@ -36,6 +36,8 @@ import { useBuildStore } from '@/features/build/store'
 import { LabDebug } from '@/features/debug/LabDebug'
 import { GeneratePanel } from '@/features/generate/GeneratePanel'
 import { ProvenanceBadge } from '@/provenance/ProvenanceBadge'
+import { ReasoningActions } from './ReasoningActions'
+import { ReasoningCard } from './ReasoningCard'
 import { executionStatusLabel } from '@/provenance/executionStatus'
 import type { ExecutionStatus } from '@/provenance/schema'
 import {
@@ -200,6 +202,8 @@ export function TutorPanel({
 
       {conversationShown && (
       <div role={modesShown ? 'tabpanel' : undefined} id={modesShown ? `${tabsId}-panel` : undefined} aria-labelledby={modesShown ? `${tabsId}-${activeMode}` : undefined} className="min-h-0 flex-1 overflow-auto px-4 py-3">
+        {/* The reasoning engine's actions: each appears only when the context it needs exists (see ReasoningActions). */}
+        {context.kind === 'lab' && <ReasoningActions />}
         {activeMode === 'changed' && (
           <div className="mb-3 rounded-lg border border-void-500 bg-void-800 p-3.5" data-testid="changed-mode">
             {stepNumber !== null ? (
@@ -347,6 +351,15 @@ function TurnBubble({ turn }: { turn: TutorTurn }) {
     return (
       <div role="alert" className="rounded-lg border border-danger-glow/40 bg-danger-dim/30 p-2.5 text-xs text-danger-glow">
         {turn.message}
+      </div>
+    )
+  }
+
+  if (turn.role === 'analysis') {
+    return (
+      <div className="flex items-start gap-2.5">
+        <AiAvatar />
+        <ReasoningCard result={turn.result} />
       </div>
     )
   }

@@ -128,6 +128,21 @@ export function DebugPanel({
             </ul>
           </div>
 
+          {report.engineEvidence.length > 0 && (
+            <div data-testid="debug-engine-evidence">
+              <h4 className="text-[11px] font-semibold tracking-wider text-slate-400 uppercase">What the reasoning engine found</h4>
+              <ul className="mt-0.5 flex flex-col gap-1.5">
+                {report.engineEvidence.map((e, i) => (
+                  <li key={i} className="text-[12px] leading-snug text-slate-200">
+                    {e.text}
+                    <FactChips ids={e.factIds} />
+                  </li>
+                ))}
+              </ul>
+              {report.analysisId && <p className="mt-1 font-mono-qasm text-[10px] text-void-200">analysis {report.analysisId} · computed by the server, not by a model</p>}
+            </div>
+          )}
+
           <Section title="Most likely mismatch" section={report.mismatch} testId="debug-mismatch" />
           <Section title="Try this next" section={report.nextExperiment} testId="debug-experiment" />
           {report.hint && <Section title="Hint" section={report.hint} testId="debug-hint" />}

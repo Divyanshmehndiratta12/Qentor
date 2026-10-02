@@ -47,6 +47,16 @@ FactKind = Literal[
     "comparison_circuit",
     "comparison_measurement",
     "comparison_state",
+    # Reasoning engine (``R#``): read from an analysis record the server wrote (``qentor.reasoning``, ``qentor.tutor.reasoning_facts``).
+    # A THEORETICAL probability keeps the existing ``probability`` kind (so the guard treats it exactly like an F# one); everything
+    # else the engine computed has its own kind.
+    "reasoning_status",
+    "reasoning_note",
+    "reasoning_sampled",
+    "reasoning_optimization",
+    "reasoning_whatif",
+    "reasoning_trace",
+    "reasoning_debug",
 ]
 
 

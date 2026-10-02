@@ -692,6 +692,8 @@ class DebugResponse(BaseModel):
     mismatch: DebugSectionResponse
     next_experiment: DebugSectionResponse
     hint: DebugSectionResponse | None
+    # What the reasoning engine found about the run (R# facts, quoted); empty when it had nothing for this run.
+    engine_evidence: list[DebugSectionResponse] = []
     facts: list[TutorFactResponse]
     used_fallback_template: bool
     grounded_in: str
@@ -700,6 +702,8 @@ class DebugResponse(BaseModel):
     provenance_class: str | None
     verification_status: str | None
     attempt_id: str | None
+    # The reasoning-engine analysis record whose ``R#`` facts the report was given; ``None`` when the engine could not analyse the run.
+    analysis_id: str | None = None
 
 
 # --------------------------------------------------------------------------- #

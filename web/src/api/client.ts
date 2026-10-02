@@ -783,6 +783,18 @@ export interface ApiClient {
    */
   compareExperiments(a: { resultId: string; circuit: Circuit }, b: { resultId: string; circuit: Circuit }): Promise<ExperimentComparison>
 
+  /**
+   * POST /api/reasoning/analyze - one reasoning-engine analysis (probability, optimize, what-if, trace change). Sends a structured
+   * intent, the circuit and identifiers; there is no field for a number, an expected result or a counterfactual circuit. Every
+   * value in the answer is computed by the server from backend runs and returned with the analysis record's own provenance.
+   * A refusal (stale circuit, invalid modification, over a limit) rejects with `BackendUnavailableError` carrying the server's
+   * message and HTTP status.
+   */
+  analyzeReasoning(request: ReasoningRequestInput): Promise<ReasoningResult>
+
+  /** POST /api/reasoning/what-if/preview - the counterfactual circuit the server would build, shown before anything runs. */
+  previewWhatIf(circuit: Circuit, modification: ModificationInput): Promise<WhatIfPreview>
+
   /** POST /api/tutor/comparison - ask the tutor about a comparison by its id. The tutor reads the server's own comparison record. */
   askComparisonTutor(comparisonId: string, question: string, language?: TutorLanguage): Promise<TutorAnswerResult>
 
@@ -1131,6 +1143,171 @@ export interface DebugReport {
   provenanceClass: string | null
   verificationStatus: string | null
   attemptId: string | null
+  /** What the reasoning engine found about the run (quoted R# facts): a verified shorter circuit, idle qubits, no measurement. */
+  engineEvidence: DebugSection[]
+  /** The stored analysis record those facts were read from; `null` when the engine had nothing for this run. */
+  analysisId: string | null
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Quantum reasoning engine (POST /api/reasoning/analyze, POST /api/reasoning/what-if/preview).
+// The browser asks with a structured intent, the circuit and identifiers - never a number. Every value in an answer is the
+// backend's, wrapped with the ANALYSIS record's own provenance (it names the runs it rests on in `sources`).
+// ---------------------------------------------------------------------------------------------------------------------
+
+export type ReasoningIntent = 'PROBABILITY' | 'OPTIMIZE' | 'WHAT_IF' | 'TRACE_CHANGE' | 'COMPARE' | 'DEBUG'
+
+/** What the learner asks about a probability. A bitstring is `q[n-1]…q[0]`; the server checks it against the circuit. */
+export type ProbabilityTargetInput =
+  | { kind: 'basis_state'; bits: string }
+  | { kind: 'qubit_value'; qubit: number; value: 0 | 1 }
+  | { kind: 'each_qubit_value'; value: 0 | 1 }
+  | { kind: 'most_likely' }
+  | { kind: 'sampled_vs_theoretical'; bits?: string | null }
+
+/** ONE explicit modification from a closed set. There is no field for code, an expected result or a counterfactual circuit. */
+export type ModificationInput =
+  | { op: 'remove_gate'; index: number }
+  | { op: 'replace_gate'; index: number; gate: string; angle?: number | null }
+  | { op: 'set_angle'; index: number; angle: number }
+  | { op: 'insert_gate'; index: number; gate: string; targets: number[]; controls?: number[]; angle?: number | null }
+
+export type ReasoningRequestInput =
+  | { intent: 'PROBABILITY'; circuit: Circuit; resultId: string; target: ProbabilityTargetInput; language?: TutorLanguage; backend?: Backend; expectedCircuitHash?: string }
+  | { intent: 'OPTIMIZE'; circuit: Circuit; language?: TutorLanguage; backend?: Backend; expectedCircuitHash?: string }
+  | {
+      intent: 'WHAT_IF'
+      circuit: Circuit
+      modification: ModificationInput
+      language?: TutorLanguage; backend?: Backend
+      /** The hashes the learner was SHOWN in the preview; the server rebuilds both and refuses (409) if either differs. */
+      expectedCircuitHash?: string
+      counterfactualCircuitHash?: string
+    }
+  | { intent: 'TRACE_CHANGE'; circuit: Circuit; traceStep: TutorTraceStepContext; language?: TutorLanguage; backend?: Backend; expectedCircuitHash?: string }
+
+export interface ReasoningSource {
+  /** What the run was used for: original, counterfactual, theoretical, sampled, candidate, step, previous_step. */
+  role: string
+  resultId: string
+  executionId: string | null
+  circuitHash: string
+  backend: string
+  backendVersion: string
+  executionMode: string
+  provenanceClass: string
+  verificationStatus: string
+}
+
+interface ReasoningCommon {
+  /** The analysis is itself a provenance record; every number below carries its provenance. */
+  analysisId: string
+  /** OK, or an honest "nothing to report": NO_IMPROVEMENT, NOT_APPLICABLE, INITIAL_STATE (see `reason`). */
+  status: string
+  reason: string | null
+  method: string
+  circuitHash: string
+  sources: ReasoningSource[]
+  provenance: Provenance
+  /** The R# facts the answer is worded from. */
+  facts: TutorFactResult[]
+  answer: string
+  usedFallbackTemplate: boolean
+}
+
+export interface ProbabilityRow {
+  label: string
+  outcome: string | null
+  qubit: number | null
+  value: number | null
+  theoretical: QuantumValue<number> | null
+  sampled: QuantumValue<number> | null
+  sampledCount: number | null
+  shots: number | null
+  difference: QuantumValue<number> | null
+}
+
+export interface ProbabilityAnalysis extends ReasoningCommon {
+  intent: 'PROBABILITY'
+  numQubits: number
+  bitOrder: string
+  rows: ProbabilityRow[]
+  notes: string[]
+}
+
+export interface OptimizationAnalysis extends ReasoningCommon {
+  intent: 'OPTIMIZE'
+  optimizationStatus: OptimizationResult['status']
+  originalCircuitHash: string
+  originalOpCount: number
+  /** `null` unless the server found an equivalence-verified shorter circuit: there is no candidate to show otherwise. */
+  candidateCircuit: Circuit | null
+  candidateCircuitHash: string | null
+  candidateOpCount: number | null
+  operationsRemoved: number
+  rewrites: OptimizationRuleNote[]
+  changes: OptimizationChange[]
+  equivalence: { status: 'EQUIVALENT' | 'NOT_EQUIVALENT' | 'UNVERIFIABLE'; method: string; reason: string | null } | null
+  verifier: string
+  candidateResultId: string | null
+}
+
+export type ComparisonBody = Pick<ExperimentComparison, 'circuit' | 'measurement' | 'state'>
+
+export interface WhatIfAnalysis extends ReasoningCommon {
+  intent: 'WHAT_IF'
+  description: string
+  originalCircuitHash: string
+  counterfactualCircuitHash: string
+  counterfactualQasm: string
+  originalOpCount: number
+  counterfactualOpCount: number
+  changes: OptimizationChange[]
+  comparison: ComparisonBody
+  comparedValues: string
+}
+
+export interface ReasoningQubit {
+  qubit: number
+  status: 'OK' | 'UNUSABLE'
+  reason: string | null
+  bloch: QuantumValue<BlochCoordinates> | null
+  purity: QuantumValue<number> | null
+  entangledWithRest: boolean | null
+}
+
+export interface TraceChangeAnalysis extends ReasoningCommon {
+  intent: 'TRACE_CHANGE'
+  stepIndex: number
+  stepNumber: number
+  totalSteps: number
+  numQubits: number
+  bitOrder: string
+  operation: { index: number; gate: string; description: string } | null
+  changeKind: 'unchanged' | 'phase_only' | 'probabilities_changed' | null
+  changeSummary: string | null
+  probabilityChanges: { outcome: string; before: QuantumValue<number>; after: QuantumValue<number>; difference: QuantumValue<number> }[]
+  beforeQubits: ReasoningQubit[]
+  afterQubits: ReasoningQubit[]
+}
+
+/** COMPARE and DEBUG have their own panels; the engine's answer for them is carried as text and facts only. */
+export interface GenericAnalysis extends ReasoningCommon {
+  intent: 'COMPARE' | 'DEBUG'
+}
+
+export type ReasoningResult = ProbabilityAnalysis | OptimizationAnalysis | WhatIfAnalysis | TraceChangeAnalysis | GenericAnalysis
+
+/** The counterfactual circuit the SERVER built for one modification, shown before anything runs. */
+export interface WhatIfPreview {
+  description: string
+  originalCircuitHash: string
+  counterfactualCircuit: Circuit
+  counterfactualCircuitHash: string
+  counterfactualQasm: string
+  originalOpCount: number
+  counterfactualOpCount: number
+  changes: OptimizationChange[]
 }
 
 export interface ChallengeConstraints {

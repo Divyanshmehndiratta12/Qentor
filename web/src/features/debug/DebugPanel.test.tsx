@@ -57,6 +57,8 @@ const REPORT = (over: Partial<DebugReport> = {}): DebugReport => ({
   provenanceClass: 'SIMULATION',
   verificationStatus: 'STATE_CHECKED',
   attemptId: null,
+  engineEvidence: [],
+  analysisId: null,
   ...over,
 })
 
@@ -103,6 +105,29 @@ describe('DebugPanel on its own', () => {
     const facts = screen.getByText(/Facts this rests on \(2\)/).closest('details')!
     expect(facts.textContent).toMatch(/1-qubit circuit: h\(q0\)/)
     expect(facts.textContent).toMatch(/res_lab_abcd/)
+  })
+
+  it('shows what the reasoning engine found, quoted, apart from the evidence — and nothing when it found nothing', async () => {
+    client.debugCircuit.mockResolvedValue(
+      REPORT({
+        engineEvidence: [{ text: 'A shorter circuit with the same effect exists: 3 operations reduced to 1.', factIds: ['R4'] }],
+        analysisId: 'res_analysis_1',
+      }),
+    )
+    const view = panel({ circuit: H, resultId: 'res_1' })
+    run()
+    await screen.findByTestId('debug-report')
+    const found = screen.getByTestId('debug-engine-evidence')
+    expect(found).toHaveTextContent('A shorter circuit with the same effect exists')
+    expect(within(found).getByText('R4')).toBeInTheDocument()
+    expect(found).toHaveTextContent('analysis res_analysis_1 · computed by the server, not by a model')
+    expect(within(screen.getByTestId('debug-evidence')).queryByText(/shorter circuit/)).toBeNull() // the report's own evidence is unchanged
+    view.unmount()
+    client.debugCircuit.mockResolvedValue(REPORT())
+    panel({ circuit: H, resultId: 'res_1' })
+    run()
+    await screen.findByTestId('debug-report')
+    expect(screen.queryByTestId('debug-engine-evidence')).toBeNull()
   })
 
   it('says plainly when no AI wrote it, and when AI did', async () => {

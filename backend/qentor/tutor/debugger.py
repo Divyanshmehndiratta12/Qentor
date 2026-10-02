@@ -49,6 +49,9 @@ class DebugReport(BaseModel):
     mismatch: DebugSection
     next_experiment: DebugSection
     hint: DebugSection | None
+    # The reasoning engine's own findings about the run (``R#`` facts: a verified shorter circuit, idle qubits, no measurement), quoted
+    # from the analysis the server stored. Always deterministic and never reworded; empty when the engine had nothing for this run.
+    engine_evidence: list[DebugSection] = []
     facts: list[TutorFact]
     # True when the prose is the server's template rather than an LLM draft (the UI labels it "without AI").
     used_fallback_template: bool
@@ -315,6 +318,15 @@ def _failed_run_report(inputs: DebugInputs) -> tuple[DebugSection, list[DebugSec
     )
 
 
+def _engine_evidence(inputs: DebugInputs) -> list[DebugSection]:
+    """The ``reasoning_debug`` facts the API handed in, as sections (``extra_facts`` is empty when the engine had nothing to say)."""
+    return [
+        DebugSection(text=fact.description[0].upper() + fact.description[1:] + ".", fact_ids=[fact.id])
+        for fact in inputs.extra_facts
+        if fact.kind == "reasoning_debug"
+    ]
+
+
 def deterministic_report(inputs: DebugInputs, facts: list[TutorFact]) -> DebugReport:
     if inputs.challenge is not None and inputs.attempt is not None:
         parts, grounded = _challenge_report(inputs, facts), "challenge"
@@ -331,6 +343,7 @@ def deterministic_report(inputs: DebugInputs, facts: list[TutorFact]) -> DebugRe
         mismatch=mismatch,
         next_experiment=experiment,
         hint=hint,
+        engine_evidence=_engine_evidence(inputs),
         facts=facts,
         used_fallback_template=True,
         grounded_in=grounded,

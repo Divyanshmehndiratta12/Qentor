@@ -49,11 +49,16 @@ def _run_line(label: str, run: dict) -> str:
 
 def build_comparison_facts(record: ProvenanceRecord) -> list[TutorFact]:
     """``X#`` facts read from a comparison record's payload. Every fact carries the comparison record's id."""
-    p = record.payload
+    return comparison_facts_from_payload(record.payload, record.result_id, "X")
+
+
+def comparison_facts_from_payload(p: dict, result_id: str, prefix: str) -> list[TutorFact]:
+    """The comparison facts of a comparison payload (``a``, ``b``, ``circuit``, ``measurement``, ``state``), ids ``{prefix}1``…; each
+    carries ``result_id`` (the record the payload was read from). Shared by the comparison tutor and the reasoning engine's COMPARE."""
     facts: list[TutorFact] = []
 
     def add(kind, description: str) -> None:
-        facts.append(TutorFact(id=f"X{len(facts) + 1}", kind=kind, description=description, result_id=record.result_id))
+        facts.append(TutorFact(id=f"{prefix}{len(facts) + 1}", kind=kind, description=description, result_id=result_id))
 
     add("comparison_identity", _run_line("A", p["a"]))
     add("comparison_identity", _run_line("B", p["b"]))

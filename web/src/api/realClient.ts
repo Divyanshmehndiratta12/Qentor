@@ -9,6 +9,7 @@ import { CircuitSchema, type Circuit } from '@/circuit/types'
 import {
   provenanceFromTraceStep,
   toQuantumValue,
+  type Provenance,
   type QuantumValue,
 } from '@/provenance/QuantumValue'
 import {
@@ -28,11 +29,14 @@ import {
   LessonCatalogResponseSchema,
   MultiInputTestResponseSchema,
   OptimizeResponseSchema,
+  ReasoningResponseSchema,
   RegradeResponseSchema,
   TraceErrorDetailSchema,
   TraceResponseSchema,
   TutorResponseSchema,
   VerifyBellStateResponseSchema,
+  WhatIfPreviewResponseSchema,
+  type ComparisonBodyResponse,
   type LessonSectionResponse,
   type TraceResponse,
 } from '@/provenance/schema'
@@ -57,6 +61,7 @@ import {
   type ClassMembership,
   type ClassSyncResult,
   type CodeViewsResult,
+  type ComparisonBody,
   type CreateExperimentInput,
   type CreatedExperiment,
   type LearnerEventKind,
@@ -80,12 +85,16 @@ import {
   type LessonSection,
   type MultiInputTestCase,
   type MultiInputTestResult,
+  type ModificationInput,
   type OptimizationResult,
+  type ReasoningRequestInput,
+  type ReasoningResult,
   type TutorAnswerResult,
   type TutorLanguage,
   type TutorLessonContext,
   type TutorTraceStepContext,
   type VerifyBellStateResult,
+  type WhatIfPreview,
 } from './client'
 
 /** A concept check is rebuilt field by field, never spread, so nothing the wire carried beyond the public fields (a
@@ -465,6 +474,168 @@ export class RealApiClient implements ApiClient {
       provenanceClass: response.provenance_class,
       verificationStatus: response.verification_status,
       attemptId: response.attempt_id,
+      engineEvidence: response.engine_evidence.map(section),
+      analysisId: response.analysis_id ?? null,
+    }
+  }
+
+  async analyzeReasoning(input: ReasoningRequestInput): Promise<ReasoningResult> {
+    // A structured intent, the circuit and identifiers. The body has no field for a probability, an expected optimisation, a
+    // counterfactual circuit or a verdict; what comes back is parsed and wrapped with the analysis record's provenance, never computed.
+    const body: Record<string, unknown> = { intent: input.intent, circuit: CircuitSchema.parse(input.circuit), language: input.language ?? 'en' }
+    if (input.expectedCircuitHash) body.expected_circuit_hash = input.expectedCircuitHash
+    if (input.backend) body.backend = input.backend
+    if (input.intent === 'PROBABILITY') {
+      body.result_id = input.resultId
+      body.target = input.target
+    } else if (input.intent === 'WHAT_IF') {
+      body.modification = modificationBody(input.modification)
+      if (input.counterfactualCircuitHash) body.counterfactual_circuit_hash = input.counterfactualCircuitHash
+    } else if (input.intent === 'TRACE_CHANGE') {
+      body.trace_step = {
+        step_index: input.traceStep.stepIndex,
+        operation_index: input.traceStep.operationIndex,
+        operation: input.traceStep.operation,
+        result_id: input.traceStep.resultId,
+        execution_id: input.traceStep.executionId,
+        circuit_hash: input.traceStep.circuitHash,
+        backend: input.traceStep.backend,
+        backend_version: input.traceStep.backendVersion,
+        previous_result_id: input.traceStep.previousResultId,
+      }
+    }
+    const response = await this.postParsed('/api/reasoning/analyze', body, ReasoningResponseSchema)
+    const prov = provenanceFromTraceStep(response.provenance)
+    const q = (v: number | null) => (v === null ? null : toQuantumValue(v, prov))
+    const common = {
+      analysisId: response.analysis_id,
+      status: response.status,
+      reason: response.reason,
+      method: response.method,
+      circuitHash: response.circuit_hash,
+      sources: response.sources.map((s) => ({
+        role: s.role,
+        resultId: s.result_id,
+        executionId: s.execution_id,
+        circuitHash: s.circuit_hash,
+        backend: s.backend,
+        backendVersion: s.backend_version,
+        executionMode: s.execution_mode,
+        provenanceClass: s.provenance_class,
+        verificationStatus: s.verification_status,
+      })),
+      provenance: prov,
+      facts: response.facts.map((f) => ({ id: f.id, kind: f.kind, description: f.description, resultId: f.result_id })),
+      answer: response.answer,
+      usedFallbackTemplate: response.used_fallback_template,
+    }
+    switch (response.intent) {
+      case 'PROBABILITY':
+        return {
+          ...common,
+          intent: 'PROBABILITY',
+          numQubits: response.data.num_qubits,
+          bitOrder: response.data.bit_order,
+          rows: response.data.items.map((i) => ({
+            label: i.label,
+            outcome: i.outcome,
+            qubit: i.qubit,
+            value: i.value,
+            theoretical: q(i.theoretical_probability),
+            sampled: q(i.sampled_frequency),
+            sampledCount: i.sampled_count,
+            shots: i.shots,
+            difference: q(i.difference),
+          })),
+          notes: response.data.notes,
+        }
+      case 'OPTIMIZE': {
+        const d = response.data
+        return {
+          ...common,
+          intent: 'OPTIMIZE',
+          optimizationStatus: d.optimization_status,
+          originalCircuitHash: d.original_circuit_hash,
+          originalOpCount: d.original_op_count,
+          candidateCircuit: d.candidate_circuit,
+          candidateCircuitHash: d.candidate_circuit_hash,
+          candidateOpCount: d.candidate_op_count,
+          operationsRemoved: d.operations_removed,
+          rewrites: d.rewrites,
+          changes: d.changes.map(mapOpChange),
+          equivalence: d.equivalence ? { status: d.equivalence.status, method: d.equivalence.method, reason: d.equivalence.reason } : null,
+          verifier: d.verifier,
+          candidateResultId: d.candidate_result_id,
+        }
+      }
+      case 'WHAT_IF': {
+        const d = response.data
+        return {
+          ...common,
+          intent: 'WHAT_IF',
+          description: d.description,
+          originalCircuitHash: d.original_circuit_hash,
+          counterfactualCircuitHash: d.counterfactual_circuit_hash,
+          counterfactualQasm: d.counterfactual_qasm,
+          originalOpCount: d.original_op_count,
+          counterfactualOpCount: d.counterfactual_op_count,
+          changes: d.changes.map(mapOpChange),
+          comparison: comparisonBody(d.comparison, prov),
+          comparedValues: d.compared_values,
+        }
+      }
+      case 'TRACE_CHANGE': {
+        const d = response.data
+        const qubits = (rows: typeof d.after_qubits) =>
+          rows.map((r) => ({
+            qubit: r.qubit,
+            status: r.status,
+            reason: r.reason,
+            bloch: r.bloch ? toQuantumValue({ x: r.bloch.x, y: r.bloch.y, z: r.bloch.z }, prov) : null,
+            purity: q(r.purity),
+            entangledWithRest: r.entangled_with_rest,
+          }))
+        return {
+          ...common,
+          intent: 'TRACE_CHANGE',
+          stepIndex: d.step_index,
+          stepNumber: d.step_number,
+          totalSteps: d.total_steps,
+          numQubits: d.num_qubits,
+          bitOrder: d.bit_order,
+          operation: d.operation,
+          changeKind: d.change_kind ?? null,
+          changeSummary: d.change_summary ?? null,
+          probabilityChanges: (d.probability_changes ?? []).map((c) => ({
+            outcome: c.outcome,
+            before: toQuantumValue(c.before, prov),
+            after: toQuantumValue(c.after, prov),
+            difference: toQuantumValue(c.difference, prov),
+          })),
+          beforeQubits: qubits(d.before_qubits ?? []),
+          afterQubits: qubits(d.after_qubits),
+        }
+      }
+      default:
+        return { ...common, intent: response.intent }
+    }
+  }
+
+  async previewWhatIf(circuit: Circuit, modification: ModificationInput): Promise<WhatIfPreview> {
+    const response = await this.postParsed(
+      '/api/reasoning/what-if/preview',
+      { circuit: CircuitSchema.parse(circuit), modification: modificationBody(modification) },
+      WhatIfPreviewResponseSchema,
+    )
+    return {
+      description: response.description,
+      originalCircuitHash: response.original_circuit_hash,
+      counterfactualCircuit: response.counterfactual_circuit,
+      counterfactualCircuitHash: response.counterfactual_circuit_hash,
+      counterfactualQasm: response.counterfactual_qasm,
+      originalOpCount: response.original_op_count,
+      counterfactualOpCount: response.counterfactual_op_count,
+      changes: response.changes.map(mapOpChange),
     }
   }
 
@@ -484,42 +655,12 @@ export class RealApiClient implements ApiClient {
     )
     // Every number is wrapped with the COMPARISON's own provenance record: a difference has no meaning apart from it.
     const prov = provenanceFromTraceStep(response.provenance)
-    const q = (v: number | null) => (v === null ? null : toQuantumValue(v, prov))
-    const m = response.measurement
-    const s = response.state
     return {
       comparisonId: response.comparison_id,
       method: response.method,
       a: { provenance: provenanceFromTraceStep(response.a.provenance), executionId: response.a.execution_id, shots: response.a.shots, numQubits: response.a.num_qubits },
       b: { provenance: provenanceFromTraceStep(response.b.provenance), executionId: response.b.execution_id, shots: response.b.shots, numQubits: response.b.num_qubits },
-      circuit: {
-        sameCircuit: response.circuit.same_circuit,
-        numQubitsA: response.circuit.num_qubits_a,
-        numQubitsB: response.circuit.num_qubits_b,
-        numOpsA: response.circuit.num_ops_a,
-        numOpsB: response.circuit.num_ops_b,
-        changes: response.circuit.changes.map((c) => ({ tag: c.tag, aStart: c.a_start, aOps: c.a_ops, bStart: c.b_start, bOps: c.b_ops })),
-        equivalenceStatus: response.circuit.equivalence_status,
-        equivalenceReason: response.circuit.equivalence_reason,
-      },
-      measurement: {
-        comparable: m.comparable,
-        reason: m.reason,
-        kindA: m.kind_a,
-        kindB: m.kind_b,
-        rows: m.rows.map((r) => ({ outcome: r.outcome, a: q(r.a), b: q(r.b), difference: q(r.difference) })),
-        totalVariationDistance: q(m.total_variation_distance),
-        maxDifference: q(m.max_difference),
-        note: m.note,
-      },
-      state: {
-        comparable: s.comparable,
-        reason: s.reason,
-        fidelity: q(s.fidelity),
-        maxProbabilityDifference: q(s.max_probability_difference),
-        maxAmplitudeDifference: q(s.max_amplitude_difference),
-        note: s.note,
-      },
+      ...comparisonBody(response, prov),
       provenance: prov,
     }
   }
@@ -1044,6 +1185,69 @@ async function traceErrorFromResponse(res: Response): Promise<Error> {
 
   const raw = (body as { detail?: unknown } | null)?.detail
   return new BackendUnavailableError(typeof raw === 'string' ? raw : JSON.stringify(body), res.status)
+}
+
+/** The wire shape of an OpChange from the optimiser's diff (kept / removed / added), in the domain shape. */
+function mapOpChange(c: { kind: 'kept' | 'removed' | 'added'; original_index: number | null; candidate_index: number | null; description: string }) {
+  return { kind: c.kind, originalIndex: c.original_index, candidateIndex: c.candidate_index, description: c.description }
+}
+
+/** A modification as the server's request model spells it (snake-free already; optional angle/controls only when set). */
+function modificationBody(m: ModificationInput): Record<string, unknown> {
+  switch (m.op) {
+    case 'remove_gate':
+      return { op: m.op, index: m.index }
+    case 'replace_gate':
+      return { op: m.op, index: m.index, gate: m.gate, ...(m.angle === undefined || m.angle === null ? {} : { angle: m.angle }) }
+    case 'set_angle':
+      return { op: m.op, index: m.index, angle: m.angle }
+    case 'insert_gate':
+      return {
+        op: m.op,
+        index: m.index,
+        gate: m.gate,
+        targets: m.targets,
+        controls: m.controls ?? [],
+        ...(m.angle === undefined || m.angle === null ? {} : { angle: m.angle }),
+      }
+  }
+}
+
+/** The circuit, measurement and state difference of a comparison, every number wrapped with the provenance of the record it came from. */
+function comparisonBody(c: ComparisonBodyResponse, prov: Provenance): ComparisonBody {
+  const q = (v: number | null) => (v === null ? null : toQuantumValue(v, prov))
+  const m = c.measurement
+  const s = c.state
+  return {
+    circuit: {
+      sameCircuit: c.circuit.same_circuit,
+      numQubitsA: c.circuit.num_qubits_a,
+      numQubitsB: c.circuit.num_qubits_b,
+      numOpsA: c.circuit.num_ops_a,
+      numOpsB: c.circuit.num_ops_b,
+      changes: c.circuit.changes.map((x) => ({ tag: x.tag, aStart: x.a_start, aOps: x.a_ops, bStart: x.b_start, bOps: x.b_ops })),
+      equivalenceStatus: c.circuit.equivalence_status,
+      equivalenceReason: c.circuit.equivalence_reason,
+    },
+    measurement: {
+      comparable: m.comparable,
+      reason: m.reason,
+      kindA: m.kind_a,
+      kindB: m.kind_b,
+      rows: m.rows.map((r) => ({ outcome: r.outcome, a: q(r.a), b: q(r.b), difference: q(r.difference) })),
+      totalVariationDistance: q(m.total_variation_distance),
+      maxDifference: q(m.max_difference),
+      note: m.note,
+    },
+    state: {
+      comparable: s.comparable,
+      reason: s.reason,
+      fidelity: q(s.fidelity),
+      maxProbabilityDifference: q(s.max_probability_difference),
+      maxAmplitudeDifference: q(s.max_amplitude_difference),
+      note: s.note,
+    },
+  }
 }
 
 /**

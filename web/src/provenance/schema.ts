@@ -747,6 +747,8 @@ export const DebugResponseSchema = z.object({
   mismatch: DebugSectionSchema,
   next_experiment: DebugSectionSchema,
   hint: DebugSectionSchema.nullable(),
+  // What the reasoning engine found about the run (R# facts, quoted); empty when it had nothing for this run.
+  engine_evidence: z.array(DebugSectionSchema).default([]),
   facts: z.array(TutorFactSchema),
   used_fallback_template: z.boolean(),
   grounded_in: z.enum(['challenge', 'result', 'failed_run']),
@@ -755,6 +757,7 @@ export const DebugResponseSchema = z.object({
   provenance_class: z.string().nullable(),
   verification_status: z.string().nullable(),
   attempt_id: z.string().nullable(),
+  analysis_id: z.string().nullish(),
 })
 export type DebugResponse = z.infer<typeof DebugResponseSchema>
 
@@ -771,47 +774,59 @@ const RunSchema = z.object({
   num_qubits: z.number(),
 })
 
+export const ComparisonCircuitSchema = z.object({
+  same_circuit: z.boolean(),
+  num_qubits_a: z.number(),
+  num_qubits_b: z.number(),
+  num_ops_a: z.number(),
+  num_ops_b: z.number(),
+  changes: z.array(
+    z.object({
+      tag: z.enum(['equal', 'replace', 'delete', 'insert']),
+      a_start: z.number(),
+      a_ops: z.array(z.string()),
+      b_start: z.number(),
+      b_ops: z.array(z.string()),
+    }),
+  ),
+  equivalence_status: EquivalenceStatusSchema,
+  equivalence_reason: z.string().nullable(),
+})
+
+export const ComparisonMeasurementSchema = z.object({
+  comparable: z.boolean(),
+  reason: z.string().nullable(),
+  kind_a: ValueKindSchema.nullable(),
+  kind_b: ValueKindSchema.nullable(),
+  rows: z.array(z.object({ outcome: z.string(), a: z.number().nullable(), b: z.number().nullable(), difference: z.number().nullable() })),
+  total_variation_distance: z.number().nullable(),
+  max_difference: z.number().nullable(),
+  note: z.string().nullable(),
+})
+
+export const ComparisonStateSchema = z.object({
+  comparable: z.boolean(),
+  reason: z.string().nullable(),
+  fidelity: z.number().nullable(),
+  max_probability_difference: z.number().nullable(),
+  max_amplitude_difference: z.number().nullable(),
+  note: z.string().nullable(),
+})
+
+export type ComparisonBodyResponse = {
+  circuit: z.infer<typeof ComparisonCircuitSchema>
+  measurement: z.infer<typeof ComparisonMeasurementSchema>
+  state: z.infer<typeof ComparisonStateSchema>
+}
+
 export const ExperimentCompareResponseSchema = z.object({
   comparison_id: z.string(),
   method: z.string(),
   a: RunSchema,
   b: RunSchema,
-  circuit: z.object({
-    same_circuit: z.boolean(),
-    num_qubits_a: z.number(),
-    num_qubits_b: z.number(),
-    num_ops_a: z.number(),
-    num_ops_b: z.number(),
-    changes: z.array(
-      z.object({
-        tag: z.enum(['equal', 'replace', 'delete', 'insert']),
-        a_start: z.number(),
-        a_ops: z.array(z.string()),
-        b_start: z.number(),
-        b_ops: z.array(z.string()),
-      }),
-    ),
-    equivalence_status: EquivalenceStatusSchema,
-    equivalence_reason: z.string().nullable(),
-  }),
-  measurement: z.object({
-    comparable: z.boolean(),
-    reason: z.string().nullable(),
-    kind_a: ValueKindSchema.nullable(),
-    kind_b: ValueKindSchema.nullable(),
-    rows: z.array(z.object({ outcome: z.string(), a: z.number().nullable(), b: z.number().nullable(), difference: z.number().nullable() })),
-    total_variation_distance: z.number().nullable(),
-    max_difference: z.number().nullable(),
-    note: z.string().nullable(),
-  }),
-  state: z.object({
-    comparable: z.boolean(),
-    reason: z.string().nullable(),
-    fidelity: z.number().nullable(),
-    max_probability_difference: z.number().nullable(),
-    max_amplitude_difference: z.number().nullable(),
-    note: z.string().nullable(),
-  }),
+  circuit: ComparisonCircuitSchema,
+  measurement: ComparisonMeasurementSchema,
+  state: ComparisonStateSchema,
   provenance: TraceProvenanceSchema,
 })
 export type ExperimentCompareResponse = z.infer<typeof ExperimentCompareResponseSchema>
@@ -996,3 +1011,134 @@ export const ParseCodeRefusalSchema = z.object({
 
 // A structured refusal from a classroom, sharing or code endpoint: `{detail: {code, message}}`.
 export const ClassroomErrorDetailSchema = z.object({ code: z.string(), message: z.string() }).passthrough()
+
+// ---------------------------------------------------------------------------
+// Quantum reasoning engine - backend/qentor/api/reasoning.py::AnalysisResponse and WhatIfPreview.
+// Every number in a reasoning answer is the backend's: the browser parses it here and wraps it with the ANALYSIS record's own
+// provenance (see realClient.ts), so no component can render one without it.
+// ---------------------------------------------------------------------------
+
+export const ReasoningSourceSchema = z.object({
+  role: z.string(),
+  result_id: z.string(),
+  execution_id: z.string().nullable(),
+  circuit_hash: z.string(),
+  backend: z.string(),
+  backend_version: z.string(),
+  execution_mode: z.string(),
+  provenance_class: z.string(),
+  verification_status: z.string(),
+})
+export type ReasoningSourceResponse = z.infer<typeof ReasoningSourceSchema>
+
+const ProbabilityItemSchema = z.object({
+  label: z.string(),
+  outcome: z.string().nullable(),
+  qubit: z.number().int().nullable(),
+  value: z.number().int().nullable(),
+  theoretical_probability: z.number().nullable(),
+  sampled_frequency: z.number().nullable(),
+  sampled_count: z.number().int().nullable(),
+  shots: z.number().int().nullable(),
+  difference: z.number().nullable(),
+})
+
+const ProbabilityDataSchema = z.object({
+  num_qubits: z.number().int(),
+  bit_order: z.string(),
+  items: z.array(ProbabilityItemSchema),
+  notes: z.array(z.string()),
+})
+
+const OptimizationDataSchema = z.object({
+  optimization_status: OptimizationStatusSchema,
+  original_circuit_hash: z.string(),
+  original_qasm: z.string(),
+  original_op_count: z.number().int(),
+  candidate_circuit: CircuitSchema.nullable(),
+  candidate_qasm: z.string().nullable(),
+  candidate_circuit_hash: z.string().nullable(),
+  candidate_op_count: z.number().int().nullable(),
+  operations_removed: z.number().int().nonnegative(),
+  rules_applied: z.array(z.string()),
+  rewrites: z.array(RuleNoteSchema),
+  changes: z.array(OpChangeSchema),
+  equivalence: z
+    .object({ status: EquivalenceStatusSchema, method: z.string(), global_phase: z.number().nullable(), reason: z.string().nullable() })
+    .nullable(),
+  verifier: z.string(),
+  candidate_result_id: z.string().nullable(),
+})
+
+const WhatIfDataSchema = z.object({
+  description: z.string(),
+  original_circuit_hash: z.string(),
+  counterfactual_circuit_hash: z.string(),
+  counterfactual_qasm: z.string(),
+  original_op_count: z.number().int(),
+  counterfactual_op_count: z.number().int(),
+  changes: z.array(OpChangeSchema),
+  comparison: z.object({ circuit: ComparisonCircuitSchema, measurement: ComparisonMeasurementSchema, state: ComparisonStateSchema }),
+  compared_values: z.string(),
+})
+
+const ReasoningQubitSchema = z.object({
+  qubit: z.number().int(),
+  status: z.enum(['OK', 'UNUSABLE']),
+  reason: z.string().nullable(),
+  bloch: z.object({ x: z.number(), y: z.number(), z: z.number() }).nullable(),
+  bloch_length: z.number().nullable(),
+  purity: z.number().nullable(),
+  entangled_with_rest: z.boolean().nullable(),
+})
+
+const TraceChangeDataSchema = z.object({
+  step_index: z.number().int(),
+  step_number: z.number().int(),
+  total_steps: z.number().int(),
+  num_qubits: z.number().int(),
+  bit_order: z.string(),
+  operation: z.object({ index: z.number().int(), gate: z.string(), description: z.string() }).nullable(),
+  after_probabilities: z.record(z.string(), z.number()),
+  after_qubits: z.array(ReasoningQubitSchema),
+  before_probabilities: z.record(z.string(), z.number()).optional(),
+  before_qubits: z.array(ReasoningQubitSchema).optional(),
+  change_kind: z.enum(['unchanged', 'phase_only', 'probabilities_changed']).optional(),
+  change_summary: z.string().optional(),
+  probability_changes: z.array(z.object({ outcome: z.string(), before: z.number(), after: z.number(), difference: z.number() })).optional(),
+})
+
+const reasoningBase = {
+  analysis_id: z.string(),
+  status: z.string(),
+  reason: z.string().nullable(),
+  method: z.string(),
+  circuit_hash: z.string(),
+  sources: z.array(ReasoningSourceSchema),
+  provenance: TraceProvenanceSchema,
+  facts: z.array(TutorFactSchema),
+  answer: z.string(),
+  used_fallback_template: z.boolean(),
+}
+
+export const ReasoningResponseSchema = z.discriminatedUnion('intent', [
+  z.object({ ...reasoningBase, intent: z.literal('PROBABILITY'), data: ProbabilityDataSchema }),
+  z.object({ ...reasoningBase, intent: z.literal('OPTIMIZE'), data: OptimizationDataSchema }),
+  z.object({ ...reasoningBase, intent: z.literal('WHAT_IF'), data: WhatIfDataSchema }),
+  z.object({ ...reasoningBase, intent: z.literal('TRACE_CHANGE'), data: TraceChangeDataSchema }),
+  z.object({ ...reasoningBase, intent: z.literal('COMPARE'), data: z.record(z.string(), z.unknown()) }),
+  z.object({ ...reasoningBase, intent: z.literal('DEBUG'), data: z.record(z.string(), z.unknown()) }),
+])
+export type ReasoningResponse = z.infer<typeof ReasoningResponseSchema>
+
+export const WhatIfPreviewResponseSchema = z.object({
+  description: z.string(),
+  original_circuit_hash: z.string(),
+  counterfactual_circuit: CircuitSchema,
+  counterfactual_circuit_hash: z.string(),
+  counterfactual_qasm: z.string(),
+  original_op_count: z.number().int(),
+  counterfactual_op_count: z.number().int(),
+  changes: z.array(OpChangeSchema),
+})
+export type WhatIfPreviewResponse = z.infer<typeof WhatIfPreviewResponseSchema>

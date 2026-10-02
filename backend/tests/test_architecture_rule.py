@@ -19,7 +19,7 @@ import unittest
 from pathlib import Path
 
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
-GUARDED_PACKAGES = ["qentor/execution", "qentor/verification"]
+GUARDED_PACKAGES = ["qentor/execution", "qentor/verification", "qentor/reasoning"]
 
 
 def _imported_module_names(py_file: Path) -> set[str]:

@@ -17,12 +17,17 @@ import type {
   ExecutionMode,
   ExecutionTraceResult,
   MultiInputTestCase,
+  ModificationInput,
   MultiInputTestResult,
   OptimizationResult,
+  ProbabilityTargetInput,
+  ReasoningRequestInput,
+  ReasoningResult,
   TutorAnswerResult,
   TutorLanguage,
   TutorLessonContext,
   VerifyBellStateResult,
+  WhatIfPreview,
 } from '@/api'
 import type { QuantumValue } from '@/provenance/QuantumValue'
 import { emptyCircuit, type Circuit, type GateName, type GateOp } from '@/circuit/types'
@@ -53,7 +58,40 @@ export type EditOutcome = { ok: true } | { ok: false; error: string }
 export type TutorTurn =
   | { role: 'learner'; text: string }
   | { role: 'tutor'; answer: TutorAnswerResult }
+  /** A reasoning-engine analysis (probability, optimize, what-if, trace change): exactly what POST /api/reasoning/analyze returned. */
+  | { role: 'analysis'; result: ReasoningResult }
   | { role: 'error'; message: string }
+
+/** What a Tutor action asks the reasoning engine. Structured: the engine receives the intent, the circuit and identifiers. */
+export type ReasoningAction =
+  | { kind: 'probability'; target: ProbabilityTargetInput }
+  | { kind: 'optimize' }
+  | { kind: 'what_if' }
+  | { kind: 'trace_change' }
+
+/** The learner's what-if change as the SERVER built it: the counterfactual circuit, shown before anything is run. */
+export interface WhatIfPending {
+  modification: ModificationInput
+  preview: WhatIfPreview
+  /** The circuit the preview was made for. A preview is only ever used (and shown) while this is still the circuit on screen. */
+  circuit: Circuit
+}
+
+/** How a probability target reads in the conversation (words only: the number is the server's). */
+export function describeProbabilityTarget(target: ProbabilityTargetInput): string {
+  switch (target.kind) {
+    case 'most_likely':
+      return 'the most likely outcome'
+    case 'basis_state':
+      return `the probability of ${target.bits}`
+    case 'qubit_value':
+      return `the probability that qubit ${target.qubit} reads ${target.value}`
+    case 'each_qubit_value':
+      return `the probability that each qubit reads ${target.value}`
+    case 'sampled_vs_theoretical':
+      return target.bits ? `sampled frequency against theoretical probability for ${target.bits}` : 'sampled frequency against theoretical probability'
+  }
+}
 
 /**
  * Why a trace request produced no trace. `rejected` is the backend's own
@@ -97,6 +135,9 @@ const DERIVED_CLEARED: Partial<BuildState> = {
   optimizationError: null,
   multiInputTest: null,
   multiInputTestError: null,
+  whatIfPending: null,
+  whatIfError: null,
+  isPreviewingWhatIf: false,
 }
 
 // Guards against an older, slower trace request resolving after a newer one.
@@ -110,6 +151,8 @@ let equivalenceRequestSeq = 0
 let agreementRequestSeq = 0
 // And for Optimize: a proposal is only ever shown against the exact circuit it was made for.
 let optimizationRequestSeq = 0
+// And for the what-if preview.
+let whatIfRequestSeq = 0
 
 interface BuildState {
   circuit: Circuit
@@ -168,6 +211,17 @@ interface BuildState {
   isMultiInputTesting: boolean
   multiInputTest: MultiInputTestResult | null
   multiInputTestError: string | null
+
+  /** The what-if change the learner is building: the server's counterfactual circuit, shown before anything runs. Belongs to ONE
+   * circuit, so every change of the circuit clears it (`DERIVED_CLEARED`). */
+  whatIfPending: WhatIfPending | null
+  whatIfError: string | null
+  isPreviewingWhatIf: boolean
+  /** Ask the server to build the counterfactual for one modification (nothing is run). */
+  previewWhatIf: (modification: ModificationInput) => Promise<void>
+  clearWhatIfPreview: () => void
+  /** Ask the reasoning engine (probability, optimize, what-if, trace change). The answer joins the Lab conversation. */
+  runReasoning: (action: ReasoningAction) => Promise<void>
 
   /** The backend's per-operation state trace of the CURRENT circuit
    * (POST /api/execute/trace). Fully separate from `result`, verification,
@@ -308,6 +362,10 @@ export const useBuildStore = create<BuildState>((set, get) => ({
   isMultiInputTesting: false,
   multiInputTest: null,
   multiInputTestError: null,
+
+  whatIfPending: null,
+  whatIfError: null,
+  isPreviewingWhatIf: false,
 
   ...TRACE_CLEARED,
 
@@ -772,6 +830,79 @@ export const useBuildStore = create<BuildState>((set, get) => ({
           : err instanceof Error
             ? err.message
             : String(err)
+      set((state) => ({ tutorTurns: [...state.tutorTurns, { role: 'error', message }], isAskingTutor: false }))
+    }
+  },
+
+  previewWhatIf: async (modification) => {
+    const { circuit } = get()
+    const seq = ++whatIfRequestSeq
+    set({ isPreviewingWhatIf: true, whatIfError: null, whatIfPending: null })
+    // A preview is the server's reading of ONE circuit: if the circuit changed in flight (the change already cleared the preview) or a
+    // newer request superseded this one, the answer is dropped, never shown against a circuit it was not made for.
+    const isStale = () => seq !== whatIfRequestSeq || get().circuit !== circuit
+    try {
+      const preview = await getApiClient().previewWhatIf(circuit, modification)
+      if (isStale()) return
+      set({ whatIfPending: { modification, preview, circuit }, isPreviewingWhatIf: false })
+    } catch (err) {
+      if (isStale()) return
+      set({ whatIfError: err instanceof Error ? err.message : String(err), whatIfPending: null, isPreviewingWhatIf: false })
+    }
+  },
+
+  clearWhatIfPreview: () => {
+    ++whatIfRequestSeq
+    set({ whatIfPending: null, whatIfError: null, isPreviewingWhatIf: false })
+  },
+
+  runReasoning: async (action) => {
+    const { circuit, result, tutorLanguage, backend, whatIfPending } = get()
+    if (get().isAskingTutor) return // one request at a time per conversation
+
+    // What the engine is asked, and the words that stand for the question in the conversation. The learner never types a number.
+    let request: ReasoningRequestInput
+    let text: string
+    if (action.kind === 'probability') {
+      if (!result) return
+      request = { intent: 'PROBABILITY', circuit, resultId: result.provenance.resultId, target: action.target, language: tutorLanguage, backend }
+      text = `Analyze probability: ${describeProbabilityTarget(action.target)}`
+    } else if (action.kind === 'optimize') {
+      if (circuit.ops.length === 0) return
+      request = { intent: 'OPTIMIZE', circuit, language: tutorLanguage, backend }
+      text = 'Optimize this circuit'
+    } else if (action.kind === 'what_if') {
+      // Only ever the change the server has already built and the learner has seen: its hashes are sent back to be checked.
+      if (!whatIfPending || whatIfPending.circuit !== circuit) return
+      request = {
+        intent: 'WHAT_IF',
+        circuit,
+        modification: whatIfPending.modification,
+        language: tutorLanguage,
+        backend,
+        expectedCircuitHash: whatIfPending.preview.originalCircuitHash,
+        counterfactualCircuitHash: whatIfPending.preview.counterfactualCircuitHash,
+      }
+      text = `What if: ${whatIfPending.preview.description}`
+    } else {
+      const step = selectedTraceStepContext(get())
+      if (!step) return
+      request = { intent: 'TRACE_CHANGE', circuit, traceStep: step, language: tutorLanguage, backend }
+      text = `Explain the change at step ${step.stepIndex + 1}`
+    }
+
+    const learnerTurn: TutorTurn = { role: 'learner', text }
+    set((state) => ({ tutorTurns: [...state.tutorTurns, learnerTurn], isAskingTutor: true }))
+    // Stale = the question's turn is gone (the circuit, result, mode or backend changed and the conversation was cleared): the answer
+    // is dropped, never shown beside a circuit it was not made for.
+    const isStale = () => !get().tutorTurns.includes(learnerTurn)
+    try {
+      const analysis = await getApiClient().analyzeReasoning(request)
+      if (isStale()) return
+      set((state) => ({ tutorTurns: [...state.tutorTurns, { role: 'analysis', result: analysis }], isAskingTutor: false }))
+    } catch (err) {
+      if (isStale()) return
+      const message = err instanceof Error ? err.message : String(err)
       set((state) => ({ tutorTurns: [...state.tutorTurns, { role: 'error', message }], isAskingTutor: false }))
     }
   },

@@ -55,9 +55,13 @@ import type {
   GenerationStatus,
   Lesson,
   MultiInputTestCase,
+  ModificationInput,
   MultiInputTestResult,
   OptimizationResult,
+  ReasoningRequestInput,
+  ReasoningResult,
   TutorAnswerResult,
+  WhatIfPreview,
   TutorLanguage,
   TutorLessonContext,
   TutorTraceStepContext,
@@ -180,6 +184,15 @@ export class MockApiClient implements ApiClient {
   /** Deliberately NOT faked: a comparison is computed by the server from two of its own records. */
   async compareExperiments(_a: { resultId: string; circuit: Circuit }, _b: { resultId: string; circuit: Circuit }): Promise<ExperimentComparison> {
     throw new EndpointNotImplementedError('POST /api/compare/experiments (the FIXTURE mock adapter cannot compare runs)')
+  }
+
+  /** Deliberately NOT faked: an analysis is computed by the server from its own backend runs. */
+  async analyzeReasoning(_request: ReasoningRequestInput): Promise<ReasoningResult> {
+    throw new EndpointNotImplementedError('POST /api/reasoning/analyze (the FIXTURE mock adapter cannot analyse a circuit)')
+  }
+
+  async previewWhatIf(_circuit: Circuit, _modification: ModificationInput): Promise<WhatIfPreview> {
+    throw new EndpointNotImplementedError('POST /api/reasoning/what-if/preview (the FIXTURE mock adapter cannot build a counterfactual)')
   }
 
   async askComparisonTutor(_comparisonId: string, _question: string, _language?: TutorLanguage): Promise<TutorAnswerResult> {

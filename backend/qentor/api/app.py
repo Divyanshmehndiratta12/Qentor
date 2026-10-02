@@ -58,7 +58,7 @@ from qentor.provenance.models import ExecutionStatus, ProvenanceClass, Provenanc
 from qentor.provenance.attempts import AttemptRecord, AttemptStore
 from qentor.provenance.store import ProvenanceStore
 from qentor.tutor.comparison import answer_comparison, build_comparison_facts
-from qentor.verification.experiment_compare import METHOD as COMPARISON_METHOD, compare_experiments
+from qentor.verification.experiment_compare import METHOD as COMPARISON_METHOD, ExperimentComparison, compare_experiments
 from qentor.tutor import (
     AttemptView,
     DebugInputs,
@@ -80,6 +80,10 @@ from qentor.tutor.proposal import (
     build_context as build_proposal_context,
     validate_draft as validate_proposal_draft,
 )
+from qentor.reasoning import Intent as ReasoningIntent, ReasoningError
+from qentor.tutor.intents import route_question as route_reasoning_question
+from qentor.tutor.step_answers import step_intent
+from qentor.tutor.reasoning_facts import GUIDANCE as REASONING_GUIDANCE, REFUSAL as REASONING_REFUSAL, answer_reasoning_lead
 from qentor.tutor.llm import LLMUnavailable
 from qentor.tutor.trace_context import TRACE_RESULT_NOT_FOUND
 from qentor.tutor.lesson_context import LESSON_NOT_FOUND, SECTION_MISMATCH, SECTION_NOT_FOUND
@@ -97,6 +101,7 @@ from qentor.verification.optimizer import optimize_circuit
 
 from . import classroom as classroom_api
 from . import code_input as code_input_api
+from . import reasoning as reasoning_api
 from . import sharing as sharing_api
 from .static_site import frontend_dist, mount_frontend
 from .schemas import (
@@ -547,6 +552,76 @@ def _verified_trace_context(ref, circuit):
         raise HTTPException(status_code=422, detail={"code": exc.code, "message": exc.message}) from exc
 
 
+def _answer_with_reasoning(routed, request: TutorRequest, record, trace_context, lesson_context) -> TutorResponse | None:
+    """The reasoning-engine answer to a typed question, or ``None`` when the context the intent needs is missing (the tutor then answers
+    as before). A refusal from the engine (a bad outcome, a limit) is an honest answer, not an error; a backend fault still is one."""
+    intent, language, circuit = routed.intent, request.language, request.circuit
+    deps = _reasoning_deps()
+    run_usable = (
+        record is not None
+        and record.verification_status == ExecutionStatus.STATE_CHECKED
+        and record.execution_mode in ("statevector", "shots")
+    )
+    backend = record.backend if record is not None and record.backend in _adapters else "qiskit-aer"
+
+    def reply(answer: str, facts: list, fallback: bool, grounding) -> TutorResponse:
+        return TutorResponse(
+            answer=answer,
+            result_id=grounding.result_id if grounding else None,
+            circuit_hash=grounding.circuit_hash if grounding else None,
+            provenance_class=grounding.provenance_class.value if grounding else None,
+            verification_status=grounding.verification_status.value if grounding else None,
+            used_fallback_template=fallback,
+            facts=[TutorFactResponse(id=f.id, kind=f.kind, description=f.description, result_id=f.result_id) for f in facts],
+            lesson_id=lesson_context.lesson_id if lesson_context else None,
+            section_id=lesson_context.section_id if lesson_context else None,
+            trace_step=(
+                TutorTraceStepResponse(
+                    step_index=trace_context.step_index,
+                    step_number=trace_context.step_index + 1,
+                    total_steps=trace_context.total_steps,
+                    operation_index=trace_context.operation_index,
+                    result_id=trace_context.result_id,
+                    circuit_hash=trace_context.circuit_hash,
+                    provenance_class=trace_context.provenance_class,
+                    verification_status=trace_context.verification_status,
+                )
+                if trace_context and intent is ReasoningIntent.TRACE_CHANGE
+                else None
+            ),
+        )
+
+    try:
+        if intent in (ReasoningIntent.WHAT_IF, ReasoningIntent.COMPARE):
+            guidance = REASONING_GUIDANCE[intent.value]
+            return reply(guidance.get(language, guidance["en"]), [], True, record)
+        if intent is ReasoningIntent.PROBABILITY and run_usable and routed.target is not None:
+            analysis = reasoning_api.probability(deps, circuit, record.result_id, routed.target, backend)
+        elif intent is ReasoningIntent.OPTIMIZE:
+            analysis = reasoning_api.optimize(deps, circuit, backend)
+        elif intent is ReasoningIntent.TRACE_CHANGE and trace_context is not None and trace_context.usable:
+            if step_intent(request.question) is not None:
+                return None  # a question the step tutor already answers (English) keeps its own, unchanged answer
+            analysis = reasoning_api.trace_change(deps, circuit, request.trace_step)
+        elif intent is ReasoningIntent.DEBUG and run_usable:
+            report = _run_debug(DebugRequest(circuit=circuit, result_id=record.result_id, trace_step=request.trace_step, language=language))
+            lines = [f"{answer_reasoning_lead('DEBUG', language)} {report.observed.text}", *[f"• {e.text}" for e in report.evidence]]
+            lines += [report.mismatch.text, report.next_experiment.text]
+            return reply("\n\n".join(lines), report.facts, report.used_fallback_template, record)
+        else:
+            return None
+    except HTTPException as exc:
+        if exc.status_code >= 500:
+            raise
+        message = exc.detail.get("message") if isinstance(exc.detail, dict) else str(exc.detail)
+        refusal = REASONING_REFUSAL.get(language, REASONING_REFUSAL["en"]).format(message=message)
+        return reply(refusal, [], True, record)
+
+    facts = reasoning_api.facts_of(analysis)
+    answer, fallback = reasoning_api.answer_reasoning(request.question, analysis, facts, _llm_adapter, language)
+    return reply(answer, facts, fallback, analysis)
+
+
 @app.post("/api/tutor", response_model=TutorResponse)
 def tutor_endpoint(request: TutorRequest) -> TutorResponse:
     """Grounded tutor answer — deterministic by default, optionally backed by
@@ -607,6 +682,15 @@ def tutor_endpoint(request: TutorRequest) -> TutorResponse:
     # Optional trace-step context: the step's identity, VERIFIED against the
     # circuit and the records the server itself holds (never believed).
     trace_context = _verified_trace_context(request.trace_step, request.circuit)
+
+    # A typed question that maps (in English, Hindi or Kannada) to a reasoning-engine intent is answered from the engine's analysis,
+    # when the context that intent needs is there; every other question goes the way it always went.
+    if request.circuit is not None:
+        routed = route_reasoning_question(request.question, request.circuit.num_qubits)
+        if routed is not None:
+            reasoned = _answer_with_reasoning(routed, request, record, trace_context, lesson_context)
+            if reasoned is not None:
+                return reasoned
 
     if trace_context is not None:
         answer, used_fallback_template = answer_step_aware_question(
@@ -709,15 +793,13 @@ def _run_identity(record: ProvenanceRecord, circuit) -> dict:
     }
 
 
-@app.post("/api/compare/experiments", response_model=ExperimentCompareResponse)
-def compare_experiments_endpoint(request: ExperimentCompareRequest) -> ExperimentCompareResponse:
-    """Compare two real executions on the server (``qentor.verification.experiment_compare``): circuit difference, measurement
-    difference, state difference where meaningful. Both runs are looked up here and checked against their circuits; nothing is
-    re-run. The comparison is stored as one more provenance record whose id the tutor can be asked about."""
-    rec_a = _load_comparable_run("A", request.result_id_a, request.circuit_a)
-    rec_b = _load_comparable_run("B", request.result_id_b, request.circuit_b)
-    comparison = compare_experiments(request.circuit_a, rec_a.payload, request.circuit_b, rec_b.payload)
-    ident_a, ident_b = _run_identity(rec_a, request.circuit_a), _run_identity(rec_b, request.circuit_b)
+def _compare_runs(circuit_a, result_id_a: str, circuit_b, result_id_b: str):
+    """Compare two stored runs and store the comparison as one more provenance record. Returns ``(comparison record, run A, run B)``;
+    ``comparison_record.payload`` is the whole comparison. Shared by ``/api/compare/experiments`` and the reasoning engine's COMPARE."""
+    rec_a = _load_comparable_run("A", result_id_a, circuit_a)
+    rec_b = _load_comparable_run("B", result_id_b, circuit_b)
+    comparison = compare_experiments(circuit_a, rec_a.payload, circuit_b, rec_b.payload)
+    ident_a, ident_b = _run_identity(rec_a, circuit_a), _run_identity(rec_b, circuit_b)
     combined = hashlib.sha256(f"{rec_a.circuit_hash}|{rec_b.circuit_hash}".encode()).hexdigest()
     record = ProvenanceRecord.new(
         circuit_hash=f"cmp_{combined}",
@@ -736,6 +818,19 @@ def compare_experiments_endpoint(request: ExperimentCompareRequest) -> Experimen
         },
     )
     _store.insert(record)
+    return record, rec_a, rec_b
+
+
+@app.post("/api/compare/experiments", response_model=ExperimentCompareResponse)
+def compare_experiments_endpoint(request: ExperimentCompareRequest) -> ExperimentCompareResponse:
+    """Compare two real executions on the server (``qentor.verification.experiment_compare``): circuit difference, measurement
+    difference, state difference where meaningful. Both runs are looked up here and checked against their circuits; nothing is
+    re-run. The comparison is stored as one more provenance record whose id the tutor can be asked about."""
+    record, rec_a, rec_b = _compare_runs(request.circuit_a, request.result_id_a, request.circuit_b, request.result_id_b)
+    ident_a, ident_b = record.payload["a"], record.payload["b"]
+    comparison = ExperimentComparison.model_validate(
+        {"circuit": record.payload["circuit"], "measurement": record.payload["measurement"], "state": record.payload["state"]}
+    )
     return ExperimentCompareResponse(
         comparison_id=record.result_id,
         method=COMPARISON_METHOD,
@@ -770,6 +865,10 @@ def tutor_comparison_endpoint(request: ComparisonTutorRequest) -> TutorResponse:
 
 @app.post("/api/debug", response_model=DebugResponse)
 def debug_endpoint(request: DebugRequest) -> DebugResponse:
+    return _run_debug(request)
+
+
+def _run_debug(request: DebugRequest) -> DebugResponse:
     """"Debug my circuit": observed behaviour, concrete evidence, the likely conceptual mismatch, a next experiment and a hint
     (``qentor.tutor.debugger``).
 
@@ -817,6 +916,21 @@ def debug_endpoint(request: DebugRequest) -> DebugResponse:
 
     step = _verified_trace_context(request.trace_step, request.circuit)
 
+    # The reasoning engine's structured evidence about the same run (the most likely outcomes, whether a verified shorter circuit
+    # exists, structural observations), stored as one analysis record and handed to the debugger as ``R#`` facts. It is best effort:
+    # a circuit the engine cannot analyse (over a limit, say) is still debugged from everything else.
+    extra_facts: list = []
+    analysis_id = None
+    if record is not None and record.verification_status == ExecutionStatus.STATE_CHECKED and record.execution_mode in ("statevector", "shots"):
+        try:
+            deps = _reasoning_deps()
+            analysis = reasoning_api.debug_analysis(deps, request.circuit, record, "qiskit-aer")
+            analysis_record = reasoning_api.store_analysis(deps, analysis)
+            extra_facts = reasoning_api.facts_of(analysis_record)
+            analysis_id = analysis_record.result_id
+        except (HTTPException, ReasoningError):
+            extra_facts, analysis_id = [], None
+
     report = debug_circuit(
         DebugInputs(
             circuit=request.circuit,
@@ -825,6 +939,7 @@ def debug_endpoint(request: DebugRequest) -> DebugResponse:
             challenge=challenge,
             attempt=attempt_view,
             step=step,
+            extra_facts=extra_facts,
         ),
         _llm_adapter,
         request.language,
@@ -838,6 +953,7 @@ def debug_endpoint(request: DebugRequest) -> DebugResponse:
         mismatch=section(report.mismatch),
         next_experiment=section(report.next_experiment),
         hint=section(report.hint) if report.hint else None,
+        engine_evidence=[section(e) for e in report.engine_evidence],
         facts=[TutorFactResponse(id=f.id, kind=f.kind, description=f.description, result_id=f.result_id) for f in report.facts],
         used_fallback_template=report.used_fallback_template,
         grounded_in=report.grounded_in,
@@ -846,6 +962,7 @@ def debug_endpoint(request: DebugRequest) -> DebugResponse:
         provenance_class=provenance.provenance_class.value if provenance else None,
         verification_status=provenance.verification_status.value if provenance else None,
         attempt_id=attempt_record.attempt_id if attempt_record else None,
+        analysis_id=analysis_id,
     )
 
 
@@ -1480,7 +1597,24 @@ def submit_challenge(
 # The feature routers' routes are added to the app's own route list rather than through `include_router`, which in this FastAPI version wraps a
 # router in a lazy container: `app.routes` then no longer lists those endpoints as plain `APIRoute`s, and the route-inventory tests and the content
 # validator read it that way. They are registered here, before `mount_frontend`, so the SPA fallback can never shadow them.
-for _router in (classroom_api.router, sharing_api.router, code_input_api.router):
+def _reasoning_deps() -> reasoning_api.ReasoningDeps:
+    """Read the app's current globals on every call (not once at import), so a test that swaps ``_store`` or the adapters is honoured."""
+    return reasoning_api.ReasoningDeps(
+        store=_store,
+        adapters=_adapters,
+        attempts=_attempts,
+        llm=_llm_adapter,
+        record_run=_record_run,
+        enforce_limits=_enforce_run_limits,
+        verified_trace_context=_verified_trace_context,
+        compare_runs=_compare_runs,
+        run_debug=_run_debug,
+    )
+
+
+reasoning_api.configure(_reasoning_deps)
+
+for _router in (classroom_api.router, sharing_api.router, code_input_api.router, reasoning_api.router):
     app.router.routes.extend(_router.routes)
 
 
