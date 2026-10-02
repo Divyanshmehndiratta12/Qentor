@@ -49,6 +49,7 @@ from qentor.execution.capabilities import UnsupportedGate, check_gate_support
 from qentor.execution.cirq_adapter import CirqAdapter
 from qentor.execution.limits import MAX_OPERATIONS, LimitExceeded, check_equivalence_limits, check_run_limits
 from qentor.execution.pennylane_adapter import PennyLaneAdapter
+from qentor.execution.runtime import preload_backends
 from qentor.execution.sanity import state_problems
 from qentor.execution.step_changes import compute_step_change
 from qentor.execution.trace import TraceBackendFault, TraceNotSupported, split_terminal_measurements, trace_circuit
@@ -185,6 +186,9 @@ async def _validation_error(request: Request, exc: RequestValidationError):
     return JSONResponse(status_code=422, content={"detail": {"code": GRADE_REQUEST_INVALID, "message": message}})
 
 
+# Import the native-extension backends here, on the main thread, before any request is served. FastAPI runs the sync
+# endpoints on AnyIO worker threads that retire when idle; see qentor/execution/runtime.py for the crash this avoids.
+preload_backends()
 _adapter = AerAdapter()
 # Keyed by each adapter's own `.name`, matching ExecuteRequest.backend's
 # Literal values exactly. _adapter (Aer) stays the untouched default so a

@@ -27,6 +27,31 @@ class TestHealth(unittest.TestCase):
         self.assertEqual(paths.count("/api/health"), 1)
 
 
+class TestSupportedProcessConfiguration(unittest.TestCase):
+    """The supported production process: ONE uvicorn process that imports qentor.api.app (which preloads the native
+    backends on the main thread, qentor/execution/runtime.py). No extra worker processes, no reloader."""
+
+    def commands(self) -> dict[str, str]:
+        return {
+            "Dockerfile": (REPO / "Dockerfile").read_text(encoding="utf-8"),
+            "serve_production.sh": (BACKEND / "scripts" / "serve_production.sh").read_text(encoding="utf-8"),
+        }
+
+    def test_every_launcher_starts_the_app_module_under_plain_uvicorn(self) -> None:
+        for name, text in self.commands().items():
+            self.assertIn("uvicorn qentor.api.app:app", text, name)
+
+    def test_no_launcher_adds_a_reloader_or_extra_workers(self) -> None:
+        for name, text in self.commands().items():
+            for flag in ("--reload", "--workers", "--no-preload"):
+                self.assertNotIn(flag, text, f"{name} must not use {flag}")
+
+    def test_importing_the_app_module_is_what_preloads_the_backends(self) -> None:
+        source = (BACKEND / "qentor" / "api" / "app.py").read_text(encoding="utf-8")
+        self.assertIn("preload_backends()", source)
+        self.assertLess(source.index("preload_backends()"), source.index("_adapter = AerAdapter()"))
+
+
 class TestDatabaseLocation(unittest.TestCase):
     def path_with(self, env_value: str | None) -> str:
         env = {k: v for k, v in os.environ.items() if k != "QENTOR_DB_PATH"}

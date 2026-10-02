@@ -72,6 +72,31 @@ verification (see "Verification" for the commands). If this file and the code di
 The browser journey is a throwaway CDP script (Windows Chrome, headless), not committed. Web fonts are requested from Google Fonts;
 that is the only third-party request the journey observed.
 
+## Process stability
+
+**Symptom (earlier sessions).** The API process died with a segmentation fault inside Qiskit's Rust extension (`qiskit 2.5.2`, `_accelerate`; fault at `QuantumCircuit.__init__`, reached from `AerAdapter.run` and from the equivalence checker), minutes into human-paced browser sessions. It reproduced on the pre-Sprint-1 checkpoint, so it is not a regression of Qentor code. FastAPI runs the synchronous endpoints on AnyIO worker threads, and AnyIO retires an idle worker after about ten seconds, so a request after a pause runs on a new thread.
+
+**What was measured** (isolated child processes, Linux/WSL2, Python 3.12.14, qiskit 2.5.2, qiskit-aer 0.17.2; each run creates 100 fresh threads one after another that each do real Qentor work):
+
+| Condition | Result |
+|---|---|
+| Plain Qiskit/Aer on fresh threads (no Qentor code), 200 threads × 3 processes per scenario | no crash |
+| Real `AerAdapter.run` or `check_equivalence` on fresh threads, Qiskit first imported **on the first worker thread** (what the lazy imports did) | crashed in 4 of 6 processes (both scenarios) |
+| Same, Qiskit/Aer imported **on the main thread** first | 0 of 24 processes crashed (exec, equivalence, trace, exec+equivalence) |
+| First importing thread kept alive, Qiskit work on later fresh threads | 0 of 6 |
+| Cirq alone, PennyLane alone on fresh threads | no crash (4 of 4 processes each) |
+| Real server under uvicorn, AnyIO idle timeout cut to 20 ms (`stability_smoke.py churn`), 4 clients, no pause, **no preload** (negative control) | the server died with SIGSEGV (status -11) in 6 of 10 runs |
+| Same, with the preload | 10 of 10 runs clean; 9 of 9 further runs over three client/pause settings; 1,500 requests with 8 clients clean |
+| Production AnyIO settings, 1,500 requests, 8 clients (`stability_smoke.py sustained`) | all 200, about 240 requests per second, clean SIGINT shutdown (exit 0) |
+
+**What this supports, and what it does not.** The evidence says the crash needs Qiskit to have been first imported on a thread that later exits. It does not say why: the cause inside the extension is unknown and is not claimed here. So the fix is a mitigation of an observed trigger, not a repair of the dependency.
+
+**Mitigation (committed).** `qentor/execution/runtime.py::preload_backends()` imports numpy, qiskit, qiskit.quantum_info, qiskit_aer, cirq and pennylane on the main thread; `qentor/api/app.py` calls it at import time, before the adapters exist and before the server accepts a request. An import failure is logged and left for the adapter to report as "unavailable" (nothing is substituted). It touches no circuit and produces no quantum value. Startup takes about two seconds longer.
+
+**Supported production process.** One `uvicorn qentor.api.app:app` process (the `Dockerfile`, `render.yaml` and `serve_production.sh` already do exactly this); no `--reload`, no `--workers`; the app module must be imported by uvicorn on the main thread, which it is. `test_deployment.py` pins this. A supervisor that restarts a crashed process (Docker/Render restart policy) remains a sensible second line, because the cause is unproven.
+
+**Tests and smokes.** `backend/tests/test_runtime_stability.py` (preload behaviour, app import preloads on the main thread, 3 child processes × 100 fresh threads of real backend work, harness failure case) and `backend/scripts/stability_smoke.py` (`churn`, `sustained`, `--no-preload` negative control).
+
 ## Known limitations
 
 - **Classroom, sharing and code input** have their limits written in `ARCHITECTURE.md` §15-§17: bearer secrets with no recovery or revocation, in-memory per-process rate limits keyed by the socket address, public share pages that cannot be revoked, a documented subset of Python only. Anonymous does not mean unobservable in a very small class.
@@ -79,7 +104,7 @@ that is the only third-party request the journey observed.
 - The Results groups and the phone canvas heights were measured in one Chrome version at 390 and 320 px.
 - **A statevector run of a circuit that ends in a measurement is one collapsed branch** (existing, pinned behaviour: `test_visualization_backend.py`, and the Lab warns "one collapsed post-measurement state… use shots mode"). It matters most for the teleportation lab, which measures only q[2]: its statevector Results panel shows a collapsed state, so the lesson tells the learner to read the measurement in shots mode and the states in the trace. Sprint 2 did not change this.
 
-- **A pre-existing crash in the simulator stack can kill the server.** Qiskit's Rust extension (qiskit 2.5.2, `_accelerate`) segfaults inside `QuantumCircuit.__init__` (reached from `AerAdapter.run`) when a request lands on a newly created worker thread, always at the same instruction (a null read). AnyIO retires idle worker threads after 10 s, so a server with human-paced traffic loses a worker thread's worth of luck on every pause: it died minutes into 2 of 4 browser sessions. Reproduced identically on the pre-Sprint-1 checkpoint (`9774104`, 3 of 3 runs) and recorded in the kernel log in earlier sessions, so it is not a Sprint 1 regression, and it is not fixed. Under constant traffic (workers never idle) 16,500 mixed requests in 90 s did not crash. The browser journeys above were run against the same app with worker threads that never retire (`anyio` `WorkerThread.MAX_IDLE_TIME` raised in a launcher; no product code changed). A production deployment needs a fix or mitigation first (a supervisor that restarts the process, never-retiring workers, a different Qiskit build, or building the circuit off the request thread).
+- **A dependency crash in the simulator stack is mitigated, not fixed** (see "Process stability" below). Qiskit 2.5.2's Rust extension can segfault inside `QuantumCircuit.__init__` on a freshly created worker thread when Qiskit was first imported on a thread that has since exited. The server now imports the backends on the main thread at startup, which removed the crash in every measurement below. The root cause inside the extension is not identified, the dependency is unchanged, and a different trigger that nobody has found is not ruled out.
 - The browser journeys ran on one machine and one Chrome version; Firefox and Safari were not tried. The Lab's top bar on a phone lets the Run button cover part of the "Progress" tab (not touched by Sprint 1).
 - Layout defects in the new views, found by measuring in Chrome and fixed: the amplitude bars had no size (the track was an inline `<span>`), the per-qubit cards were two to a row in the Lab's ~340 px results panel and clipped their contents, and the amplitude table's last column was cut off. Component tests cannot see these (jsdom does no layout); only the Chrome run does.
 - A quiz answer needs the server: with it unreachable the answer is not graded and nothing is recorded (the quiz says so). After a reload, saved verdicts are re-checked with the server; if it cannot be reached they are shown as last saved and Learn says they were not re-checked.
