@@ -23,7 +23,6 @@
  *    Learn and Progress screens: those actions operate on the Build circuit,
  *    which isn't what's on screen there.
  */
-import type { ReactNode } from 'react'
 import { useBuildStore } from '@/features/build/store'
 import { ClassChip } from '@/features/classroom/ClassChip'
 
@@ -83,30 +82,17 @@ function NavItem({
   )
 }
 
-/**
- * `guideSlot` is where the Qentor Guide's launcher goes: an otherwise-empty
- * spacer between the navigation and the Lab toolbar, so the character can roam
- * without ever covering a control. `TopBar` renders it and knows nothing about
- * it (it is just a node), and omitting it leaves the bar exactly as before.
- */
-export function TopBar({
-  screen,
-  onNavigate,
-  guideSlot,
-}: {
-  screen: Screen
-  onNavigate: (screen: Screen) => void
-  guideSlot?: ReactNode
-}) {
+/** The top bar. The empty space between the navigation and the Lab toolbar is a flexible spacer that pushes the toolbar right. */
+export function TopBar({ screen, onNavigate }: { screen: Screen; onNavigate: (screen: Screen) => void }) {
   const numQubits = useBuildStore((s) => s.circuit.num_qubits)
   const numOps = useBuildStore((s) => s.circuit.ops.length)
   const isExecuting = useBuildStore((s) => s.isExecuting)
   const runExecution = useBuildStore((s) => s.runExecution)
 
-  // One row from `md` up. Below it the bar wraps into two: the logo, the Guide's slot and Run on the first row and the four
+  // One row from `md` up. Below it the bar wraps into two: the logo, a spacer and Run on the first row and the four
   // destinations on a row of their own, each given an equal share (and a touch-sized height). On a phone the destinations and Run
   // used to share one row and Run sat on top of "Progress". Everything is a direct child of the header so that only CSS `order`
-  // decides which row it is on; the DOM order (logo, navigation, Lab summary, Guide slot, Lab controls) is the reading order.
+  // decides which row it is on; the DOM order (logo, navigation, Lab summary, spacer, Lab controls) is the reading order.
   return (
     <header className="flex shrink-0 flex-wrap items-center gap-x-4 border-b border-void-500 bg-void-900 pt-1.5 pr-3.5 pl-4 md:h-[52px] md:flex-nowrap md:py-0">
       <Logo />
@@ -125,9 +111,7 @@ export function TopBar({
         </>
       )}
 
-      <div data-testid="guide-slot" className="relative order-2 mx-1 h-10 min-w-11 flex-1 sm:mx-3 md:order-none md:h-full">
-        {guideSlot}
-      </div>
+      <div aria-hidden="true" className="order-2 mx-1 h-10 min-w-4 flex-1 sm:mx-3 md:order-none md:h-full" />
       <ClassChip active={screen === 'classroom'} onOpen={() => onNavigate('classroom')} />
 
       {screen === 'lab' && (

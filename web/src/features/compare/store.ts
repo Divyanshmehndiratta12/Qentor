@@ -18,6 +18,8 @@ export type CompareTurn = { role: 'learner'; text: string } | { role: 'tutor'; a
 
 interface CompareState {
   pinned: PinnedRun | null
+  /** The run B the shown comparison was made against, kept so its own state view can be drawn. Never used to compute anything. */
+  bRun: PinnedRun | null
   comparison: ExperimentComparison | null
   isComparing: boolean
   error: string | null
@@ -31,7 +33,7 @@ interface CompareState {
   ask: (question: string, language: TutorLanguage) => Promise<void>
 }
 
-const cleared = () => ({ comparison: null, error: null, errorStatus: null, turns: [] as CompareTurn[], isAsking: false, isComparing: false })
+const cleared = () => ({ bRun: null as PinnedRun | null, comparison: null, error: null, errorStatus: null, turns: [] as CompareTurn[], isAsking: false, isComparing: false })
 
 let compareSeq = 0
 
@@ -68,7 +70,7 @@ export const useCompareStore = create<CompareState>((set, get) => ({
         { resultId: b.result.provenance.resultId, circuit: b.circuit },
       )
       if (mine !== compareSeq) return
-      set({ comparison, isComparing: false })
+      set({ comparison, bRun: b, isComparing: false })
     } catch (err) {
       if (mine !== compareSeq) return
       set({

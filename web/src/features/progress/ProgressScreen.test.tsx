@@ -180,13 +180,18 @@ describe('ProgressScreen', () => {
       expect(screen.getByText(/Active on 0 of the last 7 days/)).toBeInTheDocument()
     })
 
-    it('lists every lesson as not started, with dependents shown as locked and disabled', () => {
+    it('lists every lesson as not started and open, with dependents saying what they build on', () => {
       renderScreen()
       const list = within(region('Lessons'))
       expect(list.getAllByText('Not started')).toHaveLength(3)
       expect(list.getByRole('button', { name: /^Lesson A/ })).toBeEnabled()
-      expect(list.getByRole('button', { name: 'Lesson B — locked, complete Lesson A first' })).toBeDisabled()
-      expect(list.getByRole('button', { name: 'Lesson C — locked, complete Lesson B first' })).toBeDisabled()
+      const b = list.getByRole('button', { name: /^Lesson B/ })
+      const c = list.getByRole('button', { name: /^Lesson C/ })
+      expect(b).toBeEnabled()
+      expect(c).toBeEnabled()
+      expect(b).toHaveTextContent('Builds on: Lesson A')
+      expect(c).toHaveTextContent('Builds on: Lesson B')
+      expect(list.queryByText(/locked/i)).not.toBeInTheDocument()
     })
   })
 
@@ -405,12 +410,12 @@ describe('ProgressScreen', () => {
       expect(onOpenLesson).toHaveBeenCalledExactlyOnceWith('b')
     })
 
-    it('a locked lesson row cannot be opened', () => {
+    it('a lesson whose prerequisite is unfinished opens straight from its row', () => {
       const onOpenLesson = renderScreen()
-      const locked = within(region('Lessons')).getByRole('button', { name: /Lesson C — locked/ })
-      expect(locked).toBeDisabled()
-      fireEvent.click(locked)
-      expect(onOpenLesson).not.toHaveBeenCalled()
+      const row = within(region('Lessons')).getByRole('button', { name: /^Lesson C/ })
+      expect(row).toBeEnabled()
+      fireEvent.click(row)
+      expect(onOpenLesson).toHaveBeenCalledExactlyOnceWith('c')
     })
 
     it('a needs-attention signal opens its lesson', () => {

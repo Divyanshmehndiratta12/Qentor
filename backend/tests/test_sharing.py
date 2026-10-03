@@ -112,6 +112,25 @@ class TestCreateAndRead(ShareCase):
         self.assertEqual((view["backend"], view["mode"]), (run.backend, run.execution_mode))
         self.assertIn("stored record", view["result_note"])
 
+    def test_a_shared_statevector_run_carries_the_servers_per_qubit_states_derived_from_its_stored_record(self) -> None:
+        run = self.run_circuit(BELL)
+        _, created = self.share(result_id=run.result_id)
+        _, view = self.call("GET", f"/api/experiments/{created['experiment_id']}")
+        states = view["result"]["qubit_states"]
+        self.assertEqual([s["qubit"] for s in states], [0, 1])
+        for state in states:  # a Bell pair: each qubit maximally mixed, and the record it came from is named
+            self.assertEqual(state["status"], "OK")
+            self.assertAlmostEqual(state["purity"], 0.5, delta=1e-9)
+            self.assertEqual(state["entangled_with_rest"], True)
+            self.assertEqual(state["derived_from"]["result_id"], run.result_id)
+        self.assertEqual(states, run.model_dump(mode="json")["qubit_states"])  # the same view the live run showed
+
+    def test_a_shared_shots_run_has_no_state_view(self) -> None:
+        run = self.run_circuit(BELL_MEASURED, "shots", 64)
+        _, created = self.share(BELL_MEASURED, result_id=run.result_id)
+        _, view = self.call("GET", f"/api/experiments/{created['experiment_id']}")
+        self.assertEqual(view["result"]["qubit_states"], [])
+
     def test_the_backend_and_mode_of_a_shared_run_come_from_the_record_even_if_the_request_lies(self) -> None:
         run = self.run_circuit(BELL)
         status, created = self.share(result_id=run.result_id, backend="cirq", mode="shots")

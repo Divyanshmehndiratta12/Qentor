@@ -37,7 +37,7 @@ import { emptyOutcomes, emptyRecord, type ChallengeOutcomes } from '@/features/c
 import { useChallengeStore } from '@/features/challenges/store'
 import { useBuildStore } from '@/features/build/store'
 import { LearnScreen } from './LearnScreen'
-import { getLessonState, isLessonComplete, type LessonProgress } from './lessonState'
+import { getLessonReadiness, getLessonState, isLessonComplete, type LessonProgress } from './lessonState'
 import { getOverallLearningProgress } from './learnerInsights'
 import { getRecommendation } from './recommendation'
 import { useLearnStore } from './store'
@@ -204,25 +204,26 @@ describe('the real catalog, through the real client', () => {
 })
 
 describe('progression over 18 lessons and 19 challenges', () => {
-  it('a new lesson is locked until every one of its prerequisites is complete', () => {
+  it('every lesson is open from the start; a new lesson is only RECOMMENDED once every one of its prerequisites is complete', () => {
     const none = new Set<string>()
-    for (const id of NEW_LESSON_IDS) expect(getLessonState(lesson(id), none)).toBe('locked')
-    expect(getLessonState(lesson(QFT), new Set(['phase']))).toBe('locked') // needs interference too
-    expect(getLessonState(lesson(QFT), new Set(['interference']))).toBe('locked')
-    expect(getLessonState(lesson(QFT), new Set(['phase', 'interference']))).toBe('available')
-    expect(getLessonState(lesson(QPE), new Set(['phase', 'interference', 'phase-kickback']))).toBe('locked') // needs the QFT itself
-    expect(getLessonState(lesson(QPE), new Set([QFT]))).toBe('locked') // and phase kickback
-    expect(getLessonState(lesson(QPE), new Set([QFT, 'phase-kickback']))).toBe('available')
-    expect(getLessonState(lesson(QEC), new Set(['bell-state']))).toBe('locked')
-    expect(getLessonState(lesson(QEC), new Set(['entanglement']))).toBe('available')
+    for (const l of LESSONS) expect(getLessonState(l, none)).toBe('available')
+    for (const id of NEW_LESSON_IDS) expect(getLessonReadiness(lesson(id), none)).toBe('builds_on_unfinished')
+    expect(getLessonReadiness(lesson(QFT), new Set(['phase']))).toBe('builds_on_unfinished') // needs interference too
+    expect(getLessonReadiness(lesson(QFT), new Set(['interference']))).toBe('builds_on_unfinished')
+    expect(getLessonReadiness(lesson(QFT), new Set(['phase', 'interference']))).toBe('ready')
+    expect(getLessonReadiness(lesson(QPE), new Set(['phase', 'interference', 'phase-kickback']))).toBe('builds_on_unfinished') // needs the QFT itself
+    expect(getLessonReadiness(lesson(QPE), new Set([QFT]))).toBe('builds_on_unfinished') // and phase kickback
+    expect(getLessonReadiness(lesson(QPE), new Set([QFT, 'phase-kickback']))).toBe('ready')
+    expect(getLessonReadiness(lesson(QEC), new Set(['bell-state']))).toBe('builds_on_unfinished')
+    expect(getLessonReadiness(lesson(QEC), new Set(['entanglement']))).toBe('ready')
     expect(getLessonState(lesson(QEC), new Set([QEC]))).toBe('completed')
   })
 
-  it('QEC does not wait for the QFT or QPE, and QPE waits for the QFT', () => {
+  it('QEC is not recommended after the QFT or QPE, and QPE is recommended after the QFT', () => {
     const base = new Set(FIRST_THIRTEEN())
-    expect(getLessonState(lesson(QEC), base)).toBe('available')
-    expect(getLessonState(lesson(QPE), base)).toBe('locked')
-    expect(getLessonState(lesson(QPE), new Set([...base, QFT]))).toBe('available')
+    expect(getLessonReadiness(lesson(QEC), base)).toBe('ready')
+    expect(getLessonReadiness(lesson(QPE), base)).toBe('builds_on_unfinished')
+    expect(getLessonReadiness(lesson(QPE), new Set([...base, QFT]))).toBe('ready')
   })
 
   it('the recommendation walks the algorithm lessons and challenges in order, and ends when everything is done', () => {
@@ -373,11 +374,29 @@ describe('Learn -> lesson -> Lab, and Learn -> Challenge, with the real new less
     })
   }
 
-  it('the new lessons are shown as locked until their prerequisites are finished', async () => {
+  it('the new lessons are open at once, and say what they build on while their prerequisites are unfinished', async () => {
     underTest = QFT
     useLearnStore.setState({ lessonProgress: {}, startedLessonIds: new Set() })
     render(<LearnScreen onOpenLab={vi.fn()} />)
-    for (const id of NEW_LESSON_IDS) expect(await screen.findByRole('button', { name: new RegExp(`^${lesson(id).title}`) })).toHaveTextContent(/Locked/i)
+    for (const id of NEW_LESSON_IDS) {
+      const card = await screen.findByRole('button', { name: new RegExp(`^${lesson(id).title}`) })
+      expect(card).toBeEnabled()
+      expect(card).not.toHaveTextContent(/Locked/i)
+      expect(card).toHaveTextContent(/Builds on:/)
+    }
+  })
+
+  it('every one of the 18 lessons opens straight from the list, with no progress at all', async () => {
+    useLearnStore.setState({ lessonProgress: {}, startedLessonIds: new Set() })
+    render(<LearnScreen onOpenLab={vi.fn()} />)
+    for (const l of LESSONS) {
+      // The card's accessible name is the title, optionally followed by " — completed / suggested next / builds on …".
+      const card = await screen.findByRole('button', { name: new RegExp(`^${l.title}( —|$)`) })
+      expect(card).toBeEnabled()
+      fireEvent.click(card)
+      expect(await screen.findByRole('heading', { level: 2, name: l.title })).toBeInTheDocument()
+    }
+    expect(LESSONS).toHaveLength(18)
   })
 
   it('the honesty statements are on screen, word for word', async () => {

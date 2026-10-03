@@ -50,6 +50,10 @@ export interface BlochSphereProps {
   bloch: TraceBlochVector | null
   /** Only selects which "unavailable" wording to show when `bloch` is null. */
   numQubits: number
+  /** The level of this section's heading, so it nests under whatever heading the page has above it (default 4). */
+  headingLevel?: 3 | 4
+  /** Which state this is: part of the section's name, so two views on one page are distinguishable landmarks. */
+  labelContext?: string
 }
 
 /** The six standard poles: fixed labels on the sphere's axes (geometry of the
@@ -69,16 +73,19 @@ const AXES = [
   { name: 'z', tip: [0, 0, 1] },
 ] as const
 
-export function BlochSphere({ bloch, numQubits }: BlochSphereProps) {
+export function BlochSphere({ bloch, numQubits, headingLevel = 4, labelContext }: BlochSphereProps) {
+  const headingId = `bloch-heading-${useId()}` // unique: more than one sphere section can be on a page
+  const Heading = headingLevel === 3 ? 'h3' : 'h4'
   return (
     <section
-      aria-labelledby="bloch-heading"
+      aria-labelledby={labelContext ? undefined : headingId}
+      aria-label={labelContext ? `Bloch sphere, ${labelContext}` : undefined}
       data-testid="bloch-section"
       className="flex flex-col gap-2.5 rounded-lg border border-void-500 bg-void-950/60 p-3"
     >
-      <h4 id="bloch-heading" className="text-[11px] font-semibold tracking-wider text-slate-400 uppercase">
+      <Heading id={headingId} className="text-[11px] font-semibold tracking-wider text-slate-400 uppercase">
         Bloch sphere
-      </h4>
+      </Heading>
       {bloch ? <SphereAndReadout bloch={bloch} /> : <Unavailable numQubits={numQubits} />}
     </section>
   )

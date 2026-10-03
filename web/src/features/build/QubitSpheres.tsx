@@ -15,6 +15,7 @@
  * `status: 'UNUSABLE'` is shown as exactly that, with the backend's reason, and no sphere. An empty list (an older
  * backend that sends no per-qubit states) is shown as "not provided", never as a row of zero vectors.
  */
+import { useId } from 'react'
 import type { TraceQubitState } from '@/api'
 import { ProvenanceBadge } from '@/provenance/ProvenanceBadge'
 import { toQuantumValue } from '@/provenance/QuantumValue'
@@ -29,18 +30,25 @@ export interface QubitSpheresProps {
   qubitStates: TraceQubitState[]
   /** Only selects which "not provided" wording to show when `qubitStates` is empty. */
   numQubits: number
+  /** The level of this section's heading, so it nests under whatever heading the page has above it (default 4). */
+  headingLevel?: 3 | 4
+  /** Which state this is ("Final state of this run", "Step 2 of 3 …"): part of the section's name, so two views on one page are distinguishable landmarks. */
+  labelContext?: string
 }
 
-export function QubitSpheres({ qubitStates, numQubits }: QubitSpheresProps) {
+export function QubitSpheres({ qubitStates, numQubits, headingLevel = 4, labelContext }: QubitSpheresProps) {
+  const headingId = `qubit-spheres-heading-${useId()}` // unique: the Lab can show this for a run and for a trace step at once
+  const Heading = headingLevel === 3 ? 'h3' : 'h4'
   return (
     <section
-      aria-labelledby="qubit-spheres-heading"
+      aria-labelledby={labelContext ? undefined : headingId}
+      aria-label={labelContext ? `Per-qubit Bloch spheres, ${labelContext}` : undefined}
       data-testid="qubit-spheres-section"
       className="flex flex-col gap-2.5 rounded-lg border border-void-500 bg-void-950/60 p-3"
     >
-      <h4 id="qubit-spheres-heading" className="text-[11px] font-semibold tracking-wider text-slate-400 uppercase">
+      <Heading id={headingId} className="text-[11px] font-semibold tracking-wider text-slate-400 uppercase">
         Per-qubit Bloch spheres
-      </h4>
+      </Heading>
       {qubitStates.length === 0 ? (
         <NotProvided numQubits={numQubits} />
       ) : (

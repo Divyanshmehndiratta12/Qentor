@@ -29,6 +29,7 @@ from qentor.sharing import is_experiment_id
 
 from .classroom import client_key, enforce_limit, hook_experiment_shared
 from .schemas import ExecuteResponse
+from .state_view import final_state_qubit_states
 
 router = APIRouter(prefix="/api")
 
@@ -167,10 +168,11 @@ def get_experiment(experiment_id: str) -> SharedExperimentResponse:
                 verification_status=record.verification_status.value,
                 created_at=record.created_at,
                 payload=record.payload,
+                qubit_states=final_state_qubit_states(record, saved.circuit),
             )
             result_note = (
-                "The result shown is the stored record of one run of this circuit, with its provenance. Per-qubit spheres need a trace: fork it into your "
-                "Lab and run one."
+                "The result shown is the stored record of one run of this circuit, with its provenance. The per-qubit spheres, where it has a state, are "
+                "derived by the server from that record. For a step-by-step trace, fork it into your Lab and run one."
             )
     lesson = get_lesson(saved.lesson_id) if saved.lesson_id else None
     challenge = get_challenge(saved.challenge_id) if saved.challenge_id else None

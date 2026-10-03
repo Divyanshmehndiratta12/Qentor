@@ -19,7 +19,7 @@ no console error or warning; no failed API response; the production process (def
 
 | # | Step | What is asserted |
 |---|---|---|
-| 1 | **Welcome** (J01) | The first visit shows Start learning / Try a challenge / Not now and says every number comes from a simulator on the server and the tutor never decides |
+| 1 | **Welcome** (J01) | The first visit shows Start learning / Try a challenge / Not now and says every number comes from a simulator on the server and the tutor never decides; the five-step path is behind "How Qentor works", closed until asked for |
 | 2 | **Learn** → Qubits & Measurement → **concept check** (J02) | The catalog has 18 lessons and no answer key; a wrong answer is "Not quite", a right one "Correct.", the explanation shown is the server's; the lab step offers **Open in Lab** |
 | 3 | **Open in Lab** (J02d) | The canvas holds exactly the server's circuit for the lesson |
 | 4 | **Build / edit** and **Run** (J03) | The learner clicks H, CX, M, M; Run sends the canonical circuit and the mode only; the answer carries a result id, circuit hash, backend, version and SIMULATION; every outcome and count on screen is the server's, labelled sampled, bit order stated |

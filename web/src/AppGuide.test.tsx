@@ -134,9 +134,9 @@ const MULTI_INPUT: MultiInputTestResult = {
 const INITIAL_BUILD = useBuildStore.getState()
 const INITIAL_LEARN = useLearnStore.getState()
 
-const openButton = () => screen.getByRole('button', { name: 'Open Qentor Guide' })
-const closeButton = () => screen.getByRole('button', { name: 'Close Qentor Guide' })
-const panel = () => screen.getByRole('complementary', { name: 'Qentor Guide' })
+const openButton = () => screen.getByRole('button', { name: 'Open Qubi AI Tutor' })
+const closeButton = () => screen.getByRole('button', { name: 'Close Qubi AI Tutor' })
+const panel = () => screen.getByRole('complementary', { name: 'Qubi · AI Tutor' })
 const nav = (name: 'Lab' | 'Learn' | 'Progress') => fireEvent.click(screen.getByRole('button', { name }))
 
 function seedLab() {
@@ -166,10 +166,11 @@ afterEach(() => {
 })
 
 describe('where the Guide appears', () => {
-  it('is on the Lab, in the top bar’s spare strip', () => {
+  it('is on the Lab, as a free-standing character over the screen (not inside the top bar)', () => {
     render(<App />)
-    const slot = screen.getByTestId('guide-slot')
-    expect(within(slot).getByRole('button', { name: 'Open Qentor Guide' })).toBeInTheDocument()
+    expect(openButton()).toBeInTheDocument()
+    expect(within(screen.getByRole('banner')).queryByRole('button', { name: /Qubi AI Tutor/ })).not.toBeInTheDocument()
+    expect(screen.getByTestId('guide-launcher').className).toContain('fixed')
   })
 
   it('is on Learn too', async () => {
@@ -183,7 +184,7 @@ describe('where the Guide appears', () => {
     render(<App />)
     nav('Progress')
     await screen.findByRole('heading', { level: 1, name: 'Progress' })
-    expect(screen.queryByRole('button', { name: /Qentor Guide/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Qubi AI Tutor/ })).not.toBeInTheDocument()
 
     nav('Lab')
     expect(openButton()).toBeInTheDocument()
@@ -200,7 +201,7 @@ describe('where the Guide appears', () => {
 describe('opening and closing', () => {
   it('clicking the character opens the tutor side panel without leaving the page', () => {
     render(<App />)
-    expect(screen.queryByRole('complementary', { name: 'Qentor Guide' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('complementary', { name: 'Qubi · AI Tutor' })).not.toBeInTheDocument()
 
     fireEvent.click(openButton())
 
@@ -208,7 +209,7 @@ describe('opening and closing', () => {
     expect(panel()).toHaveFocus()
     expect(within(panel()).getByText('Lab')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Lab' })).toHaveAttribute('aria-current', 'page') // still on the Lab
-    expect(screen.getByRole('button', { name: 'Close Qentor Guide' })).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByRole('button', { name: 'Close Qubi AI Tutor' })).toHaveAttribute('aria-expanded', 'true')
   })
 
   it('the close button closes it and hands focus back to the character', () => {
@@ -217,7 +218,7 @@ describe('opening and closing', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Close guide panel' }))
 
-    expect(screen.queryByRole('complementary', { name: 'Qentor Guide' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('complementary', { name: 'Qubi · AI Tutor' })).not.toBeInTheDocument()
     expect(openButton()).toHaveFocus()
     expect(openButton()).toHaveAttribute('aria-expanded', 'false')
   })
@@ -228,7 +229,7 @@ describe('opening and closing', () => {
 
     fireEvent.keyDown(panel(), { key: 'Escape' })
 
-    expect(screen.queryByRole('complementary', { name: 'Qentor Guide' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('complementary', { name: 'Qubi · AI Tutor' })).not.toBeInTheDocument()
     expect(openButton()).toHaveFocus()
   })
 
@@ -236,7 +237,7 @@ describe('opening and closing', () => {
     render(<App />)
     fireEvent.click(openButton())
     fireEvent.click(closeButton())
-    expect(screen.queryByRole('complementary', { name: 'Qentor Guide' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('complementary', { name: 'Qubi · AI Tutor' })).not.toBeInTheDocument()
   })
 
   it('navigation stays usable while it is open, and the panel follows the screen (Lab -> Learn)', async () => {
@@ -258,7 +259,7 @@ describe('opening and closing', () => {
 
     nav('Progress')
     await screen.findByRole('heading', { level: 1, name: 'Progress' })
-    expect(screen.queryByRole('complementary', { name: 'Qentor Guide' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('complementary', { name: 'Qubi · AI Tutor' })).not.toBeInTheDocument()
 
     nav('Lab')
     expect(panel()).toBeInTheDocument()

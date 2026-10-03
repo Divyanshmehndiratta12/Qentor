@@ -29,7 +29,7 @@ import { fakeGradingServer } from '@/test/gradingServer'
 import { useBuildStore } from '@/features/build/store'
 import { useChallengeStore } from '@/features/challenges/store'
 import { LearnScreen } from './LearnScreen'
-import { getLessonState } from './lessonState'
+import { getLessonReadiness, getLessonState } from './lessonState'
 import { useLearnStore } from './store'
 
 const RAW = import.meta.glob('../../../../fixtures/catalog/public_catalog.json', { query: '?raw', import: 'default', eager: true }) as Record<string, string>
@@ -96,9 +96,10 @@ describe('lesson 18 as the real client reads it', () => {
     expect(JSON.stringify(lesson(ID))).not.toMatch(/no_challenge_reason|noChallengeReason/)
   })
 
-  it('is locked until quantum-phase-estimation is complete', () => {
-    expect(getLessonState(lesson(ID), new Set())).toBe('locked')
-    expect(getLessonState(lesson(ID), new Set(['quantum-phase-estimation']))).toBe('available')
+  it('is always open, and only RECOMMENDED once quantum-phase-estimation is complete', () => {
+    expect(getLessonState(lesson(ID), new Set())).toBe('available')
+    expect(getLessonReadiness(lesson(ID), new Set())).toBe('builds_on_unfinished')
+    expect(getLessonReadiness(lesson(ID), new Set(['quantum-phase-estimation']))).toBe('ready')
     expect(getLessonState(lesson(ID), new Set([ID]))).toBe('completed')
   })
 })

@@ -154,6 +154,10 @@ export const ExecuteResponseSchema = z.object({
   verification_status: ExecutionStatusSchema,
   created_at: z.string(),
   payload: z.record(z.string(), z.unknown()),
+  // Each qubit's own reduced state in the final state of a statevector run, derived by the SERVER from that run's stored
+  // statevector (backend/qentor/api/state_view.py). Additive: a backend that predates it sends none, which parses as "none
+  // provided" (an empty list) and is shown as exactly that.
+  qubit_states: z.array(z.lazy(() => QubitStateSchema)).default([]),
 })
 export type ExecuteResponse = z.infer<typeof ExecuteResponseSchema>
 

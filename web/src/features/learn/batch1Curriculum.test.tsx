@@ -38,7 +38,7 @@ import { emptyOutcomes, emptyRecord, type ChallengeOutcomes } from '@/features/c
 import { useChallengeStore } from '@/features/challenges/store'
 import { useBuildStore } from '@/features/build/store'
 import { LearnScreen } from './LearnScreen'
-import { getLessonState, isLessonComplete, type LessonProgress } from './lessonState'
+import { getLessonReadiness, getLessonState, isLessonComplete, type LessonProgress } from './lessonState'
 import { getOverallLearningProgress } from './learnerInsights'
 import { getRecommendation } from './recommendation'
 import { useLearnStore } from './store'
@@ -165,15 +165,16 @@ describe('the real catalog, through the real client', () => {
 })
 
 describe('progression over 18 lessons and 19 challenges', () => {
-  it('a new lesson is locked until every one of its prerequisites is complete', () => {
+  it('a new lesson is open at once, and only RECOMMENDED once every one of its prerequisites is complete', () => {
     const none = new Set<string>()
-    for (const id of NEW_LESSON_IDS) expect(getLessonState(lesson(id), none)).toBe('locked')
-    expect(getLessonState(lesson('superdense-coding'), new Set(['bell-state']))).toBe('available')
-    expect(getLessonState(lesson('quantum-teleportation'), new Set(['bell-state']))).toBe('locked') // needs phase too
-    expect(getLessonState(lesson('quantum-teleportation'), new Set(['phase']))).toBe('locked')
-    expect(getLessonState(lesson('quantum-teleportation'), new Set(['bell-state', 'phase']))).toBe('available')
-    expect(getLessonState(lesson('grovers-search'), new Set(['bell-state', 'phase']))).toBe('locked')
-    expect(getLessonState(lesson('grovers-search'), new Set(['interference']))).toBe('available')
+    for (const id of NEW_LESSON_IDS) expect(getLessonState(lesson(id), none)).toBe('available')
+    for (const id of NEW_LESSON_IDS) expect(getLessonReadiness(lesson(id), none)).toBe('builds_on_unfinished')
+    expect(getLessonReadiness(lesson('superdense-coding'), new Set(['bell-state']))).toBe('ready')
+    expect(getLessonReadiness(lesson('quantum-teleportation'), new Set(['bell-state']))).toBe('builds_on_unfinished') // needs phase too
+    expect(getLessonReadiness(lesson('quantum-teleportation'), new Set(['phase']))).toBe('builds_on_unfinished')
+    expect(getLessonReadiness(lesson('quantum-teleportation'), new Set(['bell-state', 'phase']))).toBe('ready')
+    expect(getLessonReadiness(lesson('grovers-search'), new Set(['bell-state', 'phase']))).toBe('builds_on_unfinished')
+    expect(getLessonReadiness(lesson('grovers-search'), new Set(['interference']))).toBe('ready')
     expect(getLessonState(lesson('grovers-search'), new Set(['grovers-search']))).toBe('completed')
   })
 
@@ -312,11 +313,15 @@ describe('Learn -> lesson -> Lab, and Learn -> Challenge, with the real new less
     })
   }
 
-  it('a new lesson is shown as locked until its prerequisite lessons are finished', async () => {
+  it('a new lesson is open at once and says what it builds on until its prerequisite lessons are finished', async () => {
     useLearnStore.setState({ lessonProgress: {}, startedLessonIds: new Set() })
     render(<LearnScreen onOpenLab={vi.fn()} />)
     const card = await screen.findByRole('button', { name: /^Superdense Coding/ })
-    expect(card).toHaveTextContent(/Locked/i)
+    expect(card).toBeEnabled()
+    expect(card).not.toHaveTextContent(/Locked/i)
+    expect(card).toHaveTextContent(/Builds on:/)
+    fireEvent.click(card)
+    expect(await screen.findByRole('heading', { level: 2, name: 'Superdense Coding' })).toBeInTheDocument()
   })
 
   it('the Interference lesson offers its original challenge and the optimisation challenge, and opens either by id', async () => {

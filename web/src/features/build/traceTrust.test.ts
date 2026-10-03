@@ -53,20 +53,25 @@ describe('trace viewer source: no client-side quantum computation', () => {
   })
 
   it.each(FILES)('%s does not derive probabilities, normalise, or compute Bloch/phase values', (name, source) => {
-    // TraceViewer.tsx may MOUNT the Bloch sphere (three tokens: the component,
-    // its `bloch=` prop, and the backend-provided `blochVector` field it hands
-    // over); any other "bloch" in these files would be Bloch logic and still
-    // fails. The sphere's own files are guarded by `blochTrust.test.ts`.
-    const scanned = name === 'TraceViewer.tsx' ? source.replace(/BlochSphere|blochVector|\bbloch=/g, '') : source
+    // TraceViewer.tsx may MOUNT the qubit state view (its import path, `features/bloch3d/`) and hand it the step's backend-provided
+    // `blochVector` field (two tokens); any other "bloch" in these files would be Bloch logic and still fails. The spheres' own
+    // files are guarded by `blochTrust.test.ts` and `bloch3dTrust.test.ts`.
+    const scanned = name === 'TraceViewer.tsx' ? source.replace(/blochVector|features\/bloch3d\//g, '') : source
     expect(scanned).not.toMatch(/probabilit/i)
     expect(scanned).not.toMatch(/normali[sz]/i)
     expect(scanned).not.toMatch(/bloch/i)
     expect(scanned).not.toMatch(/\b(magnitude|modulus|phase)\b/i)
   })
 
-  it('TraceViewer hands the Bloch sphere only the selected step’s backend vector and the qubit count', () => {
-    expect(FILES[1]![1]).toContain('<BlochSphere bloch={step.blochVector} numQubits={trace.numQubits} />')
-    expect(FILES[1]![1].match(/<BlochSphere\b/g)).toHaveLength(1)
+  it('TraceViewer hands the state view only the selected step’s backend states and vector, and the qubit count', () => {
+    const viewer = FILES[1]![1]
+    expect(viewer.match(/<QubitStateView\b/g)).toHaveLength(1)
+    const mount = /<QubitStateView\b([\s\S]*?)\/>/.exec(viewer)![1]!
+    // the props are exactly: a test id, the step's per-qubit states, the step's single-qubit vector, the qubit count, and a text label
+    expect([...mount.matchAll(/\b(\w+)=/g)].map((m) => m[1])).toEqual(['testId', 'qubitStates', 'blochVector', 'numQubits', 'context'])
+    expect(mount).toContain('qubitStates={step.qubitStates}')
+    expect(mount).toContain('blochVector={step.blochVector}')
+    expect(mount).toContain('numQubits={trace.numQubits}')
   })
 
   it.each(FILES)('%s imports no third-party package except react (so no numeric/complex/simulator library)', (_name, source) => {

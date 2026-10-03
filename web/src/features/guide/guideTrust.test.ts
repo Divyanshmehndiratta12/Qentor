@@ -13,7 +13,8 @@ import contextSource from './guideContext.ts?raw'
 import launcherSource from './GuideLauncher.tsx?raw'
 import panelSource from './GuidePanel.tsx?raw'
 import motionSource from './usePrefersReducedMotion.ts?raw'
-import roamingSource from './useRoaming.ts?raw'
+import motionRulesSource from './qubiMotion.ts?raw'
+import roamingSource from './useQubiRoaming.ts?raw'
 import tutorPanelSource from '@/features/tutor/TutorPanel.tsx?raw'
 import tutorContextSource from '@/features/tutor/tutorContext.ts?raw'
 
@@ -27,7 +28,8 @@ const FILES: Array<[string, string]> = [
   ['GuideLauncher.tsx', code(launcherSource)],
   ['GuidePanel.tsx', code(panelSource)],
   ['usePrefersReducedMotion.ts', code(motionSource)],
-  ['useRoaming.ts', code(roamingSource)],
+  ['qubiMotion.ts', code(motionRulesSource)],
+  ['useQubiRoaming.ts', code(roamingSource)],
 ]
 
 const importsOf = (source: string) => [...source.matchAll(/from\s+['"]([^'"]+)['"]/g)].map((m) => m[1]!)
@@ -73,7 +75,11 @@ describe('Guide source: an entry point, not a second tutor', () => {
   })
 
   it.each(FILES)('%s does no quantum computation and reads no quantum values', (_name, source) => {
-    expect(source).not.toMatch(/\bMath\./) // roaming is a fixed list, not maths or randomness
+    // Only the movement files do arithmetic, and only screen geometry: clamping, rounding, distance, a random rest. No trigonometry, no exponentials.
+    const motion = _name === 'qubiMotion.ts' || _name === 'useQubiRoaming.ts'
+    const maths = [...source.matchAll(/\bMath\.(\w+)/g)].map((m) => m[1]!)
+    if (motion) expect(maths.filter((m) => !['min', 'max', 'abs', 'round', 'hypot', 'random'].includes(m))).toEqual([])
+    else expect(maths).toEqual([])
     expect(source).not.toMatch(/statevector|amplitude|probabilit|bloch|fidelity|density/i)
     expect(source).not.toMatch(/\bcounts\b|\.counts|\.probabilities/)
   })
@@ -93,7 +99,7 @@ describe('Guide source: an entry point, not a second tutor', () => {
 
   it('the Guide never reads lesson text or quiz answers — only ids and titles, from the Learn store', () => {
     for (const [name, source] of FILES) {
-      expect(source, name).not.toMatch(/\.body\b|\.instructions\b|\.prompt\b|\.explanation\b|correctOptionId|correct_option|learningObjectives|shortDescription/)
+      expect(source.replace(/document\.body/g, ''), name).not.toMatch(/\.body\b|\.instructions\b|\.prompt\b|\.explanation\b|correctOptionId|correct_option|learningObjectives|shortDescription/)
     }
     const context = FILES[1]![1]
     expect(context).toMatch(/section\?\.id/)
@@ -123,12 +129,18 @@ describe('Guide source: an entry point, not a second tutor', () => {
     expect(importsOf(FILES[2]![1]).filter((s) => /store/.test(s))).toEqual([])
   })
 
-  it('roaming is a fixed, deterministic list — no randomness anywhere in the Guide', () => {
-    for (const [, source] of FILES) {
-      expect(source).not.toMatch(/\brandom\w*\s*\(/i)
-      expect(source).not.toMatch(/crypto|getRandomValues/i)
+  it('randomness only ever chooses where Qubi rests: one injectable default in the roaming hook, none anywhere else', () => {
+    for (const [name, source] of FILES) {
+      expect(source, name).not.toMatch(/crypto|getRandomValues/i)
+      if (name === 'useQubiRoaming.ts') continue
+      expect(source, name).not.toMatch(/Math\.random/)
     }
-    expect(FILES[5]![1]).toMatch(/ROAM_ANCHORS = \[30, 62, 44, 78, 22, 56\]/)
+    // The movement rules are pure functions of an injected `rng`; the hook's only source is the default parameter.
+    const hook = FILES.find(([name]) => name === 'useQubiRoaming.ts')![1]
+    const rules = FILES.find(([name]) => name === 'qubiMotion.ts')![1]
+    expect([...hook.matchAll(/Math\.random/g)]).toHaveLength(1)
+    expect(hook).toMatch(/rng = Math\.random/)
+    expect(rules).toMatch(/rng: \(\) => number/)
   })
 
   it('the character is inline SVG: no image file, no external URL, no remote font', () => {

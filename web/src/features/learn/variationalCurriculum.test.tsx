@@ -33,7 +33,7 @@ import { ChallengeBrief } from '@/features/challenges/ChallengeBrief'
 import { useBuildStore } from '@/features/build/store'
 import { useChallengeStore } from '@/features/challenges/store'
 import { LearnScreen } from './LearnScreen'
-import { getLessonState } from './lessonState'
+import { getLessonReadiness, getLessonState } from './lessonState'
 import { useLearnStore } from './store'
 import { useVariationalStore } from './variationalStore'
 
@@ -89,11 +89,13 @@ describe('lesson 17 as the real client reads it', () => {
     }
   })
 
-  it('is locked until bloch-sphere AND superposition are complete', () => {
-    expect(getLessonState(lesson(ID), new Set())).toBe('locked')
-    expect(getLessonState(lesson(ID), new Set(['bloch-sphere']))).toBe('locked')
-    expect(getLessonState(lesson(ID), new Set(['superposition']))).toBe('locked')
+  it('is always open, and is only RECOMMENDED once bloch-sphere AND superposition are complete', () => {
+    for (const done of [new Set<string>(), new Set(['bloch-sphere']), new Set(['superposition'])]) {
+      expect(getLessonState(lesson(ID), done)).toBe('available')
+      expect(getLessonReadiness(lesson(ID), done)).toBe('builds_on_unfinished')
+    }
     expect(getLessonState(lesson(ID), new Set(['bloch-sphere', 'superposition']))).toBe('available')
+    expect(getLessonReadiness(lesson(ID), new Set(['bloch-sphere', 'superposition']))).toBe('ready')
     expect(getLessonState(lesson(ID), new Set([ID]))).toBe('completed')
   })
 

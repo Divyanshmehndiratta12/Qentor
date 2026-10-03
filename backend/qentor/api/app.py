@@ -106,6 +106,7 @@ from . import reasoning as reasoning_api
 from . import sharing as sharing_api
 from . import variational as variational_api
 from .guards import BodySizeLimitMiddleware, HeavyWorkGate
+from .state_view import final_state_qubit_states
 from .static_site import frontend_dist, mount_frontend
 from .schemas import (
     AgreementBackendResponse,
@@ -346,6 +347,10 @@ def execute(request: ExecuteRequest) -> ExecuteResponse:
         shots=request.shots if request.mode == "shots" else None,
     )
 
+    # The final state's per-qubit view: read back from the RECORD that was just stored (the same statevector the result
+    # shows), never from the request. A shots run has no state, so it has none.
+    qubit_states = final_state_qubit_states(record, request.circuit)
+
     return ExecuteResponse(
         result_id=record.result_id,
         circuit_hash=record.circuit_hash,
@@ -356,6 +361,7 @@ def execute(request: ExecuteRequest) -> ExecuteResponse:
         verification_status=record.verification_status.value,
         created_at=record.created_at,
         payload=record.payload,
+        qubit_states=qubit_states,
     )
 
 

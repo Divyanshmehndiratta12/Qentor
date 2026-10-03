@@ -5,6 +5,7 @@
 import { provenanceFromExecuteResponse, toQuantumValue, type QuantumValue } from '@/provenance/QuantumValue'
 import { ShotsPayloadSchema, StatevectorPayloadSchema, type ExecuteResponse } from '@/provenance/schema'
 import type { ExecutePayload } from './client'
+import { mapQubitState } from './qubitStateMap'
 
 export function quantumValueFromExecuteResponse(response: ExecuteResponse): QuantumValue<ExecutePayload> {
   const provenance = provenanceFromExecuteResponse(response)
@@ -15,6 +16,11 @@ export function quantumValueFromExecuteResponse(response: ExecuteResponse): Quan
       executionId: sv.execution_id,
       statevector: sv.statevector,
       ...(sv.theoretical_probabilities ? { theoreticalProbabilities: sv.theoretical_probabilities } : {}),
+      // The server's per-qubit view of this state, wrapped with this record's provenance. Absent (not an empty claim of
+      // "no qubits") when the server sent none.
+      ...(response.qubit_states.length > 0
+        ? { qubitStates: response.qubit_states.map((q) => mapQubitState(q, provenance)) }
+        : {}),
     }
   } else {
     const shots = ShotsPayloadSchema.parse(response.payload)

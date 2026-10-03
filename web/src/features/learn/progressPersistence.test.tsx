@@ -12,7 +12,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, render, screen } from '@testing-library/react'
 import { BackendUnavailableError, type Lesson, type LessonSection, type RegradedAnswer } from '@/api'
 import { fakeGradingServer } from '@/test/gradingServer'
-import { getLessonMastery, getLessonState, isLessonComplete } from './lessonState'
+import { getLessonMastery, getLessonReadiness, getLessonState, isLessonComplete } from './lessonState'
 import { getMisconceptions, getOverallLearningProgress } from './learnerInsights'
 import { PROGRESS_STORAGE_KEY, PROGRESS_UNREADABLE_KEY, type ProgressStore } from './progressStorage'
 import { ACTIVITY_STORAGE_KEY } from './streakStorage'
@@ -128,7 +128,7 @@ describe('progress survives a reload', () => {
     return s
   }
 
-  it('lesson completion and the unlock it causes come back', async () => {
+  it('lesson completion and the recommendation it causes come back', async () => {
     const before = snapshot(await learnSomething())
     expect(before.completed).toEqual(['l1'])
     expect(before.states).toContainEqual(['l2', 'available'])
@@ -145,7 +145,8 @@ describe('progress survives a reload', () => {
     const after = await reload()
     expect(snapshot(after).completed).toEqual([])
     expect(after.getState().lessonProgress.l1!.completedSectionIds.has('intro')).toBe(true)
-    expect(getLessonState(CATALOG[1]!, new Set())).toBe('locked')
+    expect(getLessonState(CATALOG[1]!, new Set())).toBe('available') // never locked, finished or not
+    expect(getLessonReadiness(CATALOG[1]!, new Set())).toBe('builds_on_unfinished') // but l2 still builds on l1
   })
 
   it('quiz attempts come back: the choice, the attempt count and the verdict', async () => {

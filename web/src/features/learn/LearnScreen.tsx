@@ -8,8 +8,8 @@
  * here, each render, from session-local `lessonProgress` via
  * `isLessonComplete` (`./lessonState.ts`) — never invented server data, and
  * never stored as its own boolean (so it can't drift from the progress it's
- * computed from). "Locked" then follows from that plus each lesson's own
- * `prerequisiteLessonIds`. Selecting a lesson, completing a section or
+ * computed from). No lesson is locked: each lesson's own `prerequisiteLessonIds`
+ * only shape the recommended path ("Builds on", "Suggested next"). Selecting a lesson, completing a section or
  * submitting a concept check never touches `useBuildStore` (the circuit/Lab
  * state); the only bridge to Lab is `onOpenLab`, called explicitly from an
  * interactive_lab section.
@@ -18,6 +18,7 @@ import { useEffect, useRef } from 'react'
 import type { Circuit } from '@/circuit/types'
 import { useLearnStore } from './store'
 import { isLessonComplete } from './lessonState'
+import { getNextChallenge } from './learnerInsights'
 import { LessonCard } from './LessonCard'
 import { LessonDetailPanel } from './LessonDetailPanel'
 import { LearnerSummaryPanel } from './LearnerSummaryPanel'
@@ -64,6 +65,9 @@ export function LearnScreen({
   const completedLessonIds = new Set(
     lessons.filter((lesson) => isLessonComplete(lesson, lessonProgress[lesson.id])).map((lesson) => lesson.id),
   )
+  // The recommended path's next lesson, decided by `getNextChallenge` (prerequisite-aware); only a lesson recommendation counts.
+  const next = getNextChallenge(lessons, lessonProgress, startedLessonIds)
+  const suggestedLessonId = next.challengeType === 'next_lesson' ? next.lessonId : null
 
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col lg:flex-row">
@@ -112,6 +116,7 @@ export function LearnScreen({
                     lessons={lessons}
                     completedLessonIds={completedLessonIds}
                     selected={lesson.id === selectedLessonId}
+                    suggestedNext={lesson.id === suggestedLessonId}
                     onSelect={() => selectLesson(lesson.id)}
                   />
                 </li>

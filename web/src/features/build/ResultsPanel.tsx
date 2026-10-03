@@ -14,6 +14,7 @@ import { VerificationPanel } from './VerificationPanel'
 import { OptimizePanel } from './OptimizePanel'
 import { MultiInputTestPanel } from './MultiInputTestPanel'
 import { TracePanel } from './TracePanel'
+import { ResultStateView } from './ResultStateView'
 import { LabFlow, type FlowTarget } from './LabFlow'
 import { ComparePanel } from '@/features/compare/ComparePanel'
 import { ExportPanel } from '@/features/share/ExportPanel'
@@ -58,12 +59,12 @@ export function ResultsPanel({ showOptimize = true }: { showOptimize?: boolean }
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex items-center justify-between border-b border-void-500 px-4 py-2.5">
-        <h2 className="text-[13px] font-semibold text-slate-100">Results</h2>
+      <div className="flex items-center justify-between px-4 pt-2.5 pb-1.5">
+        <h2 className="text-xs font-semibold tracking-wider text-slate-200 uppercase">Results</h2>
         {result && <ProvenanceBadge provenance={result.provenance} />}
       </div>
 
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-void-500 px-4 py-2.5 text-xs">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 pb-2 text-xs">
         <BackendSelector />
         <div className="flex items-center gap-1 rounded-lg border border-void-400 bg-void-950 p-[3px] font-medium">
           <button
@@ -103,7 +104,7 @@ export function ResultsPanel({ showOptimize = true }: { showOptimize?: boolean }
 
       <LabFlow onReveal={reveal} />
 
-      <div ref={scroller} className="min-h-0 flex-1 overflow-auto p-4">
+      <div ref={scroller} className="min-h-0 flex-1 overflow-auto px-4 py-3">
         {isExecuting && <StateNotice kind="loading" title="Running on backend…" />}
 
         {!isExecuting && executionError && (
@@ -120,6 +121,13 @@ export function ResultsPanel({ showOptimize = true }: { showOptimize?: boolean }
 
         {!isExecuting && !executionError && !result && (
           <StateNotice kind="empty" title={hasOps ? 'Run the circuit to see its result.' : 'Add gates to the circuit to run it.'} />
+        )}
+
+        {/* The state the run ended in, one 3D sphere per qubit (or an honest "unavailable"), before the numbers it comes from. */}
+        {!isExecuting && result && (
+          <div className="mb-4">
+            <ResultStateView />
+          </div>
         )}
 
         {!isExecuting && result && result.value.probabilities && (
@@ -175,9 +183,9 @@ function ResultsGroup({ id, title, hint, defaultOpen, children }: { id: string; 
     <details
       open={defaultOpen}
       data-testid={`results-group-${id}`}
-      className="group mt-4 rounded-lg border border-void-500 bg-void-950/40 [&[open]>summary]:border-b"
+      className="group mt-3 border-t border-void-500"
     >
-      <summary className="flex min-h-10 cursor-pointer list-none items-center justify-between gap-2 border-void-500 px-3 py-2 text-[13px] font-semibold text-slate-100 hover:bg-void-800 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-cyan-glow [&::-webkit-details-marker]:hidden">
+      <summary className="flex min-h-9 cursor-pointer list-none items-center justify-between gap-2 rounded px-1 py-1.5 text-[13px] font-semibold text-slate-100 hover:bg-void-800 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-cyan-glow [&::-webkit-details-marker]:hidden">
         <span>
           {title} <span className="ml-1 text-[11px] font-normal text-void-200">{hint}</span>
         </span>
@@ -185,7 +193,7 @@ function ResultsGroup({ id, title, hint, defaultOpen, children }: { id: string; 
           ▸
         </span>
       </summary>
-      <div className="px-3 pb-3">{children}</div>
+      <div className="px-1 pb-3">{children}</div>
     </details>
   )
 }

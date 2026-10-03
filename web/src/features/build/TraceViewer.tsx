@@ -34,8 +34,7 @@ import { executionStatusExplanation } from '@/provenance/executionStatus'
 import { VerifiedValueInline } from '@/provenance/VerifiedValue'
 import type { TraceFailure } from './store'
 import { AmplitudeChart } from './AmplitudeChart'
-import { BlochSphere } from './BlochSphere'
-import { QubitSpheres } from './QubitSpheres'
+import { QubitStateView } from '@/features/bloch3d/QubitStateView'
 import {
   basisLabel,
   describeOperation,
@@ -77,8 +76,8 @@ export function TraceViewer({ trace, isLoading, error, selectedStep, onSelectSte
       {!isLoading && error && <TraceErrorNotice error={error} />}
 
       {!isLoading && !error && !trace && (
-        <p className="text-sm text-void-200">
-          No trace yet. Run a trace to step through the state the backend computes after each operation.
+        <p className="text-xs text-void-200">
+          No trace yet. Run one to step through the state after each operation.
         </p>
       )}
 
@@ -242,14 +241,16 @@ function LoadedTrace({
 
       <StepDetail trace={trace} step={step} previous={current > 0 ? (trace.steps[current - 1] ?? null) : null} />
 
-      {/* One qubit: the backend's Bloch vector for THIS step (or an explanation when it has none). Several qubits: one
-          sphere per qubit, each from that qubit's own backend-computed state (or an explanation when the backend
-          sent none). Either way the component is handed only backend values — never the statevector or a gate. */}
-      {trace.numQubits === 1 ? (
-        <BlochSphere bloch={step.blochVector} numQubits={trace.numQubits} />
-      ) : (
-        <QubitSpheres qubitStates={step.qubitStates} numQubits={trace.numQubits} />
-      )}
+      {/* One interactive 3D sphere per qubit for THIS step, each from that qubit's own backend-computed state (one qubit: the
+          backend's Bloch vector), or an explicit "unavailable" when the backend gave none. The view is handed only backend
+          values — never the statevector or a gate — and follows the selected step; the camera is not reset by a step change. */}
+      <QubitStateView
+        testId="trace-state-view"
+        qubitStates={step.qubitStates}
+        blochVector={step.blochVector}
+        numQubits={trace.numQubits}
+        context={`Step ${displayStepNumber(current)} of ${trace.steps.length} · ${step.operation ? describeOperation(step.operation) : 'initial state'}`}
+      />
 
       <AmplitudeChart view={step.amplitudeView} numQubits={trace.numQubits} labelled={isKnownBasisOrdering(trace.basisOrdering)} />
 

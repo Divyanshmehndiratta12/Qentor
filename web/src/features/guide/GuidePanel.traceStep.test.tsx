@@ -119,7 +119,7 @@ function seedTrace({ withResult = true }: { withResult?: boolean } = {}) {
   return trace
 }
 
-const panel = () => screen.getByRole('complementary', { name: 'Qentor Guide' })
+const panel = () => screen.getByRole('complementary', { name: 'Qubi · AI Tutor' })
 const quick = () => within(within(panel()).getByRole('region', { name: 'Quick questions' }))
 const stepStarter = () => quick().queryByRole('button', { name: TRACE_STEP_QUESTION })
 

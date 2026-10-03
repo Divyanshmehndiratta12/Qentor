@@ -11,7 +11,7 @@
 import { useId, useState } from 'react'
 import type { TraceBlochVector, VariationalPoint } from '@/api'
 import { parseAngle } from '@/circuit/angle'
-import { BlochSphere } from '@/features/build/BlochSphere'
+import { QubitStateView } from '@/features/bloch3d/QubitStateView'
 import { StateNotice } from '@/features/shell/StateNotice'
 import { ProvenanceBadge } from '@/provenance/ProvenanceBadge'
 import type { QuantumValue } from '@/provenance/QuantumValue'
@@ -336,7 +336,13 @@ export function VariationalLab() {
               <ProvenanceBadge provenance={chosen.provenance} />
               <span>run {chosen.resultId}</span>
             </p>
-            <BlochSphere bloch={blochOf(chosen, selected)} numQubits={1} />
+            <QubitStateView
+              testId="variational-state-view"
+              qubitStates={[]}
+              blochVector={blochOf(chosen, selected)}
+              numQubits={1}
+              context={`${source === 'sweep' ? 'Point' : 'Step'} ${selected + 1} of ${length}`}
+            />
           </>
         )}
       </section>

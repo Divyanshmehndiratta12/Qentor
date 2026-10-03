@@ -8,6 +8,7 @@ import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { BackendUnavailableError, ClassroomRejectedError, getApiClient, type SharedExperiment } from '@/api'
 import type { Circuit } from '@/circuit/types'
 import { ShotsResult, StatevectorResult } from '@/features/build/ResultsPanel'
+import { QubitStateView } from '@/features/bloch3d/QubitStateView'
 import { StateNotice } from '@/features/shell/StateNotice'
 import { ProvenanceBadge } from '@/provenance/ProvenanceBadge'
 import { ReadOnlyCircuit } from './ReadOnlyCircuit'
@@ -190,6 +191,22 @@ function Ready({ experiment: e, onFork }: { experiment: SharedExperiment; onFork
         {result ? (
           <div className="mt-3 flex flex-col gap-3" data-testid="shared-result">
             <ProvenanceBadge provenance={result.provenance} />
+            {/* The stored run's final state, one sphere per qubit, from the per-qubit states the server derived from that stored record. */}
+            {result.value.statevector && (
+              <QubitStateView
+                testId="shared-state-view"
+                headingLevel={3}
+                qubitStates={result.value.qubitStates ?? []}
+                numQubits={e.circuit.num_qubits}
+                context="Final state of the stored run"
+                caution={
+                  e.circuit.ops.some((op) => op.gate === 'measure')
+                    ? 'This circuit contains measurements, so this is one collapsed post-measurement state, not the ideal state.'
+                    : undefined
+                }
+                unavailableReason="The server did not send a state for each qubit of this run, so no sphere is shown."
+              />
+            )}
             {result.value.probabilities && (
               <ShotsResult frequencies={result.value.probabilities} counts={result.value.counts} shots={result.value.shots} provenance={result.provenance} />
             )}

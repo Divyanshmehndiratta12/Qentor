@@ -404,8 +404,9 @@ WEB = [
            "{state.reason ?? 'The backend gave no reason.'}", "{'The backend gave no reason.'}", ["src/features/build/QubitSpheres.test.tsx"]),
     Mutant("web: a qubit state derived from another step is accepted", "web/src/provenance/schema.ts",
            "const mismatches = sourceMismatches(qubitState.derived_from)", "const mismatches: unknown[] = []", ["src/features/build/QubitSpheres.test.tsx"]),
-    Mutant("web: per-qubit purity loses its own step's provenance", "web/src/api/realClient.ts",
-           "toQuantumValue(q.purity, provenance)", "toQuantumValue(q.purity, provenanceFromTraceStep(response.steps[0]!.provenance))", ["src/features/build/QubitSpheres.test.tsx"]),
+    # (the per-qubit mapping moved from realClient.ts to qubitStateMap.ts in the visual sprint; the mutation is the same: purity is wrapped with another record's provenance)
+    Mutant("web: per-qubit purity loses its own step's provenance", "web/src/api/qubitStateMap.ts",
+           "toQuantumValue(q.purity, provenance)", "toQuantumValue(q.purity, { ...provenance, resultId: 'res_of_another_step' })", ["src/features/build/QubitSpheres.test.tsx"]),
     Mutant("web: a phase arrow turns the wrong way", "web/src/features/build/AmplitudeChart.tsx",
            "{ '--phase': row.phase } as CSSProperties", "{ '--phase': -row.phase } as CSSProperties", ["src/features/build/AmplitudeChart.test.tsx", "src/features/build/reducedStateTrust.test.ts"]),
     Mutant("web: a bar is sized by the outcome weight instead of the amplitude", "web/src/features/build/AmplitudeChart.tsx",
@@ -534,7 +535,7 @@ WEB = [
     Mutant("web: the Lab loses its level-one heading", "web/src/App.tsx",
            '              <h1 id="lab-heading" className="sr-only">', '              <h1 hidden id="lab-heading" className="sr-only">', ["src/a11y/axe.test.tsx"]),
     Mutant("web: the Results heading is a span again (heading order breaks)", "web/src/features/build/ResultsPanel.tsx",
-           '<h2 className="text-[13px] font-semibold text-slate-100">Results</h2>', '<span className="text-[13px] font-semibold text-slate-100">Results</span>', ["src/a11y/axe.test.tsx"]),
+           '<h2 className="text-xs font-semibold tracking-wider text-slate-200 uppercase">Results</h2>', '<span className="text-xs font-semibold tracking-wider text-slate-200 uppercase">Results</span>', ["src/a11y/axe.test.tsx"]),
     Mutant("web: Run sits on the same row as the destinations again", "web/src/features/shell/TopBar.tsx",
            'className="order-4 -mx-4 flex basis-full gap-0.5', 'className="-mx-4 flex gap-0.5', ["src/a11y/layout.test.tsx"]),
     # --- Sprint 4: angle expressions and the algorithm curriculum ---
@@ -699,8 +700,24 @@ WEB += [
 
 # --- Sprint 5: polish (Results groups, chart alternatives, phone layout, the Guide) ---
 WEB += [
-    Mutant("web: the Guide is pinned to a corner of the screen on a phone again", "web/src/features/guide/GuideLauncher.tsx",
-           "max-md:left-0 max-md:[transform:none] ${", "max-md:fixed max-md:right-4 max-md:bottom-4 max-md:[transform:none] ${", ["src/features/guide/GuideLauncher.test.tsx"]),
+    Mutant("web: Qubi may leave the viewport (its clamp is off)", "web/src/features/guide/qubiMotion.ts",
+           "Math.min(region.maxX, Math.max(region.minX, p.x))", "Math.min(region.maxX + 500, Math.max(region.minX, p.x))", ["src/features/guide/qubiMotion.test.ts"]),
+    Mutant("web: Qubi may roam over the top bar", "web/src/features/guide/qubiMotion.ts",
+           "let minY = topInset + EDGE_MARGIN", "let minY = EDGE_MARGIN", ["src/features/guide/qubiMotion.test.ts", "src/features/guide/GuideLauncher.test.tsx"]),
+    Mutant("web: Qubi ignores the controls under it", "web/src/features/guide/qubiMotion.ts",
+           "for (const o of obstacles) cost += overlapArea(me, o.box, OBSTACLE_PAD) * o.weight", "for (const o of obstacles) cost += 0 * overlapArea(me, o.box, OBSTACLE_PAD) * o.weight", ["src/features/guide/qubiMotion.test.ts"]),
+    Mutant("web: Pause no longer stops Qubi", "web/src/features/guide/GuideLauncher.tsx",
+           "suspended: paused || held", "suspended: held", ["src/features/guide/GuideLauncher.test.tsx"]),
+    Mutant("web: Qubi keeps roaming while the tutor panel is open", "web/src/features/guide/GuideLauncher.tsx",
+           "docked: open, rng", "docked: false, rng", ["src/features/guide/GuideLauncher.test.tsx"]),
+    Mutant("web: Qubi roams under prefers-reduced-motion", "web/src/features/guide/GuideLauncher.tsx",
+           "const roam = !reduced", "const roam = true", ["src/features/guide/GuideLauncher.test.tsx"]),
+    Mutant("web: Qubi's button no longer points at the tutor panel", "web/src/features/guide/GuideLauncher.tsx",
+           "aria-controls=\"qentor-guide-panel\"", "aria-controls=\"somewhere-else\"", ["src/features/guide/GuideLauncher.test.tsx"]),
+    Mutant("web: the welcome shows the five-step path permanently again", "web/src/features/shell/WelcomeCard.tsx",
+           '<details className="group text-[12px]" data-testid="how-it-works">', '<details open className="group text-[12px]" data-testid="how-it-works">', ["src/features/shell/journey.test.tsx"]),
+    Mutant("web: the Tutor footer stays tall when it has nothing to show", "web/src/App.tsx",
+           "tutorEmpty && tutorMode === 'explain' ? 'h-48 lg:h-44' : 'h-72 lg:h-64'", "'h-72 lg:h-64'", ["src/labSimplified.test.tsx"]),
     Mutant("web: the Guide's bubble shows on a phone", "web/src/features/guide/GuideLauncher.tsx",
            "shadow-lg max-md:hidden", "shadow-lg", ["src/features/guide/GuideLauncher.test.tsx"]),
     Mutant("web: the trace group starts folded", "web/src/features/build/ResultsPanel.tsx",
@@ -992,7 +1009,7 @@ _CC = ["src/features/build/canvasContainment.test.tsx"]
 _SC = ["src/features/tutor/scrollLatestExchange.test.tsx"]
 WEB += [
     Mutant("canvas: the scroller is no longer the containing block, so a long circuit widens the page", "web/src/features/build/CircuitCanvas.tsx",
-           'className="circuit-grid-bg relative flex-1 overflow-auto p-6 pt-3 pb-6"', 'className="circuit-grid-bg flex-1 overflow-auto p-6 pt-3 pb-6"', _CC),
+           'className="circuit-grid-bg relative flex-1 overflow-auto px-6 pt-2 pb-3"', 'className="circuit-grid-bg flex-1 overflow-auto px-6 pt-2 pb-3"', _CC),
     Mutant("tutor scroll: the newest exchange starts at the wrong place", "web/src/features/tutor/scrollLatestExchange.ts",
            "scroller.scrollTop = Math.max(0, offset - gap)", "scroller.scrollTop = Math.max(0, offset + gap)", _SC),
     Mutant("tutor scroll: the newest turn is chosen instead of the newest question", "web/src/features/tutor/scrollLatestExchange.ts",
@@ -1104,6 +1121,93 @@ BACKEND += [
            "nothing about how a larger QFT scales.", "nothing more.", _AH),
     Mutant("final: the teleportation opening stops saying it is a small educational example", "backend/qentor/lessons/content_batch1.py",
            " It is a small educational example of the protocol, not a communication system.", "", _AH),
+]
+
+
+# --- Visualization + lesson access sprint: the server's per-qubit state view, unlocked lessons, the 3D view and the editor visuals ---
+_SV = ["test_execute_state_view.py"]
+_SVF = "backend/qentor/api/state_view.py"
+BACKEND += [
+    Mutant("viz: the state view names step 0 instead of the whole circuit", _SVF, "step_index=len(circuit.ops),", "step_index=0,", _SV),
+    Mutant("viz: the state view is not tied to the stored result id", _SVF, "result_id=record.result_id,", "result_id=None,", _SV),
+    Mutant("viz: the state view is not tied to the circuit hash", _SVF, "circuit_hash=record.circuit_hash,", 'circuit_hash="",', _SV),
+    Mutant("viz: the state view forgets the execution id", _SVF, 'execution_id=str(record.payload.get("execution_id", "")),', 'execution_id="",', _SV),
+    Mutant("viz: the state view reads the statevector at the wrong width", _SVF, "circuit.num_qubits,\n        source=BlochSource(", "circuit.num_qubits + 1,\n        source=BlochSource(", _SV),
+    Mutant("viz: a record with no statevector still gets a state view", _SVF, "if statevector is None:\n        return []", "if False:\n        return []", _SV),
+    Mutant("viz: /api/execute carries no state view", "backend/qentor/api/app.py",
+           "qubit_states = final_state_qubit_states(record, request.circuit)", "qubit_states = []", _SV),
+    Mutant("viz: a shared page carries no state view", "backend/qentor/api/sharing.py",
+           "qubit_states=final_state_qubit_states(record, saved.circuit),", "qubit_states=[],", ["test_sharing.py"]),
+]
+_LA = ["src/features/learn/lessonState.test.ts", "src/features/learn/lessonAccess.test.tsx", "src/features/learn/LearnScreen.test.tsx"]
+_LS = "web/src/features/learn/lessonState.ts"
+WEB += [
+    Mutant("viz: a lesson with an unfinished prerequisite is locked again", _LS,
+           "return completedLessonIds.has(lesson.id) ? 'completed' : 'available'",
+           "return completedLessonIds.has(lesson.id) ? 'completed' : lesson.prerequisiteLessonIds.some((id) => !completedLessonIds.has(id)) ? ('locked' as LessonState) : 'available'", _LA),
+    Mutant("viz: a lesson card is disabled while it builds on unfinished work", "web/src/features/learn/LessonCard.tsx",
+           "      onClick={onSelect}\n      aria-current", "      onClick={onSelect}\n      disabled={buildsOn.length > 0}\n      aria-current", _LA),
+    Mutant("viz: the progress screen disables a lesson that builds on unfinished work", "web/src/features/progress/ProgressScreen.tsx",
+           "        onClick={() => onOpenLesson(lesson.id)}", "        disabled={buildsOn.length > 0}\n        onClick={() => onOpenLesson(lesson.id)}", ["src/features/progress/ProgressScreen.test.tsx"]),
+    Mutant("viz: readiness ignores prerequisites", _LS,
+           "return getUnmetPrerequisiteIds(lesson, completedLessonIds).length > 0 ? 'builds_on_unfinished' : 'ready'", "return 'ready'", _LA),
+    Mutant("viz: the unfinished-prerequisite list is inverted", _LS,
+           "return lesson.prerequisiteLessonIds.filter((id) => !completedLessonIds.has(id))", "return lesson.prerequisiteLessonIds.filter((id) => completedLessonIds.has(id))", _LA),
+    Mutant("viz: the recommendation ignores prerequisites", "web/src/features/learn/learnerInsights.ts",
+           "if (getLessonReadiness(lesson, completedLessonIds) === 'ready') {", "if (!completedLessonIds.has(lesson.id)) {", _LA),
+    Mutant("viz: every lesson is marked Suggested next", "web/src/features/learn/LearnScreen.tsx",
+           "suggestedNext={lesson.id === suggestedLessonId}", "suggestedNext={true}", _LA),
+]
+_B3 = ["src/features/bloch3d"]
+_SC = "web/src/features/bloch3d/BlochScene.tsx"
+_QV = "web/src/features/bloch3d/QubitStateView.tsx"
+_RS = ["src/features/build/resultStateView.test.tsx"]
+WEB += [
+    Mutant("viz: the scene draws the vector without the axis permutation", "web/src/features/bloch3d/sceneConstants.ts", "return [x, z, -y]", "return [x, y, z]", _B3),
+    Mutant("viz: the scene mirrors the y axis", "web/src/features/bloch3d/sceneConstants.ts", "return [x, z, -y]", "return [x, z, y]", _B3),
+    Mutant("viz: the arrow jumps instead of easing", _SC, "delta > LONGEST_STEP ? 1 : delta * EASE_RATE", "1", _B3),
+    Mutant("viz: reduced motion no longer makes the arrow jump", _SC,
+           "if (reducedMotion || now.distanceToSquared(target) < ARRIVED) now.copy(target)", "if (now.distanceToSquared(target) < ARRIVED) now.copy(target)", _B3),
+    Mutant("viz: an out-of-range vector is still drawn as an arrow", _SC,
+           "{drawable && <StateArrow vector={vector} headScale={headScale} reducedMotion={reducedMotion} />}", "{true && <StateArrow vector={vector} headScale={headScale} reducedMotion={reducedMotion} />}", _B3),
+    Mutant("viz: the arrowhead ignores the backend's length", _SC, "const size = headScale ?? 1", "const size = 1", _B3),
+    Mutant("viz: the parent cannot drive the camera", _SC, "controllers.current.set(id, controller)", "void controller", _B3),
+    Mutant("viz: the zoom has no lower limit", _SC, "        minDistance={MIN_DISTANCE}\n", "", _B3),
+    Mutant("viz: a reset inherits the damping inertia", _SC, "      c.enableDamping = false\n      c.update() // finish any coasting first\n", "", _B3),
+    Mutant("viz: the sphere starts auto-rotating", _QV, "useState(false) // manual rotation is the default; nothing spins until asked", "useState(true)", _B3),
+    Mutant("viz: reset view resets nothing", _QV, "controllers.current.forEach((c) => c.reset())", "void 0", _B3),
+    Mutant("viz: reduced motion no longer disables auto-rotate", _QV, "disabled={reducedMotion}", "disabled={false}", _B3),
+    Mutant("viz: the flat fallback is never used", _QV, "const has3D = webglSupported() && !threeFailed", "const has3D = !threeFailed", _B3),
+    Mutant("viz: an out-of-range vector is passed as drawable", _QV, "const drawable = isDrawable(x, y, z)", "const drawable = true", _B3),
+    Mutant("viz: the backend length is replaced by 1 for the arrowhead", _QV, "headScale: state.blochLength ? state.blochLength.value : null,", "headScale: 1,", _B3),
+    Mutant("viz: the 3D side is handed a flipped z", _QV, "vector: { x, y, z },", "vector: { x, y, z: -z },", _B3),
+    Mutant("viz: one qubit is titled as a register", _QV, "const heading = single ? 'Interactive Bloch sphere' : 'Qubit state view'", "const heading = single ? 'Qubit state view' : 'Interactive Bloch sphere'", _B3),
+    Mutant("viz: an unusable qubit hides the backend's reason", _QV, "{state.reason ?? 'The backend gave no reason.'}", "{'The backend gave no reason.'}", _B3),
+    Mutant("viz: the card shows a raw number without provenance", _QV,
+           "<VerifiedValueInline quantum={toQuantumValue(bloch.value[axis], bloch.provenance)} render={formatComponent} />", "{String(bloch.value[axis])}", _B3),
+    Mutant("viz: two state views share one landmark name", _QV, "aria-labelledby={context ? `${headingId} ${contextId}` : headingId}", "aria-labelledby={headingId}", _B3),
+    Mutant("viz: the key 0 no longer resets", "web/src/features/bloch3d/sphereKeys.ts", "'0': { kind: 'reset' },", "'0': { kind: 'zoom', direction: 1 },", _B3),
+    Mutant("viz: the result view cautions about collapsed states for every run", "web/src/features/build/ResultStateView.tsx", "hasState && hasMeasurement", "hasState", _RS),
+    Mutant("viz: a shots run is told its state is merely missing", "web/src/features/build/ResultStateView.tsx", "!hasState\n          ?", "hasState\n          ?", _RS),
+    Mutant("viz: the trace view always shows step 1", "web/src/features/build/TraceViewer.tsx", "qubitStates={step.qubitStates}", "qubitStates={trace.steps[0]!.qubitStates}", _RS),
+    Mutant("viz: an unusable qubit's entanglement flag becomes false", "web/src/api/qubitStateMap.ts", "entangledWithRest: q.entangled_with_rest ?? null,", "entangledWithRest: q.entangled_with_rest ?? false,", ["src/api/realClient.stateView.test.ts"]),
+    Mutant("viz: a run with no per-qubit states claims an empty list", "web/src/api/executeValue.ts", "...(response.qubit_states.length > 0", "...(true", ["src/api/realClient.stateView.test.ts"]),
+]
+_ED = ["src/features/build/editorVisuals.test.tsx"]
+_CC = "web/src/features/build/CircuitCanvas.tsx"
+WEB += [
+    Mutant("viz: every gate is marked as the traced one", _CC, "const isTraced = tracedOp === column.index", "const isTraced = tracedOp !== null", _ED),
+    Mutant("viz: the connecting line's ends are swapped", _CC, "q === first ? 'start' : q === last ? 'end' : 'middle'", "q === first ? 'end' : q === last ? 'start' : 'middle'", _ED),
+    Mutant("viz: a single-wire gate gets a line", _CC, "wires.length > 1 && q >= first", "wires.length >= 1 && q >= first", _ED),
+    Mutant("viz: the controlled-phase angle is written on every wire it crosses", _CC, "op.gate === 'cp' && span === 'start'", "op.gate === 'cp' && span !== null", _ED),
+    Mutant("viz: a refused placement no longer marks the cells", _CC, "data-invalid={canvasError ? 'true' : undefined}", "data-invalid={undefined}", _ED),
+    Mutant("viz: the empty-circuit invitation never goes away", _CC, "{total === 0 && (\n              <p\n                data-testid=\"empty-circuit-hint\"", "{total >= 0 && (\n              <p\n                data-testid=\"empty-circuit-hint\"", _ED),
+    Mutant("viz: a controlled gate's target is square", _CC, "const shape = op.controls.length > 0 ? 'rounded-full' : 'rounded-md'", "const shape = op.controls.length > 0 ? 'rounded-md' : 'rounded-full'", _ED),
+    Mutant("viz: the hover preview shows the target symbol for a control", "web/src/circuit/gateVisual.ts", "return role === 'control' ? '●' : (target ?? display)", "return target ?? display", _ED),
+    Mutant("viz: the Hadamard gate is coloured as a Pauli", "web/src/circuit/gateVisual.ts", "h: 'hadamard',", "h: 'pauli',", _ED),
+    Mutant("viz: a QASM line is off by one", "web/src/circuit/qasmLines.ts", "return header + opIndex + 1", "return header + opIndex", ["src/circuit/qasmLines.test.ts", "src/features/build/qasmLineMark.test.tsx"]),
+    Mutant("viz: the QASM mark of a traced gate is drawn as a picked one", "web/src/features/build/QASMEditor.tsx", "kind: selectedOp !== null ? 'selected' : 'traced'", "kind: 'selected'", ["src/features/build/qasmLineMark.test.tsx"]),
+    Mutant("viz: the QASM mark is drawn on text that is not the canvas's", "web/src/features/build/QASMEditor.tsx", "view.state.doc.toString() === qasmText && qasmText === toQasm3(circuit)", "qasmText === toQasm3(circuit)", ["src/features/build/qasmLineMark.test.tsx"]),
 ]
 
 

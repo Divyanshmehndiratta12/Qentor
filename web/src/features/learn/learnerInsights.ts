@@ -23,7 +23,7 @@ import type { Lesson } from '@/api'
 import {
   getConceptCheckScore,
   getLessonMastery,
-  getLessonState,
+  getLessonReadiness,
   isFullConceptCheck,
   isLessonComplete,
   MASTERY_ACCURACY_THRESHOLD,
@@ -228,8 +228,9 @@ const SEVERITY_RANK: Record<MisconceptionSeverity, number> = { high: 0, medium: 
  * A. The highest-severity unresolved misconception in an already-started
  *    lesson (ties broken by catalog order, since `getMisconceptions` already
  *    walks lessons in that order and array sort is stable).
- * B. Otherwise, the first lesson (catalog order) that is unlocked and not
- *    yet completed (`getLessonState(...) === 'available'`).
+ * B. Otherwise, the first lesson (catalog order) that is ready (everything it
+ *    builds on is completed) and not yet completed (`getLessonReadiness(...) === 'ready'`).
+ *    Prerequisites steer this recommendation; they never stop a lesson opening.
  * C. Otherwise, every lesson in the catalog is complete (or the catalog is
  *    empty) — there is no further challenge to recommend.
  */
@@ -248,7 +249,7 @@ export function getNextChallenge(
     lessons.filter((lesson) => isLessonComplete(lesson, lessonProgress[lesson.id])).map((lesson) => lesson.id),
   )
   for (const lesson of lessons) {
-    if (getLessonState(lesson, completedLessonIds) === 'available') {
+    if (getLessonReadiness(lesson, completedLessonIds) === 'ready') {
       const reason = startedLessonIds.has(lesson.id)
         ? `Pick up where you left off in "${lesson.title}".`
         : `"${lesson.title}" is next in your learning path.`

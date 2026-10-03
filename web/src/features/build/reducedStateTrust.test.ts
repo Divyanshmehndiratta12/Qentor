@@ -93,7 +93,8 @@ describe('reduced-state and amplitude rendering: no client-side quantum computat
 
   it('the per-qubit component is given only the backend’s per-qubit states and a qubit count', () => {
     const props = /export interface QubitSpheresProps\s*\{([\s\S]*?)\n\}/.exec(spheresSource)![1]!
-    expect([...code(props).matchAll(/^\s*(\w+)\??:/gm)].map((m) => m[1])).toEqual(['qubitStates', 'numQubits'])
+    // (`headingLevel` is only the level, 3 or 4, of the section's heading, and `labelContext` a text label saying which state it is)
+    expect([...code(props).matchAll(/^\s*(\w+)\??:/gm)].map((m) => m[1])).toEqual(['qubitStates', 'numQubits', 'headingLevel', 'labelContext'])
     expect(props).toContain('TraceQubitState[]')
   })
 
@@ -105,9 +106,11 @@ describe('reduced-state and amplitude rendering: no client-side quantum computat
 
   it('the trace viewer hands them only backend values from the selected step', () => {
     const viewer = code(viewerSource)
-    expect(viewer).toContain('<QubitSpheres qubitStates={step.qubitStates} numQubits={trace.numQubits} />')
+    // the per-qubit spheres are drawn by the qubit state view (3D, with `QubitSpheres` as its flat fallback), handed the same values
+    expect(viewer).toContain('qubitStates={step.qubitStates}')
+    expect(viewer).toContain('numQubits={trace.numQubits}')
+    expect(viewer.match(/<QubitStateView\b/g)).toHaveLength(1)
     expect(viewer).toContain('<AmplitudeChart view={step.amplitudeView}')
-    expect(viewer.match(/<QubitSpheres\b/g)).toHaveLength(1)
     expect(viewer.match(/<AmplitudeChart\b/g)).toHaveLength(1)
   })
 

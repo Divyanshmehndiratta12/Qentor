@@ -58,6 +58,17 @@ body {
   background: color-mix(in oklch, var(--color-danger-glow) 12%, transparent);
 }
 
+/* The line of the gate picked on the canvas (violet) or shown in the trace (amber): a mark, not a claim, and not colour alone, since the
+   canvas names the same gate in words. */
+.cm-op-line-selected {
+  background: color-mix(in oklch, var(--color-violet-glow) 16%, transparent);
+  box-shadow: inset 3px 0 0 var(--color-violet-glow);
+}
+.cm-op-line-traced {
+  background: color-mix(in oklch, var(--color-amber-glow) 12%, transparent);
+  box-shadow: inset 3px 0 0 var(--color-amber-glow);
+}
+
 /* Faint circuit-board grid backdrop for the canvas surface, applied via this
    utility class rather than inline so it stays themeable in one place. */
 .circuit-grid-bg {
@@ -95,8 +106,8 @@ body {
   stroke-linecap: round;
 }
 
-/* Qentor Guide (features/guide). Three restrained motions: a slow slide along
-   its top-bar strip, a few-pixel idle bob, and a short slide/fade when the
+/* Qubi, the AI Tutor companion (features/guide). Three restrained motions: a slow glide over the
+   screen, a few-pixel idle bob, and a short slide/fade when the
    side panel opens. All three are switched off for people who ask for reduced
    motion (the JS side also stops roaming; this is the CSS half). */
 @keyframes qentor-guide-bob {
@@ -118,10 +129,15 @@ body {
     transform: none;
   }
 }
-.qentor-guide-roam {
-  transition:
-    left 4s ease-in-out,
-    transform 4s ease-in-out;
+/* Qubi (GuideLauncher): a fixed element whose transform and transition duration `useQubiRoaming` writes directly. Hidden until its
+   first placement so it never flashes at the corner. The glide is slow and eased; under reduced motion there is no transition at all. */
+.qubi {
+  transition-property: transform;
+  transition-timing-function: cubic-bezier(0.45, 0, 0.25, 1);
+  will-change: transform;
+}
+.qubi[data-placed='false'] {
+  visibility: hidden;
 }
 .qentor-guide-bob {
   display: inline-block;
@@ -131,8 +147,9 @@ body {
   animation: qentor-guide-panel-in 180ms ease-out both;
 }
 @media (prefers-reduced-motion: reduce) {
-  .qentor-guide-roam {
-    transition: none;
+  .qubi,
+  .qubi-orb {
+    transition: none !important;
   }
   .qentor-guide-bob,
   .qentor-guide-panel {

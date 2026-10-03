@@ -1,5 +1,5 @@
 /**
- * The Guide's side panel: a shell around the EXISTING tutor experience.
+ * Qubi's side panel: a shell around the EXISTING tutor experience.
  *
  * What it adds: a heading and close button, a short "context" card (what a
  * question would be grounded in — see `guideContext.ts`), and a few quick
@@ -23,6 +23,9 @@
  * API itself; it does not import the API layer at all. A button is enabled only
  * when there is something real to ask about (a Lab result / an open lesson);
  * otherwise the panel says why instead of implying otherwise.
+ *
+ * The panel leaves a gutter of 5.5rem on a narrow screen (and sits at the right edge on a wide one) so Qubi, which docks beside
+ * it while it is open, stays visible and is always the way to close it. Qubi is the character; this is its panel.
  *
  * Accessibility: a labelled complementary region (not a modal — no focus trap,
  * so it can't strand a keyboard user), focus moves to it on open, Escape or the
@@ -64,12 +67,12 @@ export function GuidePanel({ screen, onClose }: GuidePanelProps) {
           onClose()
         }
       }}
-      className="qentor-guide-panel fixed top-[52px] right-0 bottom-0 z-40 flex w-[380px] max-w-full flex-col border-l border-void-500 bg-void-900 shadow-[-12px_0_32px_rgba(0,0,0,0.35)] outline-none focus-visible:ring-2 focus-visible:ring-cyan-glow/60"
+      className="qentor-guide-panel fixed top-[52px] right-0 bottom-0 z-40 flex w-[380px] max-w-[calc(100vw-5.5rem)] flex-col border-l border-void-500 bg-void-900 shadow-[-12px_0_32px_rgba(0,0,0,0.35)] outline-none focus-visible:ring-2 focus-visible:ring-cyan-glow/60"
     >
       <div className="flex items-center gap-2.5 border-b border-void-500 px-4 py-2.5">
         <GuideCharacter size={30} />
         <h2 id="qentor-guide-heading" className="font-sans-ui text-[15px] font-semibold text-slate-100">
-          Qentor Guide
+          Qubi · AI Tutor
         </h2>
         <span className="rounded-full border border-void-400 px-2 py-0.5 font-mono-qasm text-[10px] text-slate-300">
           {context.label}

@@ -200,18 +200,38 @@ describe('LearnScreen', () => {
     await waitFor(() => expect(screen.getByText(/No lessons are available/)).toBeInTheDocument())
   })
 
-  it('a locked lesson cannot be selected', async () => {
+  it('a lesson whose prerequisite is unfinished can still be opened directly, and says what it builds on', async () => {
     listLessons.mockResolvedValueOnce([LESSON_A, LESSON_B])
 
     render(<LearnScreen onOpenLab={vi.fn()} />)
     await waitFor(() => expect(screen.getByText('Lesson B')).toBeInTheDocument())
 
-    const lockedButton = screen.getByRole('button', { name: /^Lesson B/ })
-    expect(lockedButton).toBeDisabled()
+    const button = screen.getByRole('button', { name: /^Lesson B/ })
+    expect(button).toBeEnabled()
+    expect(button).toHaveTextContent('Builds on: Lesson A')
+    expect(button).not.toHaveAccessibleName(/locked/i)
+    expect(screen.queryByText(/locked/i)).not.toBeInTheDocument()
 
-    fireEvent.click(lockedButton)
+    fireEvent.click(button)
 
-    expect(screen.queryByText('Explain body.')).not.toBeInTheDocument()
+    expect(await screen.findByText('Explain body.')).toBeInTheDocument()
+    expect(screen.getByText(/recommended first, but you can start here any time/)).toBeInTheDocument()
+  })
+
+  it('marks only the lesson the recommended path points at as Suggested next', async () => {
+    listLessons.mockResolvedValueOnce([LESSON_A, LESSON_B])
+
+    render(<LearnScreen onOpenLab={vi.fn()} />)
+    await waitFor(() => expect(screen.getByText('Lesson B')).toBeInTheDocument())
+
+    // Nothing done yet: A (no prerequisites) is next; B builds on A so it is open but not suggested.
+    expect(screen.getByRole('button', { name: /^Lesson A/ })).toHaveAccessibleName(/suggested next/)
+    expect(screen.getByRole('button', { name: /^Lesson B/ })).not.toHaveAccessibleName(/suggested next/)
+
+    await completeLessonA()
+    // Once A is complete the recommendation moves on to B, which no longer lists A as unfinished.
+    expect(screen.getByRole('button', { name: /^Lesson B/ })).toHaveAccessibleName(/suggested next/)
+    expect(screen.getByRole('button', { name: /^Lesson B/ })).not.toHaveTextContent('Builds on')
   })
 
   it('selecting an available lesson shows its detail view with objectives and progress', async () => {
@@ -239,7 +259,7 @@ describe('LearnScreen', () => {
     expect(screen.getByLabelText('Lesson progress')).toHaveTextContent('Mastered')
   })
 
-  it('unlocks a dependent lesson once its prerequisite is complete, showing exactly one section at a time through the whole flow', async () => {
+  it('opens a dependent lesson after its prerequisite is complete, showing exactly one section at a time through the whole flow', async () => {
     listLessons.mockResolvedValueOnce([LESSON_A, LESSON_B])
 
     render(<LearnScreen onOpenLab={vi.fn()} />)

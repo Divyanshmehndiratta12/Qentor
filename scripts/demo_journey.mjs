@@ -21,7 +21,10 @@ const log = (m) => console.error(`[demo ${new Date().toISOString().slice(11, 19)
 
 fs.rmSync(path.join(OUT, 'chrome-profile-demo'), { recursive: true, force: true })
 const chrome = spawn(CHROME, ['--headless=new', `--remote-debugging-port=${PORT}`, `--user-data-dir=${path.join(OUT, 'chrome-profile-demo')}`,
-  '--window-size=1440,900', '--no-first-run', '--no-default-browser-check', '--disable-gpu', '--disk-cache-size=1', 'about:blank'], { stdio: 'ignore' })
+  '--window-size=1440,900', '--no-first-run', '--no-default-browser-check', '--disk-cache-size=1',
+  // WebGL through Chrome's software renderer, so the 3D Bloch spheres really run (set QENTOR_NO_WEBGL=1 to run the flat fallback instead).
+  ...(process.env.QENTOR_NO_WEBGL ? ['--disable-gpu'] : ['--use-gl=angle', '--use-angle=swiftshader-webgl', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist']),
+  'about:blank'], { stdio: 'ignore' })
 async function targetWs() {
   for (let i = 0; i < 60; i++) {
     try { const p = (await (await fetch(`http://127.0.0.1:${PORT}/json/list`)).json()).find((t) => t.type === 'page'); if (p) return p.webSocketDebuggerUrl } catch {}
@@ -41,7 +44,9 @@ ws.onmessage = (e) => {
   const p = m.params
   if (m.method === 'Runtime.consoleAPICalled' && ['error', 'warning', 'assert'].includes(p.type)) consoleLines.push(`[${p.type}] ` + p.args.map((a) => a.value ?? a.description ?? '').join(' '))
   else if (m.method === 'Runtime.exceptionThrown') consoleLines.push('[EXCEPTION] ' + (p.exceptionDetails.exception?.description ?? p.exceptionDetails.text))
-  else if (m.method === 'Log.entryAdded' && ['error', 'warning'].includes(p.entry.level)) consoleLines.push(`[log.${p.entry.level}] ${p.entry.text} ${p.entry.url ?? ''}`)
+  // (Chrome's software GL renderer reports "GPU stall due to ReadPixels" as a performance WARNING when a screenshot is taken: a driver note about
+  // the capture, not the page, so it is the one message left out. Any other warning or error is counted.)
+  else if (m.method === 'Log.entryAdded' && ['error', 'warning'].includes(p.entry.level) && !/GL Driver Message \(OpenGL, Performance/.test(p.entry.text)) consoleLines.push(`[log.${p.entry.level}] ${p.entry.text} ${p.entry.url ?? ''}`)
   else if (m.method === 'Network.requestWillBeSent') requests.push({ url: p.request.url, method: p.request.method })
 }
 const send = (method, params = {}, t = 30000) => new Promise((resolve, reject) => {
@@ -233,7 +238,7 @@ check('J01c Start learning opens the Learn screen', await waitFor(`location.path
 // ===================================================================== 2. Learn -> Qubits & Measurement -> concept check -> Open in Lab
 const LESSON = L['qubits-measurement']
 await waitFor(`document.querySelector('[aria-label^="${LESSON.title}"]')`, 10000)
-check('J02a Learn lists the lesson with its state, and Shor\'s lesson is locked behind phase estimation', await ev(`(() => { const t = [...document.querySelectorAll('button')].map((b) => b.getAttribute('aria-label') ?? ''); return t.some((l) => l.startsWith(${T(LESSON.title)})) && t.some((l) => l.startsWith("Shor's Algorithm") && /locked/i.test(l)) })()`))
+check('J02a Learn lists the lesson with its state, and Shor\'s lesson is OPEN (no lock) while saying it builds on phase estimation', await ev(`(() => { const t = [...document.querySelectorAll('button')].map((b) => ({ label: b.getAttribute('aria-label') ?? '', off: b.disabled })); return t.some((x) => x.label.startsWith(${T(LESSON.title)})) && t.some((x) => x.label.startsWith("Shor's Algorithm") && !x.off && !/locked/i.test(x.label) && /builds on/i.test(x.label)) })()`))
 await axe('1440/learn')
 await shot('f7_02_learn.png')
 await click(`[...document.querySelectorAll('button')].find((b) => (b.getAttribute('aria-label') ?? '').startsWith(${T(LESSON.title)}))`, 'lesson card')
@@ -282,7 +287,7 @@ const trace = await lastJson('/api/execute/trace')
 check('J04a the trace is the server\'s: one record per operation plus the start, terminal measurements listed not run', trace.status === 200 && trace.res.steps.length === 3 && trace.res.terminal_measurements.length === 2 && trace.res.steps.every((s) => /^res_/.test(s.provenance.result_id)) && /^res_/.test(trace.res.final_result_id), { steps: trace.res.steps.length, term: trace.res.terminal_measurements?.length })
 await selectOp(1); await sleep(600)
 const stepText = await text()
-check('J04b selecting step 1 shows the server\'s per-qubit Bloch cards for that step with their provenance', /PER-QUBIT BLOCH SPHERES/i.test(stepText) && /from trace step 1/.test(stepText), null)
+check('J04b selecting step 1 shows the server\'s per-qubit Bloch view for that step with its provenance (the 3D spheres where WebGL exists, the flat cards where it does not)', /(PER-QUBIT BLOCH SPHERES|QUBIT STATE VIEW)/i.test(stepText) && /(from trace step \d|Step \d of 3)/.test(stepText), null)
 await axe('1440/trace')
 await clickName('What changed?'); await sleep(300)
 await clickName('What changed in this step?')
@@ -447,13 +452,13 @@ await axe('1440/reasoning-whatif')
 await shot('f7_12_whatif.png')
 
 // ===================================================================== 13. Guide, keyboard, focus
-await click(`[...document.querySelectorAll('button')].find((b) => /Open Qentor Guide/.test(b.getAttribute('aria-label') ?? ''))`, 'guide'); await sleep(900)
+await click(`[...document.querySelectorAll('button')].find((b) => /Open Qubi AI Tutor/.test(b.getAttribute('aria-label') ?? ''))`, 'guide'); await sleep(900)
 check('J13a the Guide opens as a named dialog-like panel with a Close control', (await ev(`!![...document.querySelectorAll('button')].find((b) => /Close guide panel/.test(b.getAttribute('aria-label') ?? ''))`)))
 await axe('1440/guide')
 await shot('f7_13_guide.png')
 await key('Escape', 'Escape', 27); await sleep(400)
 check('J13b Escape closes the Guide', !(await ev(`!![...document.querySelectorAll('button')].find((b) => /Close guide panel/.test(b.getAttribute('aria-label') ?? ''))`)))
-await clickName('Open Qentor Guide').catch(() => {})
+await clickName('Open Qubi AI Tutor').catch(() => {})
 await key('Escape', 'Escape', 27)
 
 // ===================================================================== 14. Shor lesson in the browser, and a long circuit in the Lab (the page-width fix)

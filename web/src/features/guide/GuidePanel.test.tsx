@@ -128,7 +128,7 @@ function seedLesson(activeSectionIndex = 1) {
   })
 }
 
-const panel = () => screen.getByRole('complementary', { name: 'Qentor Guide' })
+const panel = () => screen.getByRole('complementary', { name: 'Qubi · AI Tutor' })
 const quick = () => within(screen.getByRole('region', { name: 'Quick questions' }))
 const quickButton = (name: string) => quick().getByRole('button', { name })
 const language = () => screen.getByRole('combobox', { name: 'Tutor answer language' }) as HTMLSelectElement
@@ -151,7 +151,7 @@ describe('the panel shell', () => {
     render(<GuidePanel screen="lab" onClose={vi.fn()} />)
 
     expect(panel()).toBeInTheDocument()
-    expect(screen.getByRole('heading', { level: 2, name: 'Qentor Guide' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 2, name: 'Qubi · AI Tutor' })).toBeInTheDocument()
     expect(within(panel()).getByText('Lab')).toBeInTheDocument()
   })
 

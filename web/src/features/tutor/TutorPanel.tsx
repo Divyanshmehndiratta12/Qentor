@@ -94,6 +94,7 @@ export function TutorPanel({
   modes = ALL_MODES,
   challengeId,
   landmarkSuffix = '',
+  onModeChange,
 }: {
   showStarters?: boolean
   context?: TutorContext
@@ -104,6 +105,8 @@ export function TutorPanel({
   challengeId?: string | null
   /** Appended to the names of this panel's landmarks, so a second view of the same conversation (the Guide) has names of its own. */
   landmarkSuffix?: string
+  /** Told which mode is showing (the Lab's footer is shorter while the Explain mode has nothing to show yet). */
+  onModeChange?: (mode: Mode) => void
 } = {}) {
   const [question, setQuestion] = useState('')
   const [chosenMode, setMode] = useState<Mode>('explain')
@@ -113,6 +116,7 @@ export function TutorPanel({
   // The four modes belong to the Lab's own tutor; a lesson's conversation and the Guide's embedded tutor stay as they were.
   const modesShown = showModes && context.kind === 'lab'
   const activeMode: Mode = modesShown ? mode : 'explain'
+  useEffect(() => onModeChange?.(activeMode), [activeMode, onModeChange])
   const conversationShown = activeMode === 'explain' || activeMode === 'changed'
   const stepNumber = useBuildStore((s) => (s.trace && s.trace.steps[s.selectedTraceStep] ? s.selectedTraceStep + 1 : null))
   const stepCount = useBuildStore((s) => s.trace?.steps.length ?? 0)
@@ -222,7 +226,7 @@ export function TutorPanel({
       )}
 
       {conversationShown && (
-      <div ref={scrollerRef} role={modesShown ? 'tabpanel' : undefined} id={modesShown ? `${tabsId}-panel` : undefined} aria-labelledby={modesShown ? `${tabsId}-${activeMode}` : undefined} className="min-h-0 flex-1 overflow-auto px-4 py-3">
+      <div ref={scrollerRef} role={modesShown ? 'tabpanel' : undefined} id={modesShown ? `${tabsId}-panel` : undefined} aria-labelledby={modesShown ? `${tabsId}-${activeMode}` : undefined} tabIndex={0} className="min-h-0 flex-1 overflow-auto px-4 py-3 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-cyan-glow">
         {/* The reasoning engine's actions: each appears only when the context it needs exists (see ReasoningActions). */}
         {context.kind === 'lab' && <ReasoningActions />}
         {activeMode === 'changed' && (
@@ -250,7 +254,7 @@ export function TutorPanel({
           </div>
         )}
         {activeMode === 'explain' && turns.length === 0 && (
-          <div className="rounded-lg border border-void-500 bg-void-800 p-3.5">
+          <div>
             <p className="font-serif-prose text-[15px] leading-snug text-slate-200">
               {context.kind === 'lesson'
                 ? 'Ask a question about this lesson, or pick a quick question above. Answers come from the lesson material, not from a Lab run.'
@@ -260,7 +264,10 @@ export function TutorPanel({
                     ? 'Ask about the circuit you just ran. The tutor only ever explains results the backend actually produced.'
                     : executionError
                       ? "The last run didn't succeed, so there's nothing to ask about yet. Fix the circuit and run it again."
-                      : 'Run the circuit to get a result, then ask about it. The tutor only ever explains results the backend actually produced.'}
+                      : 'Run the circuit, then ask Qubi.'}
+              {context.kind === 'lab' && !result && !executionError && (
+                <span className="ml-2 font-sans-ui text-xs text-void-200">Qubi only explains results the backend actually produced.</span>
+              )}
             </p>
             {context.kind === 'lab' && (result || hasTraceStep) && showStarters && (
               <div className="mt-3 flex flex-wrap gap-1.5">
@@ -298,6 +305,7 @@ export function TutorPanel({
       <div className="flex items-center gap-2 border-t border-void-500 p-3">
         <input
           aria-label="Ask the tutor"
+          data-qubi-avoid
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && submit(question)}
@@ -309,6 +317,7 @@ export function TutorPanel({
           type="button"
           onClick={() => submit(question)}
           disabled={!canAsk || !question.trim()}
+          data-qubi-avoid
           className="rounded-lg bg-violet-glow px-3.5 py-2 text-sm font-semibold text-void-950 disabled:cursor-not-allowed disabled:opacity-40"
         >
           Ask

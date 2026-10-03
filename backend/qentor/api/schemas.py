@@ -49,6 +49,13 @@ class ExecuteResponse(BaseModel):
     verification_status: str
     created_at: str
     payload: dict[str, Any]
+    # Each qubit's OWN reduced state in the final state of a STATEVECTOR run (``qentor.execution.reduced_state``), derived
+    # by the server from this run's own stored statevector and tagged with this run's result id: Bloch vector, purity,
+    # entangled-with-the-rest, or an explicit UNUSABLE with a reason. ``derived_from.step_index`` is the number of
+    # operations the circuit has (the whole circuit was applied). Empty for a shots run (it has no state), and never
+    # derived from anything a client sent. A register has no single Bloch vector, so for one qubit this is the one sphere
+    # and for several it is one per qubit.
+    qubit_states: list[QubitReducedState] = []
 
 
 class TraceRequest(BaseModel):

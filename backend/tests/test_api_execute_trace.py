@@ -294,7 +294,7 @@ class TestSchema(unittest.TestCase):
 
 
 class TestExistingApiUnchanged(unittest.TestCase):
-    def test_execute_route_and_response_shape_are_untouched(self) -> None:
+    def test_execute_route_and_response_shape_only_gained_the_server_derived_state_view(self) -> None:
         self.assertEqual(
             set(ExecuteResponse.model_fields),
             {
@@ -307,6 +307,7 @@ class TestExistingApiUnchanged(unittest.TestCase):
                 "verification_status",
                 "created_at",
                 "payload",
+                "qubit_states",  # additive, server-derived (tests/test_execute_state_view.py); the request has no such field
             },
         )
         self.assertEqual(

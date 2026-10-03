@@ -1,5 +1,5 @@
 /**
- * The Qentor Guide's character: an original mark drawn here, in inline SVG
+ * Qubi's character (the AI Tutor's companion): an original mark drawn here, in inline SVG
  * (no image file, no external URL, no dependency).
  *
  * "Orbit" is a small graphite sphere — a qubit-ish body — with a soft visor

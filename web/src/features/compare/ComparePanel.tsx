@@ -5,12 +5,13 @@
  * comparison's id: the tutor reads the server's own record of it.
  */
 import { useState } from 'react'
+import { QubitStateView } from '@/features/bloch3d/QubitStateView'
 import type { ComparisonRun, ComparisonValueKind, ExperimentComparison } from '@/api'
 import { useBuildStore } from '@/features/build/store'
 import { StateNotice } from '@/features/shell/StateNotice'
 import { ProvenanceBadge } from '@/provenance/ProvenanceBadge'
 import { VerifiedValueInline } from '@/provenance/VerifiedValue'
-import { useCompareStore } from './store'
+import { useCompareStore, type PinnedRun } from './store'
 
 const KIND_LABEL: Record<ComparisonValueKind, string> = {
   sampled_frequency: 'sampled frequency',
@@ -142,6 +143,49 @@ function States({ s }: { s: ExperimentComparison['state'] }) {
   )
 }
 
+/**
+ * Which run's qubit state view to look at: A or B. Each view is that run's OWN per-qubit state, derived by the server from the run's
+ * stored statevector when it was run; this only chooses which of the two is drawn. Nothing is compared or subtracted here (the
+ * difference between the states is the server's, above), and a run with no state (a shots run) says so.
+ */
+function RunStateView({ a, b }: { a: PinnedRun; b: PinnedRun }) {
+  const [shown, setShown] = useState<'A' | 'B'>('A')
+  const run = shown === 'A' ? a : b
+  const hasState = Boolean(run.result.value.statevector)
+  return (
+    <div className="flex flex-col gap-2" data-testid="compare-state-view">
+      <div role="group" aria-label="Show the state of run" className="flex items-center gap-1.5">
+        <span className="text-[11px] font-semibold tracking-wider text-slate-400 uppercase">Qubit state of</span>
+        {(['A', 'B'] as const).map((label) => (
+          <button
+            key={label}
+            type="button"
+            aria-pressed={shown === label}
+            onClick={() => setShown(label)}
+            className={`rounded-md border px-2 py-0.5 text-xs font-medium focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-cyan-glow ${
+              shown === label ? 'border-cyan-glow/60 bg-cyan-dim/30 text-cyan-glow' : 'border-void-400 text-slate-300 hover:border-void-300'
+            }`}
+          >
+            Run {label}
+          </button>
+        ))}
+      </div>
+      <QubitStateView
+        key={shown}
+        testId="compare-run-state-view"
+        qubitStates={run.result.value.qubitStates ?? []}
+        numQubits={run.circuit.num_qubits}
+        context={`Run ${shown} · ${run.result.provenance.resultId.slice(0, 12)}…`}
+        unavailableReason={
+          hasState
+            ? 'The server did not send a state for each qubit of this run, so no sphere is shown.'
+            : `Run ${shown} is a shots run: it samples measurement outcomes and has no state to draw.`
+        }
+      />
+    </div>
+  )
+}
+
 const DEFAULT_QUESTION = 'What is different between run A and run B?'
 
 function AskTutor({ comparison }: { comparison: ExperimentComparison }) {
@@ -223,6 +267,7 @@ export function ComparePanel() {
   const pin = useCompareStore((s) => s.pin)
   const unpin = useCompareStore((s) => s.unpin)
   const compare = useCompareStore((s) => s.compare)
+  const bRun = useCompareStore((s) => s.bRun)
 
   const isPinnedRun = !!pinned && !!result && pinned.result.provenance.resultId === result.provenance.resultId
   const current = result ? { circuit, result } : null
@@ -297,6 +342,7 @@ export function ComparePanel() {
           <CircuitDiff c={comparison.circuit} />
           <Measurements m={comparison.measurement} />
           <States s={comparison.state} />
+          {pinned && bRun && <RunStateView a={pinned} b={bRun} />}
           <p className="flex flex-wrap items-center gap-2 text-[11px] text-void-200">
             <ProvenanceBadge provenance={comparison.provenance} />
             <span>computed by the server ({comparison.method})</span>

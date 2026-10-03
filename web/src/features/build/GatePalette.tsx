@@ -1,6 +1,7 @@
 /**
- * Click-to-place (and drag-to-place) gate palette, in the finalized design's
- * floating bottom dock. It lists exactly the gates `backend/qentor/circuit/model.py`
+ * Click-to-place (and drag-to-place) gate palette: one compact strip under the canvas, its gates grouped (one qubit, rotations, several
+ * qubits, measure), lettered in their family's colour (the same colours the canvas tiles use) and, for the gates that join wires, drawn
+ * with a tiny dot-and-ring glyph. It lists exactly the gates `backend/qentor/circuit/model.py`
  * accepts (see circuit/types.ts): extending the gate set means extending the
  * backend first, not the other way round. A gate on several wires (CX, CZ, CP, CCX,
  * SWAP) is placed with one click per wire; the hint above the dock says which.
@@ -15,6 +16,7 @@ import { useBuildStore } from './store'
 import { parseAngle } from '@/circuit/angle'
 import type { GateName } from '@/circuit/types'
 import { GATE_DISPLAY, MULTI_QUBIT_PLACEMENT, gateTakesAngle, placementPrompt } from '@/circuit/gateSpec'
+import { FAMILY_PALETTE_TEXT, gateFamily } from '@/circuit/gateVisual'
 
 export const GATE_DND_MIME = 'application/x-qentor-gate'
 
@@ -42,6 +44,31 @@ const ROTATION: { gate: GateName; label: string; title: string }[] = [
   { gate: 'ry', label: 'RY', title: 'Rotation-Y' },
   { gate: 'rz', label: 'RZ', title: 'Rotation-Z' },
 ]
+
+/** A tiny picture of a multi-wire gate (dots on its controls, a ring on its target, the line between them), so the palette shows what the canvas will draw. */
+function GateGlyph({ gate }: { gate: GateName }) {
+  const dot = <circle cx="6" cy="4" r="2.2" fill="currentColor" />
+  const ring = <circle cx="6" cy="16" r="3.2" fill="none" stroke="currentColor" strokeWidth="1.4" />
+  let body = null
+  if (gate === 'cx' || gate === 'cp') body = <>{dot}{ring}<path d="M6 6.2V12.8" stroke="currentColor" strokeWidth="1.4" /></>
+  else if (gate === 'cz') body = <><circle cx="6" cy="16" r="2.2" fill="currentColor" />{dot}<path d="M6 6.2V13.8" stroke="currentColor" strokeWidth="1.4" /></>
+  else if (gate === 'ccx')
+    body = (
+      <>
+        <circle cx="6" cy="2.6" r="1.9" fill="currentColor" />
+        <circle cx="6" cy="9" r="1.9" fill="currentColor" />
+        <circle cx="6" cy="17" r="2.8" fill="none" stroke="currentColor" strokeWidth="1.3" />
+        <path d="M6 4.5V14.2" stroke="currentColor" strokeWidth="1.3" />
+      </>
+    )
+  else if (gate === 'swap') body = <><path d="M3.5 2.5l5 3M8.5 2.5l-5 3" stroke="currentColor" strokeWidth="1.4" /><path d="M3.5 14.5l5 3M8.5 14.5l-5 3" stroke="currentColor" strokeWidth="1.4" /><path d="M6 6V14" stroke="currentColor" strokeWidth="1.4" /></>
+  if (!body) return null
+  return (
+    <svg aria-hidden="true" data-testid="gate-glyph" viewBox="0 0 12 20" className="mr-1 h-4 w-2.5 shrink-0 opacity-80">
+      {body}
+    </svg>
+  )
+}
 
 function DockButton({
   gate,
@@ -71,16 +98,27 @@ function DockButton({
       onClick={() => selectGate(active ? null : gate)}
       title={allowed ? title : `${title} — not allowed in this challenge`}
       aria-pressed={active}
-      className={`flex h-[38px] min-w-[38px] shrink-0 items-center justify-center rounded-lg px-1.5 font-mono-qasm text-[13px] font-semibold select-none ${
+      data-family={gateFamily(gate)}
+      className={`flex h-8 min-w-8 shrink-0 items-center justify-center rounded-lg px-1.5 font-mono-qasm text-xs font-semibold select-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-glow ${
         !allowed
           ? 'cursor-not-allowed bg-void-700 text-void-200 opacity-40'
           : active
           ? 'cursor-grab bg-cyan-glow text-void-950 shadow-[0_0_0_2px_var(--color-void-700),0_0_0_4px_var(--color-cyan-glow)] active:cursor-grabbing'
-          : 'cursor-grab bg-void-500 text-slate-100 hover:bg-void-400 active:cursor-grabbing'
+          : `cursor-grab bg-void-500 ${FAMILY_PALETTE_TEXT[gateFamily(gate)]} hover:bg-void-400 active:cursor-grabbing`
       }`}
     >
+      <GateGlyph gate={gate} />
       {label}
     </button>
+  )
+}
+
+/** A small caption for a group of gates in the palette: a name, not a control. */
+function GroupLabel({ children }: { children: string }) {
+  return (
+    <span aria-hidden="true" className="shrink-0 px-1 text-[9px] font-semibold tracking-wider whitespace-nowrap text-void-200 uppercase">
+      {children}
+    </span>
   )
 }
 
@@ -152,7 +190,7 @@ export function GatePalette({ allowedGates, sticky = false }: { allowedGates?: r
     (selectedGate && selectedGate in MULTI_QUBIT_PLACEMENT ? placementPrompt(selectedGate, pendingQubits) : null)
 
   return (
-    <div className={`flex shrink-0 flex-col items-center gap-2 border-t border-void-500 bg-void-900 px-3 py-2 ${sticky ? 'sticky bottom-0 z-10' : ''}`}>
+    <div className={`flex shrink-0 flex-col items-center gap-1.5 border-t border-void-500 bg-void-900 px-3 py-1.5 ${sticky ? 'sticky bottom-0 z-10' : ''}`}>
       {(statusText || isRotationSelected) && (
         <div className="flex items-center gap-3 rounded-xl border border-void-400 bg-void-700 px-3 py-2 text-xs">
           {statusText && (
@@ -170,17 +208,22 @@ export function GatePalette({ allowedGates, sticky = false }: { allowedGates?: r
       <div
         role="toolbar"
         aria-label="Gate palette"
-        className="flex max-w-full items-center gap-1 overflow-x-auto rounded-xl border border-void-400 bg-void-700 p-1.5"
+        className="flex max-w-full items-center gap-1 overflow-x-auto rounded-xl border border-void-400 bg-void-700 p-1"
       >
-        <span className="px-2 font-mono-qasm text-[11px] whitespace-nowrap text-void-200">drag or click</span>
+        <span className="px-2 text-[11px] whitespace-nowrap text-void-200">
+          <span className="font-semibold tracking-wider text-slate-300 uppercase">Gates</span> · drag or click
+        </span>
+        <GroupLabel>1 qubit</GroupLabel>
         {SINGLE_QUBIT.map((g) => (
           <DockButton key={g.gate} {...g} allowed={isAllowed(g.gate)} />
         ))}
         <span className="mx-0.5 h-6 w-px shrink-0 bg-void-400" />
+        <GroupLabel>Rotate</GroupLabel>
         {ROTATION.map((g) => (
           <DockButton key={g.gate} {...g} allowed={isAllowed(g.gate)} />
         ))}
         <span className="mx-0.5 h-6 w-px shrink-0 bg-void-400" />
+        <GroupLabel>Several qubits</GroupLabel>
         {MULTI_QUBIT.map((g) => (
           <DockButton key={g.gate} {...g} allowed={isAllowed(g.gate)} />
         ))}

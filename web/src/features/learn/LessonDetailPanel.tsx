@@ -111,8 +111,9 @@ export function LessonDetailPanel({
 
       {prerequisiteTitles.length > 0 && (
         <div className="rounded-lg border border-void-500 bg-void-900 p-3 text-xs text-slate-400">
-          <span className="font-medium text-slate-300">Prerequisites: </span>
+          <span className="font-medium text-slate-300">Builds on: </span>
           {prerequisiteTitles.join(', ')}
+          <span className="text-void-200"> — recommended first, but you can start here any time.</span>
         </div>
       )}
 

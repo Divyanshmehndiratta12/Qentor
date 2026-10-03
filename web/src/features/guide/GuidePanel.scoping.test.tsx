@@ -143,7 +143,7 @@ function learnOn(selected: 'bell' | 'interf' | null, bellIndex = 1) {
   })
 }
 
-const panel = () => screen.getByRole('complementary', { name: 'Qentor Guide' })
+const panel = () => screen.getByRole('complementary', { name: 'Qubi · AI Tutor' })
 const input = () => within(panel()).getByRole('textbox', { name: 'Ask the tutor' }) as HTMLInputElement
 const askButton = () => within(panel()).getByRole('button', { name: 'Ask' })
 const quickButton = (name: string) =>

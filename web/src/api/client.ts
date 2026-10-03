@@ -152,6 +152,12 @@ export interface ExecutePayload {
   probabilities?: Record<string, number>
   /** STATEVECTOR runs only: what an ideal measurement of the returned state would give, computed by the server. */
   theoreticalProbabilities?: Record<string, number>
+  /**
+   * STATEVECTOR runs only: each qubit's OWN reduced state in the final state, `q[0]` first, derived by the server from this
+   * run's stored statevector (a register has no single Bloch vector; every qubit has its own). Absent when the server sent
+   * none (an older backend): nothing is worked out here in its place.
+   */
+  qubitStates?: TraceQubitState[]
 }
 
 /**

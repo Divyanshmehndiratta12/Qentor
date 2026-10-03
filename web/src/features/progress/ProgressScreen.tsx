@@ -17,7 +17,13 @@
 import { useEffect } from 'react'
 import type { Lesson } from '@/api'
 import { useLearnStore } from '../learn/store'
-import { getLessonState, getLessonMastery, isLessonComplete } from '../learn/lessonState'
+import {
+  getLessonState,
+  getLessonMastery,
+  getUnmetPrerequisiteIds,
+  isLessonComplete,
+  lessonTitlesFor,
+} from '../learn/lessonState'
 import {
   getLessonStatus,
   getMasteryBreakdown,
@@ -345,25 +351,19 @@ function LessonProgressRow({
   const status = getLessonStatus(lesson, progress, started)
   const mastery = getLessonMastery(lesson, progress, started)
   const sections = getSectionProgress(lesson, progress)
-  const locked = getLessonState(lesson, completedLessonIds) === 'locked'
-  const missing = lesson.prerequisiteLessonIds
-    .filter((id) => !completedLessonIds.has(id))
-    .map((id) => lessons.find((l) => l.id === id)?.title ?? id)
+  // Nothing is locked: what a lesson builds on is a hint, never a gate.
+  const buildsOn =
+    getLessonState(lesson, completedLessonIds) === 'completed'
+      ? []
+      : lessonTitlesFor(getUnmetPrerequisiteIds(lesson, completedLessonIds), lessons)
   const sectionPercent = percent(sections.completed, sections.total)
 
   return (
     <li>
       <button
         type="button"
-        disabled={locked}
         onClick={() => onOpenLesson(lesson.id)}
-        aria-label={locked ? `${lesson.title} — locked, complete ${missing.join(', ')} first` : undefined}
-        title={locked ? `Complete ${missing.join(', ')} first` : undefined}
-        className={`flex w-full flex-col gap-2 rounded-lg border px-3.5 py-3 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-glow ${
-          locked
-            ? 'cursor-not-allowed border-void-500 bg-void-900 opacity-60'
-            : 'border-void-500 bg-void-800 hover:border-void-300'
-        }`}
+        className="flex w-full flex-col gap-2 rounded-lg border border-void-500 bg-void-800 px-3.5 py-3 text-left transition-colors hover:border-void-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-glow"
       >
         <span className="flex w-full flex-wrap items-center justify-between gap-2">
           <span className="text-sm font-medium text-slate-100">{lesson.title}</span>
@@ -378,15 +378,11 @@ function LessonProgressRow({
                 Mastery: {MASTERY_LABEL[mastery]}
               </span>
             )}
-            {locked && (
-              <span className="rounded-full border border-void-400 px-2 py-0.5 text-[10px] font-medium text-void-200">
-                Locked
-              </span>
-            )}
           </span>
         </span>
 
         <span className="font-mono-qasm text-[11px] text-void-200">{lesson.concept}</span>
+        {buildsOn.length > 0 && <span className="text-[11px] text-void-200">Builds on: {buildsOn.join(', ')}</span>}
 
         <span className="flex w-full items-center gap-3">
           {/* Decorative: a button's children are presentational to assistive

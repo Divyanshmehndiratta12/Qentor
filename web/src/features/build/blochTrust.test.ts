@@ -72,7 +72,8 @@ describe('Bloch sphere source: no client-side Bloch computation', () => {
   it('the component is given only the backend vector and a qubit count', () => {
     const props = /export interface BlochSphereProps\s*\{([\s\S]*?)\n\}/.exec(sphereSource)![1]!
     const names = [...code(props).matchAll(/^\s*(\w+)\??:/gm)].map((m) => m[1])
-    expect(names).toEqual(['bloch', 'numQubits'])
+    // the last two are presentation only: the level of the section's heading (3 or 4) and a text label saying which state it is
+    expect(names).toEqual(['bloch', 'numQubits', 'headingLevel', 'labelContext'])
     expect(props).toContain('TraceBlochVector | null')
   })
 

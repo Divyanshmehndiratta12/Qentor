@@ -15,6 +15,8 @@ import { useEffect, useRef, useState } from 'react'
 import { EditorView, basicSetup } from 'codemirror'
 import { Annotation, EditorState, Compartment, StateEffect, StateField } from '@codemirror/state'
 import { Decoration, type DecorationSet } from '@codemirror/view'
+import { toQasm3 } from '@/circuit/qasmEmitter'
+import { qasmLineOfOp } from '@/circuit/qasmLines'
 import { useBuildStore } from './store'
 
 const theme = EditorView.theme(
@@ -66,6 +68,30 @@ const errorLineField = StateField.define<DecorationSet>({
   provide: (field) => EditorView.decorations.from(field),
 })
 
+/**
+ * The line of the gate picked on the canvas (violet) or, with nothing picked, of the operation behind the selected trace step (amber).
+ * A mark only: it follows the text through edits, and is dropped (never guessed) when the editor's text is not the canonical text of
+ * the circuit, because then a line number would not mean an operation.
+ */
+const opLineSelected = Decoration.line({ attributes: { class: 'cm-op-line-selected' } })
+const opLineTraced = Decoration.line({ attributes: { class: 'cm-op-line-traced' } })
+const setOpLine = StateEffect.define<{ line: number; kind: 'selected' | 'traced' } | null>()
+const opLineField = StateField.define<DecorationSet>({
+  create: () => Decoration.none,
+  update(deco, tr) {
+    deco = deco.map(tr.changes)
+    for (const effect of tr.effects) {
+      if (!effect.is(setOpLine)) continue
+      const target = effect.value
+      if (!target || target.line < 1 || target.line > tr.state.doc.lines) return Decoration.none
+      const line = tr.state.doc.line(target.line)
+      return Decoration.set([(target.kind === 'selected' ? opLineSelected : opLineTraced).range(line.from)])
+    }
+    return deco
+  },
+  provide: (field) => EditorView.decorations.from(field),
+})
+
 export function QASMEditor() {
   const hostRef = useRef<HTMLDivElement | null>(null)
   const viewRef = useRef<EditorView | null>(null)
@@ -75,6 +101,9 @@ export function QASMEditor() {
 
   const qasmText = useBuildStore((s) => s.qasmText)
   const applyQasmEdit = useBuildStore((s) => s.applyQasmEdit)
+  const circuit = useBuildStore((s) => s.circuit)
+  const selectedOp = useBuildStore((s) => s.selectedOpIndex)
+  const tracedOp = useBuildStore((s) => s.trace?.steps[s.selectedTraceStep]?.operationIndex ?? null)
 
   // Mount CodeMirror once.
   useEffect(() => {
@@ -89,6 +118,7 @@ export function QASMEditor() {
         basicSetup,
         theme,
         errorLineField,
+        opLineField,
         readOnlyCompartment.of([]),
         EditorView.updateListener.of((update) => {
           if (!update.docChanged) return
@@ -148,20 +178,28 @@ export function QASMEditor() {
     setParseError(null)
   }, [qasmText])
 
+  // Mark the line of the picked gate (or the traced one) while the editor shows the canvas's own text.
+  useEffect(() => {
+    const view = viewRef.current
+    if (!view) return
+    const index = selectedOp ?? tracedOp
+    const line =
+      index !== null && view.state.doc.toString() === qasmText && qasmText === toQasm3(circuit) ? qasmLineOfOp(circuit, index) : null
+    view.dispatch({ effects: setOpLine.of(line === null ? null : { line, kind: selectedOp !== null ? 'selected' : 'traced' }) })
+  }, [selectedOp, tracedOp, circuit, qasmText])
+
   return (
-    <div className="flex h-full flex-col">
-      <div className="flex items-center gap-3 border-b border-void-500 px-4 py-2">
-        <span className="text-xs font-semibold tracking-wider text-slate-200 uppercase">OpenQASM 3</span>
-        <span className="font-mono-qasm text-[11px] text-void-200">edit here or on the canvas</span>
-        <span
-          className={`ml-auto flex items-center gap-1.5 font-mono-qasm text-[11px] font-medium ${
-            parseError ? 'text-danger-glow' : 'text-cyan-glow'
-          }`}
-        >
-          <span className={`h-1.5 w-1.5 rounded-full ${parseError ? 'bg-danger-glow' : 'bg-cyan-glow'}`} />
-          {parseError ? 'parse error' : 'synced with canvas'}
-        </span>
-      </div>
+    <div className="relative flex h-full flex-col">
+      {/* The tab above already names the language; this says that the text is editable and whether it is in step with the canvas. */}
+      <span
+        className={`pointer-events-none absolute top-1.5 right-3 z-10 flex items-center gap-1.5 rounded-full bg-void-900/90 px-2 py-0.5 font-mono-qasm text-[11px] font-medium ${
+          parseError ? 'text-danger-glow' : 'text-cyan-glow'
+        }`}
+      >
+        <span className={`h-1.5 w-1.5 rounded-full ${parseError ? 'bg-danger-glow' : 'bg-cyan-glow'}`} />
+        {parseError ? 'parse error' : 'synced with canvas'}
+        {!parseError && <span className="text-void-200">· editable</span>}
+      </span>
       <div ref={hostRef} className="min-h-0 flex-1 overflow-auto" />
       {parseError && (
         <p className="border-t border-danger-glow/30 bg-danger-dim/30 px-4 py-2 text-xs text-danger-glow">

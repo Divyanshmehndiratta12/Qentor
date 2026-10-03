@@ -5,8 +5,11 @@ import {
   canContinueFromSection,
   getConceptCheckScore,
   getLessonMastery,
+  getLessonReadiness,
   getLessonState,
+  getUnmetPrerequisiteIds,
   isFullConceptCheck,
+  lessonTitlesFor,
   isLessonComplete,
   type LessonProgress,
 } from './lessonState'
@@ -63,9 +66,9 @@ describe('getLessonState', () => {
     expect(getLessonState(lesson({ prerequisiteLessonIds: [] }), new Set())).toBe('available')
   })
 
-  it('is locked when a prerequisite has not been completed', () => {
+  it('is available (open) even when a prerequisite has not been completed', () => {
     const l = lesson({ id: 'l2', prerequisiteLessonIds: ['l1'] })
-    expect(getLessonState(l, new Set())).toBe('locked')
+    expect(getLessonState(l, new Set())).toBe('available')
   })
 
   it('is available once every prerequisite is completed', () => {
@@ -73,14 +76,57 @@ describe('getLessonState', () => {
     expect(getLessonState(l, new Set(['l1']))).toBe('available')
   })
 
-  it('is locked if only some prerequisites are completed', () => {
+  it('is available if only some prerequisites are completed', () => {
     const l = lesson({ id: 'l3', prerequisiteLessonIds: ['l1', 'l2'] })
-    expect(getLessonState(l, new Set(['l1']))).toBe('locked')
+    expect(getLessonState(l, new Set(['l1']))).toBe('available')
   })
 
   it('is completed when the lesson itself is marked complete, even with unmet prerequisites', () => {
     const l = lesson({ id: 'l2', prerequisiteLessonIds: ['l1'] })
     expect(getLessonState(l, new Set(['l2']))).toBe('completed')
+  })
+
+  it('never returns a locked state for any prerequisite shape', () => {
+    const chain = [
+      lesson({ id: 'a', prerequisiteLessonIds: [] }),
+      lesson({ id: 'b', prerequisiteLessonIds: ['a'] }),
+      lesson({ id: 'c', prerequisiteLessonIds: ['a', 'b'] }),
+      lesson({ id: 'd', prerequisiteLessonIds: ['missing-from-catalog'] }),
+    ]
+    for (const done of [new Set<string>(), new Set(['a']), new Set(['a', 'b', 'c', 'd'])]) {
+      for (const l of chain) expect(['available', 'completed']).toContain(getLessonState(l, done))
+    }
+  })
+})
+
+describe('getLessonReadiness (the recommended path: prerequisites still count here)', () => {
+  it('is ready with no prerequisites', () => {
+    expect(getLessonReadiness(lesson({ prerequisiteLessonIds: [] }), new Set())).toBe('ready')
+  })
+
+  it('builds on unfinished work while a prerequisite is incomplete, and is ready once all are complete', () => {
+    const l = lesson({ id: 'l3', prerequisiteLessonIds: ['l1', 'l2'] })
+    expect(getLessonReadiness(l, new Set())).toBe('builds_on_unfinished')
+    expect(getLessonReadiness(l, new Set(['l1']))).toBe('builds_on_unfinished')
+    expect(getLessonReadiness(l, new Set(['l1', 'l2']))).toBe('ready')
+  })
+
+  it('is completed once the lesson itself is complete', () => {
+    expect(getLessonReadiness(lesson({ id: 'l2', prerequisiteLessonIds: ['l1'] }), new Set(['l2']))).toBe('completed')
+  })
+
+  it('lists the unmet prerequisites in lesson order and names them from the catalog', () => {
+    const l = lesson({ id: 'l3', prerequisiteLessonIds: ['l1', 'l2'] })
+    expect(getUnmetPrerequisiteIds(l, new Set(['l1']))).toEqual(['l2'])
+    const catalog = [lesson({ id: 'l1', title: 'One' }), lesson({ id: 'l2', title: 'Two' })]
+    expect(lessonTitlesFor(['l2', 'gone'], catalog)).toEqual(['Two', 'gone'])
+  })
+
+  it('leaves the prerequisite metadata untouched', () => {
+    const l = lesson({ id: 'l3', prerequisiteLessonIds: ['l1', 'l2'] })
+    getLessonReadiness(l, new Set(['l1']))
+    getLessonState(l, new Set(['l1']))
+    expect(l.prerequisiteLessonIds).toEqual(['l1', 'l2'])
   })
 })
 

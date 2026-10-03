@@ -42,7 +42,9 @@ export function CodePane() {
 
   return (
     <div className="flex h-full flex-col">
-      <div role="tablist" aria-label="Circuit code" onKeyDown={onKeyDown} className="flex items-center gap-1 border-b border-void-500 px-3 pt-1.5">
+      <div className="flex items-end gap-2 border-b border-void-500 pl-4 max-sm:pl-3">
+      <span className="pb-2 text-xs font-semibold tracking-wider text-slate-400 uppercase max-sm:hidden">Code</span>
+      <div role="tablist" aria-label="Circuit code" onKeyDown={onKeyDown} className="flex min-w-0 flex-1 items-center gap-1 px-1 pt-1.5 max-sm:px-0">
         {CODE_TABS.map((tab) => {
           const selected = tab.id === active
           return (
@@ -69,6 +71,7 @@ export function CodePane() {
         {active !== 'qasm' && (
           <span className="ml-auto pr-1 font-mono-qasm text-[11px] text-void-200">read-only · written by the server · never run</span>
         )}
+      </div>
       </div>
 
       <div

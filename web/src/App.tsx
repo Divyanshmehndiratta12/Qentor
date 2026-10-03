@@ -13,8 +13,8 @@
  *    performance, mastery, needs-attention signals, next challenge and the
  *    local activity streak. Read-only over Learn state; it never touches Lab.
  *
- * The Qentor Guide (`features/guide`) is a companion offered on Lab and Learn:
- * its launcher sits in the top bar's spare space and opens a side panel that
+ * Qubi (`features/guide`) is the AI Tutor's companion, offered on Lab and Learn:
+ * a small character that roams the visible screen and opens a side panel that
  * embeds the existing tutor. It is an entry point only — no tutor logic here.
  *
  * An interactive_lab section's "Open in Lab" action is the only bridge
@@ -37,7 +37,7 @@ import { ChallengesScreen } from '@/features/challenges/ChallengesScreen'
 import { NextStep } from '@/features/challenges/NextStep'
 import { WelcomeCard, rememberWelcomeDismissed, welcomeDismissed } from '@/features/shell/WelcomeCard'
 import { ProgressScreen } from '@/features/progress/ProgressScreen'
-import { TutorPanel } from '@/features/tutor/TutorPanel'
+import { TutorPanel, type Mode as TutorMode } from '@/features/tutor/TutorPanel'
 import { ClassroomScreen } from '@/features/classroom/ClassroomScreen'
 import { useClassroomStore } from '@/features/classroom/store'
 import { SharedExperimentScreen } from '@/features/share/SharedExperimentScreen'
@@ -57,6 +57,10 @@ function App() {
   // The shared experiment the address bar names (/shared/<id>); `null` for an address that is not a well-formed share id.
   const [sharedId, setSharedId] = useState(() => sharedIdFromPath(window.location.pathname))
   const [guideOpen, setGuideOpen] = useState(false)
+  // The Lab's tutor footer is short while it has nothing to show: no result to ask about, no conversation, and the Explain mode on. It grows
+  // back as soon as there is a result, a turn, or another mode (Debug and Generate code need the room).
+  const [tutorMode, setTutorMode] = useState<TutorMode>('explain')
+  const tutorEmpty = useBuildStore((s) => s.result === null && s.tutorTurns.length === 0)
   const guideButtonRef = useRef<HTMLButtonElement>(null)
   const isFirstScreen = useRef(true)
   const loadCircuit = useBuildStore((s) => s.loadCircuit)
@@ -166,15 +170,7 @@ function App() {
       >
         Skip to main content
       </a>
-      <TopBar
-        screen={screen}
-        onNavigate={goTo}
-        guideSlot={
-          guideScreen ? (
-            <GuideLauncher open={guideOpen} onToggle={() => setGuideOpen((open) => !open)} buttonRef={guideButtonRef} />
-          ) : undefined
-        }
-      />
+      <TopBar screen={screen} onNavigate={goTo} />
 
       {screen === 'lab' && welcomeShown && !startedAny && !sharedNotice && (
         <WelcomeCard
@@ -223,8 +219,12 @@ function App() {
             </aside>
           </div>
 
-          <footer aria-label="Tutor" className="h-72 shrink-0 border-t border-void-500 bg-void-900 lg:h-64">
-            <TutorPanel />
+          <footer
+            aria-label="Tutor"
+            data-compact={tutorEmpty && tutorMode === 'explain'}
+            className={`shrink-0 border-t border-void-500 bg-void-900 ${tutorEmpty && tutorMode === 'explain' ? 'h-48 lg:h-44' : 'h-72 lg:h-64'}`}
+          >
+            <TutorPanel onModeChange={setTutorMode} />
           </footer>
         </>
       ) : screen === 'learn' ? (
@@ -256,6 +256,9 @@ function App() {
       )}
 
       {guideScreen && guideOpen && <GuidePanel screen={guideScreen} onClose={closeGuide} />}
+
+      {/* Qubi roams the visible screen (fixed), so it lives at the root rather than in any one region. */}
+      {guideScreen && <GuideLauncher open={guideOpen} onToggle={() => setGuideOpen((open) => !open)} buttonRef={guideButtonRef} />}
     </div>
   )
 }

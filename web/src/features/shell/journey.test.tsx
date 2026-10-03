@@ -71,12 +71,46 @@ beforeEach(() => {
 afterEach(cleanup)
 
 describe('the welcome entry', () => {
-  it('greets a first visit on the Lab, says where the numbers come from, and lays out the path', () => {
+  it('greets a first visit on the Lab: the name, what it is, the headline, and the two actions', () => {
     render(<App />)
     const w = screen.getByTestId('welcome')
-    expect(within(w).getByText(/computed by a real simulator on the server/)).toBeInTheDocument()
-    expect(within(w).getByText(/never produces them, and it never decides whether you are right/)).toBeInTheDocument()
-    expect(within(w).getAllByRole('listitem')).toHaveLength(5)
+    expect(within(w).getByText(/Qentor · Interactive quantum learning/)).toBeInTheDocument()
+    expect(within(w).getByRole('heading', { level: 2, name: 'Learn quantum algorithms by building and running circuits' })).toBeInTheDocument()
+    expect(within(w).getByRole('button', { name: 'Start learning' })).toBeInTheDocument()
+    expect(within(w).getByRole('button', { name: 'Try a challenge' })).toBeInTheDocument()
+  })
+
+  it('says where the numbers come from in three short points, not a wall of text', () => {
+    render(<App />)
+    const points = within(screen.getByRole('list', { name: 'What Qentor does' })).getAllByRole('listitem')
+    expect(points.map((p) => p.textContent?.split(' · ')[0])).toEqual(['Build', 'Verify', 'Ask Qubi'])
+    expect(points[1]).toHaveTextContent(/computed by a real simulator on the server, and says which one/)
+    expect(points[2]).toHaveTextContent(/never produces them, and it never decides whether you are right/)
+  })
+
+  it('keeps the workflow and the five-step path behind "How Qentor works", closed until asked for', () => {
+    render(<App />)
+    const w = screen.getByTestId('welcome')
+    const help = within(w).getByTestId('how-it-works') as HTMLDetailsElement
+    expect(help.open).toBe(false)
+    expect(within(w).getByText('How Qentor works')).toBeInTheDocument()
+
+    fireEvent.click(within(w).getByText('How Qentor works'))
+    expect(help.open).toBe(true)
+    const flow = within(w).getByRole('list', { name: 'The Lab, in order' })
+    expect(within(flow).getAllByRole('listitem').map((i) => i.textContent?.replace('→', '').trim())).toEqual(['Circuit', 'Gates', 'Code', 'Run', 'Results', 'Tutor'])
+    expect(within(within(w).getByRole('list', { name: 'Learning path' })).getAllByRole('listitem')).toHaveLength(5)
+
+    fireEvent.click(within(w).getByText('How Qentor works'))
+    expect(help.open).toBe(false)
+  })
+
+  it('the summary is keyboard-operable and the five lines are not permanently displayed', () => {
+    render(<App />)
+    const summary = within(screen.getByTestId('welcome')).getByText('How Qentor works').closest('summary')!
+    expect(summary.tagName).toBe('SUMMARY')
+    expect(summary.className).toContain('focus-visible:outline')
+    expect((screen.getByTestId('how-it-works') as HTMLDetailsElement).open).toBe(false)
   })
 
   it('"Start learning" goes to Learn; "Try a challenge" goes to Challenges', () => {
