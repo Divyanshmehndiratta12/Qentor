@@ -12,7 +12,7 @@ Demo importance: **Critical** (the story breaks without it) · **High** · **Med
 
 | # | Requirement | Source | Priority | Current status | Required backend | Verification method | Demo importance |
 |---|---|---|---|---|---|---|---|
-| L1 | Guided lesson per algorithm with short explainers and guided examples | Deck p2 (1 Learn), p3 step 1 | P0 | Built (16 lessons) | Content files + Aer for example circuits | Example circuits executed on load. No probability is written into lesson prose. A content test runs every lesson circuit. | High |
+| L1 | Guided lesson per algorithm with short explainers and guided examples | Deck p2 (1 Learn), p3 step 1 | P0 | Built (18 lessons) | Content files + Aer for example circuits | Example circuits executed on load. No probability is written into lesson prose. A content test runs every lesson circuit. | High |
 | L2 | Interactive visuals in lessons | Deck p3 step 1 | P0 | Built (trace, Bloch, charts) | Aer (statevector, per-step states) | Visuals render only backend results | High |
 | L3 | Focused algorithm library that can grow | Deck p4 "Scalable product" | P0 (Bell primer, phase kickback, DJ, BV) · P1 (Grover-2) · P2 (QFT/QPE) | Built (Bell, kickback, DJ, BV, superdense coding, teleportation with deferred corrections, a fixed 2-qubit Grover, a fixed 3-qubit QFT, an exact fixed 4-qubit QPE, the three-qubit bit-flip code with a fixed injected error) | Aer | Each algorithm's reference solution passes its own test spec in CI | High |
 

@@ -260,7 +260,7 @@ that input.
 - If a recorded run has that exact hash, compute ideal probabilities on Aer and compare with the recorded counts: total variation distance, Hellinger fidelity, and the probability mass on outcomes the ideal result gives zero probability.
 - If no run has that hash, the answer is "no recorded run". A verified-equivalent library circuit may be offered with the label "Equivalent reference circuit, not identical. Hardware noise depends on the exact gates."
 - Recorded files are loaded read-only and checked against `MANIFEST.sha256` at startup. A mismatch disables the file and logs an error.
-- No code path writes to `server/data/hardware_runs/` except `scripts/record_hardware.py`, which only runs with a real IBM token.
+- No code path writes to `backend/data/hardware_runs/` except `backend/scripts/record_hardware.py`, which only runs with a real IBM token.
 
 ### 4.6 Cross-backend agreement
 The same circuit runs on Aer, Cirq and PennyLane. The report lists each backend's version, the

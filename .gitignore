@@ -6,15 +6,27 @@ backend/.venv/
 # Local data / secrets
 backend/data/
 .env
+.env.*
+!.env.example
 *.env.local
+*.db
+*.sqlite
+*.sqlite3
 
-# Node / frontend (once web/ exists)
+# Node / frontend
 node_modules/
 web/dist/
 
-# Editor
+# Logs and OS / editor metadata
+*.log
+.DS_Store
+Thumbs.db
 .vscode/
 .idea/
 
-# Local-only research material (never imported, never published)
+# Local-only material: research checkouts, notes and queries (never imported, never published)
 research/
+
+# Internal submission artifacts (the submitted deck) stay out of the public repository
+docs/source/*.pdf
+docs/source/*.pptx

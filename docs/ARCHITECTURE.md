@@ -18,7 +18,7 @@ FastAPI  ───────────────────────�
   circuit/        canonical model, OpenQASM 3 emitter and parser, hashing, Qiskit/Cirq/PennyLane code views, the safe SDK-code reader (parses, never executes; see §17)
   execution/      backend adapters (Aer, Cirq, PennyLane), trace, Bloch vectors, per-qubit reduced states, amplitude view, limits, sanity checks
   verification/   equivalence, cross-backend agreement, multi-input harness, optimiser, experiment comparison
-  challenges/     challenge definitions, the eighteen challenges, the deterministic evaluator
+  challenges/     challenge definitions, the nineteen challenges, the deterministic evaluator
   lessons/        lesson models (a server-side Lesson with the answer key, a PublicLesson without it), content, registry, concept-check grading
   content/        cross-catalog content validation (lessons, challenges, gate support, routes, the simulator); run by tests and a script, never at request time
   tutor/          fact sheets, LLM adapter, claim guard, deterministic answers, debugger, comparison facts
@@ -41,25 +41,30 @@ The LLM sits at the top of the stack and can only read results.
 
 ```
 Qentor/
-  CLAUDE.md
+  README.md                  public overview
+  CLAUDE.md                  engineering rules
   Dockerfile, .dockerignore, render.yaml   one image serving web/dist and the API
   docs/                      contract, architecture, build state, plans
   backend/
     qentor/                  python package (modules listed in §1)
     tests/                   unittest suites (run with unittest discover)
-    scripts/                 check_versions.py, regen_fixtures.py, mutation_check.py, serve_production.sh
+    scripts/                 check_versions.py, validate_content.py, mutation_check.py, regen_fixtures.py, regen_catalog_fixture.py,
+                             resource_smoke.py, stability_smoke.py, viz_http_smoke.py, serve_production.sh
     data/                    runtime SQLite database (git-ignored)
   web/                       React + TypeScript + Vite
     src/circuit/             IR types (zod), QASM emit/parse for live editing
     src/provenance/          VerifiedValue, ProvenanceBadge, response schemas
     src/api/                 ApiClient interface, real client, FIXTURE mock (refuses to fake anything quantum)
-    src/features/            build, learn, challenges, debug, compare, share, progress, tutor, guide, shell
-  fixtures/circuits/         golden IR <-> QASM fixtures shared by web and backend tests
+    src/features/            build, learn, challenges, debug, compare, share, progress, tutor, guide, shell (and more; see the directory)
+  fixtures/
+    circuits/                golden IR <-> QASM fixtures shared by web and backend tests
+    catalog/, optimizer_examples.json   the public lesson catalog fixture and the Optimize examples
+  scripts/                   demo_journey.mjs and viz_journey.mjs: real-Chrome journeys (see DEMO_JOURNEY.md)
 ```
 
 ## 3. Frontend
 
-- **Stack:** React 18, TypeScript, Vite, Zustand (one store per feature), CodeMirror 6 for the OpenQASM editor, Plotly (`plotly.js-basic-dist-min`) for charts, Three.js (through `@react-three/fiber` and `drei`, in a lazily loaded chunk) for the 3D Bloch spheres (`docs/VISUALIZATION.md`). No router dependency: the screen is state and `features/shell/routes.ts` keeps the URL in step.
+- **Stack:** React 19, TypeScript, Vite, Zustand (one store per feature), CodeMirror 6 for the OpenQASM editor, Plotly (`plotly.js-basic-dist-min`) for charts, Three.js (through `@react-three/fiber` and `drei`, in a lazily loaded chunk) for the 3D Bloch spheres (`docs/VISUALIZATION.md`). No router dependency: the screen is state and `features/shell/routes.ts` keeps the URL in step.
 - **Screens and paths:** Lab `/`, Learn `/learn`, Challenges `/challenges` and `/challenges/<id>`, Progress `/progress`. Direct loads, Back/Forward and reloads work because the server answers every page path with the same shell.
 - **Lab:** canvas + palette (click or drag), code pane (OpenQASM, Qiskit, Cirq, PennyLane views), Results (run on a chosen backend in statevector or shots mode, sampled vs theoretical labelled, trace, Debug my circuit, Compare experiments, Share and export), and the Tutor.
 - **Editing the circuit:** every change goes through `web/src/circuit/edit.ts` (insert, delete, move in time, move across wires, drag-drop as one edit) and the build store's single `commit`, so the canonical circuit stays the only circuit: the QASM text is always its emission (or, while the learner types, text that parses back to exactly it), a refused edit (a wire that does not exist, a gate that would leave the register) changes nothing and says why, and every change drops everything derived from the old circuit (result, trace, verification, tutor turns, in-flight answers). Undo and Redo keep up to 100 earlier circuits as immutable snapshots of the canonical model; typing in the code editor makes one step per burst, and an optimisation, a loaded lesson or an inserted AI proposal is one step too. A gate is picked by click (or Enter), then moved or deleted with the toolbar or Alt+arrows and Delete; the ▾ handles choose where the next gate is inserted; every drag has a button or key equivalent.
@@ -124,7 +129,7 @@ class ExecutionAdapter(Protocol):
 | Qiskit Aer | P0 | Build `QuantumCircuit` from the model. `AerSimulator(method="statevector")` with `save_statevector` (and per-op saves for `steps`). Shots with a fixed, recorded seed. | Primary executor. **All verification runs on Aer.** |
 | Cirq | P0 | Build `cirq.Circuit` from the model. `cirq.Simulator(dtype=np.complex128)`. | Run-on-Cirq and cross-backend agreement |
 | PennyLane | P0, drops to P1 if install fails | `qml.device("default.qubit")` with a QNode built from the model. | Run-on-PennyLane and cross-backend agreement |
-| IBM recorded | P0 | Read-only lookup in `server/data/hardware_runs/` by circuit hash. Files come from `scripts/record_hardware.py`. | Reality-check |
+| IBM recorded | P0 | Read-only lookup in `backend/data/hardware_runs/` by circuit hash. Files come from `backend/scripts/record_hardware.py` (not built). | Reality-check |
 | IBM live | P1 | `qiskit-ibm-runtime` SamplerV2 submit, then poll by job id over plain HTTP. No queue infrastructure. | Optional live run |
 | Aer noise model | P1 | Aer with a noise model from a fake IBM backend. Labelled SIMULATION · NOISE MODEL. | Circuits without a recorded run |
 | qBraid | P2 | — | — |
