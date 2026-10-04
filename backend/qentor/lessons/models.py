@@ -28,7 +28,7 @@ Difficulty = Literal["beginner", "intermediate", "advanced"]
 # interactive lab may point a learner at (qentor.api.app). Adding a new value
 # here must correspond to a real endpoint that already exists — this model
 # never invents a new execution or verification capability of its own.
-LabCapability = Literal["execute", "verify_bell_state", "multi_input_test", "optimize", "variational_sweep"]
+LabCapability = Literal["execute", "verify_bell_state", "multi_input_test", "optimize", "variational_sweep", "noise_compare"]
 
 
 class ExplanationSection(BaseModel):

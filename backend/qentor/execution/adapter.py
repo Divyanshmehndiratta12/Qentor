@@ -12,6 +12,8 @@ from __future__ import annotations
 from typing import Any, Literal, Protocol
 
 ExecutionMode = Literal["statevector", "shots"]
+# What a stored result can say it was: the two modes a request may ask for, plus the noisy shots run of ``qentor.execution.noise`` (never requestable here).
+ResultMode = Literal["statevector", "shots", "noisy_shots"]
 
 
 def theoretical_probabilities(statevector: list[list[float]]) -> dict[str, float]:
@@ -42,7 +44,7 @@ class ExecutionResult:
         *,
         backend_name: str,
         backend_version: str,
-        execution_mode: ExecutionMode,
+        execution_mode: ResultMode,
         execution_id: str,
         probabilities: dict[str, float] | None = None,
         counts: dict[str, int] | None = None,

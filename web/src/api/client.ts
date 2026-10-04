@@ -44,7 +44,7 @@ export type LessonDifficulty = 'beginner' | 'intermediate' | 'advanced'
 /** The already-existing backend endpoints an interactive lab may point a
  * learner at (matches `backend/qentor/lessons/models.py::LabCapability`
  * exactly) — never a capability invented client-side. */
-export type LabCapability = 'execute' | 'verify_bell_state' | 'multi_input_test' | 'optimize' | 'variational_sweep'
+export type LabCapability = 'execute' | 'verify_bell_state' | 'multi_input_test' | 'optimize' | 'variational_sweep' | 'noise_compare'
 
 export interface LessonExplanationSection {
   type: 'explanation'
@@ -705,7 +705,137 @@ export interface VariationalOptimizeInput {
   backend?: Backend
 }
 
+// ---------------------------------------------------------------------------------------------------------------------------------
+// The Noise Lab (POST /api/noise/compare, GET /api/noise/models): an ideal run and a run under a named, simulated noise model.
+// The request carries a circuit and the learner's choices and has no field for a count, a probability or a distance. Every number
+// in a result is wrapped with the provenance of the stored run it was read from: the ideal run's, the noisy run's, or the comparison's.
+// ---------------------------------------------------------------------------------------------------------------------------------
+
+export type NoiseModelName = 'none' | 'depolarizing' | 'bit_flip' | 'phase_flip' | 'amplitude_damping' | 'readout_error'
+export type NoiseAppliesTo = 'none' | 'gates' | 'measurement'
+
+/** One noise model as the server describes it: the browser draws its controls from this and never keeps a range of its own. */
+export interface NoiseModelInfo {
+  name: NoiseModelName
+  label: string
+  appliesTo: NoiseAppliesTo
+  parameter: string
+  parameterDescription: string
+  minStrength: number
+  maxStrength: number
+  defaultStrength: number
+  step: number
+  summary: string
+  howApplied: string
+  /** What a learner should expect from this model, written by the server for the model as implemented. */
+  expect: string[]
+}
+
+export interface NoiseCatalog {
+  label: string
+  backend: string
+  models: NoiseModelInfo[]
+  limits: { maxQubits: number; maxShots: number; maxOperations: number; defaultShots: number; maxSeed: number; simulationMethod: string }
+}
+
+/** What the learner chose. There is deliberately nothing here a result could ride on. */
+export interface NoiseCompareInput {
+  circuit: Circuit
+  noiseModel: NoiseModelName
+  /** `null`/`undefined`: the model's own default. */
+  noiseStrength?: number | null
+  shots: number
+  /** `null`/`undefined`: the server picks one and reports it, so the run can be repeated. */
+  seed?: number | null
+}
+
+/** The noise a run was made under, as echoed by the server (inputs the learner chose, plus the seed that was used). */
+export interface NoiseInfo {
+  model: NoiseModelName
+  label: string
+  strength: number
+  parameter: string
+  appliesTo: NoiseAppliesTo
+  howApplied: string
+  simulationMethod: string
+  seed: number
+}
+
+export interface NoiseRun {
+  provenance: Provenance
+  executionId: string
+  shots: number
+  counts: Record<string, QuantumValue<number>>
+  /** Sampled frequencies (count / shots), not theoretical probabilities. */
+  frequencies: Record<string, QuantumValue<number>>
+  noise: NoiseInfo | null
+}
+
+export interface NoiseRow {
+  outcome: string
+  idealCount: QuantumValue<number>
+  noisyCount: QuantumValue<number>
+  idealFrequency: QuantumValue<number>
+  noisyFrequency: QuantumValue<number>
+  /** noisy minus ideal, with the comparison's provenance */
+  delta: QuantumValue<number>
+}
+
+export interface NoiseMetrics {
+  shots: number
+  totalVariationDistance: QuantumValue<number>
+  noisyShareOnIdealOutcomes: QuantumValue<number>
+  newOutcomeShots: QuantumValue<number>
+  idealDistinctOutcomes: QuantumValue<number>
+  noisyDistinctOutcomes: QuantumValue<number>
+  idealOutcomes: string[]
+  newOutcomes: string[]
+  idealTopOutcomes: Array<{ outcome: string; idealFrequency: QuantumValue<number>; noisyFrequency: QuantumValue<number> }>
+}
+
+export interface NoiseComparison {
+  provenance: Provenance
+  method: string
+  rows: NoiseRow[]
+  metrics: NoiseMetrics
+  /** Sentences the server wrote from the comparison's numbers. No model is involved. */
+  explanation: Array<{ id: string; text: string }>
+  note: string
+}
+
+export interface NoiseCompareResult {
+  label: string
+  backend: string
+  noise: NoiseInfo
+  ideal: NoiseRun
+  noisy: NoiseRun | null
+  comparison: NoiseComparison | null
+}
+
+/** The server refused a noise request (a limit, a range, a missing measurement ...). `code` is its stable code, `message` its words. */
+export class NoiseRejectedError extends Error {
+  readonly code: string | null
+  readonly status: number
+
+  constructor(message: string, code: string | null, status: number) {
+    super(message)
+    this.name = 'NoiseRejectedError'
+    this.code = code
+    this.status = status
+  }
+}
+
+
 export interface ApiClient {
+  /** GET /api/noise/models - the server's closed set of noise models, each with its range, and the Noise Lab's limits. */
+  listNoiseModels(): Promise<NoiseCatalog>
+
+  /**
+   * POST /api/noise/compare - run the circuit ideally and, for a model other than `none`, under that simulated noise (Qiskit Aer only), and
+   * compare the two. Sends the circuit and the learner's choices; every number comes back from the server wrapped with its own run's provenance.
+   */
+  compareNoise(input: NoiseCompareInput): Promise<NoiseCompareResult>
+
   /**
    * POST /api/variational/sweep - the cost <Z> of RY(theta) at evenly spaced angles, each read by the server from its own backend
    * run. Sends an angle range and a point count only; there is no field for a value. Every number comes back wrapped with the

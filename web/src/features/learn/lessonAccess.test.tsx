@@ -74,7 +74,7 @@ function finished(l: Lesson, correct = true): LessonProgress {
 
 describe('direct access', () => {
   it('every lesson is available with no progress at all, and none is ever locked', () => {
-    expect(LESSONS).toHaveLength(18)
+    expect(LESSONS).toHaveLength(19)
     for (const l of LESSONS) expect(getLessonState(l, new Set())).toBe('available')
     // not even with a lesson that builds on an id the catalog does not contain
     expect(getLessonState({ ...LESSONS[1]!, prerequisiteLessonIds: ['no-such-lesson'] }, new Set())).toBe('available')
@@ -111,7 +111,7 @@ describe('prerequisite metadata is preserved', () => {
     await useLearnStore.getState().fetchLessons()
     const prerequisites = () => JSON.stringify(useLearnStore.getState().lessons.map((l) => [l.id, l.prerequisiteLessonIds]))
     const before = prerequisites()
-    expect(useLearnStore.getState().lessons).toHaveLength(18)
+    expect(useLearnStore.getState().lessons).toHaveLength(19)
 
     useLearnStore.getState().selectLesson('shors-algorithm')
     useLearnStore.getState().completeSection('shors-algorithm', lesson('shors-algorithm').sections[0]!.id)

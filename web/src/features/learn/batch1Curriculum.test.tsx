@@ -97,13 +97,13 @@ const solved = (ids: string[]): Record<string, ReturnType<typeof emptyRecord>> =
   Object.fromEntries(ids.map((id) => [id, { ...emptyRecord(), attempts: 1, solved: true }]))
 
 describe('the real catalog, through the real client', () => {
-  it('maps 18 lessons and 19 challenges, batch 1 after the original ten and nine, in catalog order', () => {
-    expect(LESSONS).toHaveLength(18)
-    expect(CHALLENGES).toHaveLength(19)
+  it('maps 19 lessons and 20 challenges, batch 1 after the original ten and nine, in catalog order', () => {
+    expect(LESSONS).toHaveLength(19)
+    expect(CHALLENGES).toHaveLength(20)
     expect(LESSONS.slice(10, 13).map((l) => l.id)).toEqual(NEW_LESSON_IDS)
     expect(CHALLENGES.slice(9, 14).map((c) => c.id)).toEqual(NEW_CHALLENGE_IDS)
     expect(CHALLENGES[14]?.id).toBe('optimize-redundant') // the optimisation challenge follows, in the Interference lesson
-    expect(new Set(LESSONS.map((l) => l.id)).size).toBe(18)
+    expect(new Set(LESSONS.map((l) => l.id)).size).toBe(19)
   })
 
   it('each new lesson has ten sections, its prerequisites, and a linked circuit exactly as the server sent it', () => {
@@ -164,7 +164,7 @@ describe('the real catalog, through the real client', () => {
   })
 })
 
-describe('progression over 18 lessons and 19 challenges', () => {
+describe('progression over 19 lessons and 20 challenges', () => {
   it('a new lesson is open at once, and only RECOMMENDED once every one of its prerequisites is complete', () => {
     const none = new Set<string>()
     for (const id of NEW_LESSON_IDS) expect(getLessonState(lesson(id), none)).toBe('available')
@@ -225,18 +225,18 @@ describe('progression over 18 lessons and 19 challenges', () => {
     expect(recommend(done, cleared)).toMatchObject({ kind: 'next_lesson', lessonId: 'quantum-fourier-transform' })
   })
 
-  it('the overall tally counts 18 lessons and 36 concept checks', () => {
+  it('the overall tally counts 19 lessons and 38 concept checks', () => {
     const everything = progressFor(LESSONS.map((l) => l.id))
     const tally = getOverallLearningProgress(LESSONS, everything, new Set(LESSONS.map((l) => l.id)))
-    expect(tally).toMatchObject({ totalLessons: 18, lessonsCompleted: 18, conceptChecksTotal: 36, conceptChecksCorrect: 36, overallAccuracy: 1 })
+    expect(tally).toMatchObject({ totalLessons: 19, lessonsCompleted: 19, conceptChecksTotal: 38, conceptChecksCorrect: 38, overallAccuracy: 1 })
     expect(LESSONS.every((l) => isLessonComplete(l, everything[l.id]))).toBe(true)
   })
 
-  it('Progress shows challenge completion out of nineteen, with the new challenges listed and openable', () => {
+  it('Progress shows challenge completion out of twenty, with the new challenges listed and openable', () => {
     const outcomes: ChallengeOutcomes = { ...emptyOutcomes(), records: solved(['create-one', 'bloch-plus-direction', 'grover-find-01']) }
     const open = vi.fn()
     render(<ChallengeProgress challenges={CHALLENGES} outcomes={outcomes} onOpenChallenge={open} />)
-    expect(screen.getByTestId('challenges-solved')).toHaveTextContent('3 of 19 solved')
+    expect(screen.getByTestId('challenges-solved')).toHaveTextContent('3 of 20 solved')
     cleanup()
   })
 })

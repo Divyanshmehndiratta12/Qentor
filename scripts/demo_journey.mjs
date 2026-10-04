@@ -198,7 +198,7 @@ const lessonsRes = await getJson('/api/lessons')
 const challengesRes = await getJson('/api/challenges')
 const L = Object.fromEntries(lessonsRes.json.lessons.map((l) => [l.id, l]))
 const C = Object.fromEntries(challengesRes.json.challenges.map((c) => [c.id, c]))
-check('J00a the server serves 18 lessons and 19 challenges, Shor last, and no answer key anywhere', lessonsRes.json.lessons.length === 18 && challengesRes.json.challenges.length === 19 && lessonsRes.json.lessons.at(-1).id === 'shors-algorithm' && !JSON.stringify(lessonsRes.json).includes('correct_option_id') && !/reference_solution|"target"/.test(JSON.stringify(challengesRes.json)))
+check('J00a the server serves 19 lessons and 20 challenges, the noise lesson last, and no answer key anywhere', lessonsRes.json.lessons.length === 19 && challengesRes.json.challenges.length === 20 && lessonsRes.json.lessons.at(-1).id === 'quantum-noise' && !JSON.stringify(lessonsRes.json).includes('correct_option_id') && !/reference_solution|"target"/.test(JSON.stringify(challengesRes.json)))
 const gradeAll = async (lessonId, checkId) => {
   const section = L[lessonId].sections.find((s) => s.id === checkId)
   const verdicts = {}
@@ -336,7 +336,7 @@ const optNone = await lastJson('/api/optimize')
 check('J06g the no-rule example is honest: NO_OPTIMIZATION_FOUND, no candidate, no Apply button, decision "Nothing to propose"', optNone.res.status === 'NO_OPTIMIZATION_FOUND' && optNone.res.candidate_circuit === null && /Decision: Nothing to propose/.test(await tx('optimization-steps')) && !(await ev(`!![...document.querySelectorAll('button')].find((b) => /Apply optimized circuit/.test(b.textContent))`)))
 
 // ===================================================================== 7. Challenge
-await nav('Challenges'); await waitFor(`document.body.innerText.includes('0 of 19 solved')`, 10000)
+await nav('Challenges'); await waitFor(`document.body.innerText.includes('0 of 20 solved')`, 10000)
 await axe('1440/challenges-list')
 await shot('f7_07_challenges.png')
 await click(`[...document.querySelectorAll('button')].find((b) => /Create \\|1/.test(b.textContent))`, 'challenge create-one'); await sleep(900)
@@ -363,7 +363,7 @@ await clickName('Explain'); await sleep(200)
 // ===================================================================== 9. Progress
 await nav('Progress'); await waitFor(`document.body.innerText.includes('Progress')`, 10000); await sleep(800)
 const progText = await text()
-check('J09a Progress shows this learner\'s real record: one concept check answered and one challenge solved of 19', /1 of 19 solved/.test(progText) && /concept check/i.test(progText), progText.slice(0, 200))
+check('J09a Progress shows this learner\'s real record: one concept check answered and one challenge solved of 20', /1 of 20 solved/.test(progText) && /concept check/i.test(progText), progText.slice(0, 200))
 await axe('1440/progress')
 await shot('f7_09_progress.png')
 

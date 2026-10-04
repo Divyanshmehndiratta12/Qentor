@@ -161,16 +161,16 @@ await ev('localStorage.clear()')
 const lessonsRes = await getJson('/api/lessons')
 const LESSONS = lessonsRes.json.lessons
 const L = Object.fromEntries(LESSONS.map((l) => [l.id, l]))
-check('V00a the server serves the 18 lessons', LESSONS.length === 18, LESSONS.length)
+check('V00a the server serves the 19 lessons', LESSONS.length === 19, LESSONS.length)
 
 // ===================================================================== PART 1: every lesson opens, with no prerequisite locking
 await go(BASE + '/learn')
 await ev('localStorage.clear()')
 await go(BASE + '/learn')
-await waitFor(`document.querySelectorAll('ul button').length >= 18`, 15000)
+await waitFor(`document.querySelectorAll('ul button').length >= 19`, 15000)
 const cardInfo = () => ev(`[...document.querySelectorAll('ul button')].map((b) => ({ label: b.getAttribute('aria-label') ?? '', off: b.disabled, text: b.innerText }))`)
 let cards = await cardInfo()
-check('V01a all 18 lesson cards are enabled buttons, and none says locked', cards.length === 18 && cards.every((c) => !c.off && !/locked/i.test(c.label + c.text)), cards.filter((c) => c.off || /locked/i.test(c.label + c.text)).map((c) => c.label))
+check('V01a all 19 lesson cards are enabled buttons, and none says locked', cards.length === 19 && cards.every((c) => !c.off && !/locked/i.test(c.label + c.text)), cards.filter((c) => c.off || /locked/i.test(c.label + c.text)).map((c) => c.label))
 const withPrereq = LESSONS.filter((l) => l.prerequisite_lesson_ids.length > 0)
 check('V01b every lesson that builds on another says "Builds on:" with that lesson’s title (prerequisite metadata is kept and shown)', withPrereq.every((l) => { const c = cards.find((x) => x.label.startsWith(l.title)); return c && c.text.includes('Builds on:') && l.prerequisite_lesson_ids.every((id) => c.text.includes(L[id].title)) }), withPrereq.length)
 check('V01c exactly one lesson is "Suggested next", the first with no prerequisites', cards.filter((c) => /Suggested next/.test(c.text)).length === 1 && /Suggested next/.test(cards.find((c) => c.label.startsWith(LESSONS[0].title))?.text ?? ''))
@@ -181,7 +181,7 @@ for (const l of LESSONS) {
   const body = await text()
   opened.push({ id: l.id, ok, locked: /locked/i.test(body) })
 }
-check('V01d every one of the 18 lessons opens directly from a fresh start, and no screen says locked', opened.every((o) => o.ok && !o.locked), opened.filter((o) => !o.ok || o.locked))
+check('V01d every one of the 19 lessons opens directly from a fresh start, and no screen says locked', opened.every((o) => o.ok && !o.locked), opened.filter((o) => !o.ok || o.locked))
 await click(`[...document.querySelectorAll('ul button')].find((b) => (b.getAttribute('aria-label') ?? '').startsWith("Shor's Algorithm"))`, 'Shor')
 await waitFor(`document.body.innerText.includes('can start here any time')`, 5000)
 check('V01e a lesson that builds on another says it can still be started any time', (await text()).includes('recommended first, but you can start here any time'))
@@ -197,7 +197,7 @@ const attempts = {}
 for (const sec of first.sections.filter((x) => x.type === 'concept_check' && x.question)) attempts[sec.id] = { selectedOptionId: await rightOption(first.id, sec), isCorrect: true, attemptCount: 1 }
 await ev(`localStorage.setItem('qentor.learn.progress.v1', ${T(JSON.stringify({ version: 1, startedLessonIds: [first.id], lessons: { [first.id]: { activeSectionIndex: 0, completedSectionIds: first.sections.map((s) => s.id), conceptCheckAttempts: attempts } } }))})`)
 await go(BASE + '/learn')
-await waitFor(`document.querySelectorAll('ul button').length >= 18`, 15000)
+await waitFor(`document.querySelectorAll('ul button').length >= 19`, 15000)
 cards = await cardInfo()
 await sleep(1500) // the server re-grades the saved selections after the catalog loads
 cards = await cardInfo()
@@ -373,7 +373,7 @@ await axe('lab-editor-and-3d')
 const answerOpenCheck = async () => { const r = await ev(`(() => { const radio = document.querySelector('input[type=radio]:not([disabled])'); if (!radio) return false; radio.click(); return true })()`); if (!r) return false; await sleep(150); await clickName('Submit'); await waitFor(`/Correct\\.|Not quite\\./.test(document.body.innerText)`, 10000); return true }
 async function walkToLab(id) {
   const sections = L[id].sections
-  await go(BASE + '/learn'); await waitFor(`document.querySelectorAll('ul button').length >= 18`, 15000)
+  await go(BASE + '/learn'); await waitFor(`document.querySelectorAll('ul button').length >= 19`, 15000)
   await click(`[...document.querySelectorAll('ul button')].find((b) => (b.getAttribute('aria-label') ?? '').startsWith(${T(L[id].title)} + ' —') || (b.getAttribute('aria-label') ?? '') === ${T(L[id].title)})`, 'card')
   await waitFor(`document.querySelector('[aria-label*="lesson progress"]')`, 10000)
   for (let guard = 0; guard < 16; guard++) {
@@ -410,7 +410,7 @@ await axe('lab-from-lesson')
 // VQE (lesson 17): the sweep's Bloch state is the same 3D view
 {
   const id = 'variational-vqe'
-  await go(BASE + '/learn'); await waitFor(`document.querySelectorAll('ul button').length >= 18`, 15000)
+  await go(BASE + '/learn'); await waitFor(`document.querySelectorAll('ul button').length >= 19`, 15000)
   await click(`[...document.querySelectorAll('ul button')].find((b) => (b.getAttribute('aria-label') ?? '').startsWith(${T(L[id].title)}))`, 'vqe card')
   await waitFor(`document.querySelector('[aria-label*="lesson progress"]')`, 10000)
   let lab = false

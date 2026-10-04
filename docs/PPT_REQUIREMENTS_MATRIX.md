@@ -12,7 +12,7 @@ Demo importance: **Critical** (the story breaks without it) · **High** · **Med
 
 | # | Requirement | Source | Priority | Current status | Required backend | Verification method | Demo importance |
 |---|---|---|---|---|---|---|---|
-| L1 | Guided lesson per algorithm with short explainers and guided examples | Deck p2 (1 Learn), p3 step 1 | P0 | Built (18 lessons) | Content files + Aer for example circuits | Example circuits executed on load. No probability is written into lesson prose. A content test runs every lesson circuit. | High |
+| L1 | Guided lesson per algorithm with short explainers and guided examples | Deck p2 (1 Learn), p3 step 1 | P0 | Built (19 lessons) | Content files + Aer for example circuits | Example circuits executed on load. No probability is written into lesson prose. A content test runs every lesson circuit. | High |
 | L2 | Interactive visuals in lessons | Deck p3 step 1 | P0 | Built (trace, Bloch, charts) | Aer (statevector, per-step states) | Visuals render only backend results | High |
 | L3 | Focused algorithm library that can grow | Deck p4 "Scalable product" | P0 (Bell primer, phase kickback, DJ, BV) · P1 (Grover-2) · P2 (QFT/QPE) | Built (Bell, kickback, DJ, BV, superdense coding, teleportation with deferred corrections, a fixed 2-qubit Grover, a fixed 3-qubit QFT, an exact fixed 4-qubit QPE, the three-qubit bit-flip code with a fixed injected error) | Aer | Each algorithm's reference solution passes its own test spec in CI | High |
 
@@ -65,7 +65,7 @@ Demo importance: **Critical** (the story breaks without it) · **High** · **Med
 | # | Requirement | Source | Priority | Current status | Required backend | Verification method | Demo importance |
 |---|---|---|---|---|---|---|---|
 | R1 | Simulation beside recorded real-device runs | Deck p2 sol 5, p3 step 5, p4 | P0 | Not built: no recorded hardware run exists | Recorded IBM runs (read-only JSON) + Aer | Match by exact circuit hash. Show job id, device, date. TVD and Hellinger fidelity computed server-side. | Critical |
-| R2 | Show "what noise does" (the noise gap) | Deck p2 workflow, p5 | P0 | Not built | Aer + recorded runs | Highlight probability mass on outcomes the ideal result forbids | High |
+| R2 | Show "what noise does" (the noise gap) | Deck p2 workflow, p5 | P0 | Built for simulated noise only (Noise Lab, `NOISE_LAB.md`); the recorded-run comparison is not built | Aer noise simulation (recorded runs: not built) | Highlight probability mass on outcomes the ideal result forbids | High |
 | R3 | Recorded run of *the same circuit* | Draft-Tech | P0 | Not built | Hash lookup | If the hash differs, say so. An equivalent reference circuit is shown only with an "equivalent, not identical" label. | High |
 | R4 | Dataset of circuits, results and real-device runs | Deck p6 | P1 | Not built | Export of recorded runs + provenance log | Files carry a SHA-256 manifest | Low |
 
@@ -106,7 +106,7 @@ Demo importance: **Critical** (the story breaks without it) · **High** · **Med
 |---|---|---|---|---|
 | X1 | Backend provenance on every result | Owner brief §7 | P0 | Makes Deck p2 sol 1 and the hardware claim checkable. |
 | X2 | Multilingual educational content, Hindi first | Owner brief §9 | P1 | Not promised in the deck. Use i18n string keys from day one so it stays cheap. |
-| X3 | Noise-model simulation for circuits without a recorded run | Supports Deck p2 sol 5 | P1 | Must be labelled SIMULATION · NOISE MODEL, never hardware. |
+| X3 | Noise-model simulation for circuits without a recorded run | Supports Deck p2 sol 5 | P1 | Built (Noise Lab): labelled SIMULATION, "Simulated noise", never hardware; simple textbook models, not a fake IBM backend. |
 
 ## Built beyond the deck (added in the final sprint)
 

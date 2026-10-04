@@ -29,9 +29,15 @@ export interface ProvenanceBadgeProps {
   className?: string
 }
 
+/** A run made under a simulated noise model (`qentor.execution.noise`): still a SIMULATION, and the badge says what kind, in words and by colour. */
+export const NOISY_EXECUTION_MODE = 'noisy_shots'
+const NOISY_LABEL = 'Simulated noise'
+const NOISY_STYLE = 'border-amber-glow/50 bg-amber-dim/30 text-amber-glow'
+
 export function ProvenanceBadge({ provenance, className = '' }: ProvenanceBadgeProps) {
-  const label = CLASS_LABEL[provenance.provenanceClass]
-  const style = CLASS_STYLE[provenance.provenanceClass]
+  const noisy = provenance.provenanceClass === 'SIMULATION' && provenance.executionMode === NOISY_EXECUTION_MODE
+  const label = noisy ? NOISY_LABEL : CLASS_LABEL[provenance.provenanceClass]
+  const style = noisy ? NOISY_STYLE : CLASS_STYLE[provenance.provenanceClass]
 
   return (
     <span

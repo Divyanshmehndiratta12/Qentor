@@ -104,6 +104,7 @@ from . import classroom as classroom_api
 from . import code_input as code_input_api
 from . import reasoning as reasoning_api
 from . import sharing as sharing_api
+from . import noise as noise_api
 from . import variational as variational_api
 from .guards import BodySizeLimitMiddleware, HeavyWorkGate
 from .state_view import final_state_qubit_states
@@ -234,6 +235,24 @@ _llm_adapter = build_default_llm_adapter()
 _LESSON_ERROR_STATUS = {LESSON_NOT_FOUND: 404, SECTION_NOT_FOUND: 404, SECTION_MISMATCH: 422}
 
 EXECUTION_STATE_INVALID = "EXECUTION_STATE_INVALID"
+
+
+# The Noise Lab's records (``qentor.api.noise``): a noisy run and the comparison of two runs. They are stored like every other result, but they
+# are NOT an ordinary run of a circuit, so the features that explain, verify, debug, export, share or compare "a run" refuse them by name instead
+# of reading their counts as if they were ideal ones.
+NOISE_RECORD_MODES = ("noisy_shots", "noise_comparison")
+NOISE_RECORD_UNSUPPORTED = "NOISE_RESULT_NOT_SUPPORTED_HERE"
+
+
+def _refuse_noise_record(record: ProvenanceRecord, what: str) -> None:
+    if record.execution_mode in NOISE_RECORD_MODES:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "code": NOISE_RECORD_UNSUPPORTED,
+                "message": f"result '{record.result_id}' is a simulated-noise result ({record.execution_mode}); {what} works on ordinary runs, so nothing was done with it",
+            },
+        )
 
 
 def _limit_http_error(exc: LimitExceeded) -> HTTPException:
@@ -510,6 +529,7 @@ def verify_bell_state_endpoint(request: VerifyBellStateRequest) -> VerifyBellSta
             status_code=404,
             detail=f"no provenance record found for result_id '{request.result_id}'",
         )
+    _refuse_noise_record(record, "the Bell-state verifier")
 
     try:
         report = verify_bell_state(request.circuit, record)
@@ -681,6 +701,7 @@ def tutor_endpoint(request: TutorRequest) -> TutorResponse:
                 status_code=404,
                 detail=f"no provenance record found for result_id '{request.result_id}'",
             )
+        _refuse_noise_record(record, "the tutor")
 
         request_hash = circuit_hash(request.circuit)
         if request_hash != record.circuit_hash:
@@ -773,6 +794,7 @@ def _load_comparable_run(label: str, result_id: str, circuit) -> ProvenanceRecor
     record = _store.get(result_id)
     if record is None:
         raise HTTPException(status_code=404, detail=f"no provenance record found for run {label} (result_id '{result_id}')")
+    _refuse_noise_record(record, "the experiment comparison")
     got = circuit_hash(circuit)
     if got != record.circuit_hash:
         raise HTTPException(
@@ -901,6 +923,7 @@ def _run_debug(request: DebugRequest) -> DebugResponse:
         record = _store.get(request.result_id)
         if record is None:
             raise HTTPException(status_code=404, detail=f"no provenance record found for result_id '{request.result_id}'")
+        _refuse_noise_record(record, "the debugger")
         if record.circuit_hash != circuit_hash_:
             raise HTTPException(
                 status_code=422,
@@ -1253,6 +1276,7 @@ def export_circuit_endpoint(request: ExportRequest) -> ExportResponse:
         record = _store.get(request.result_id)
         if record is None:
             raise HTTPException(status_code=404, detail=f"no provenance record found for result_id '{request.result_id}'")
+        _refuse_noise_record(record, "export")
         if record.circuit_hash != chash:
             raise HTTPException(
                 status_code=422,
@@ -1534,7 +1558,8 @@ def submit_challenge(
     records: dict[str, ProvenanceRecord] = {}
 
     def record_execution(result: ExecutionResult, prefix_hash: str) -> str:
-        record = _record_run(result, prefix_hash, request.circuit.num_qubits)
+        # A noisy run says how many shots it was asked for, so its state check compares the counts with the request.
+        record = _record_run(result, prefix_hash, request.circuit.num_qubits, shots=getattr(result, "requested_shots", None))
         records[record.result_id] = record
         return record.result_id
 
@@ -1629,7 +1654,7 @@ def _reasoning_deps() -> reasoning_api.ReasoningDeps:
 
 reasoning_api.configure(_reasoning_deps)
 
-for _router in (classroom_api.router, sharing_api.router, code_input_api.router, reasoning_api.router, variational_api.router):
+for _router in (classroom_api.router, sharing_api.router, code_input_api.router, reasoning_api.router, variational_api.router, noise_api.router):
     app.router.routes.extend(_router.routes)
 
 

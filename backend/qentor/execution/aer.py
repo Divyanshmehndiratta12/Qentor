@@ -39,10 +39,38 @@ _ROTATION_GATE_METHOD = {
 }
 
 
+def build_qiskit_circuit(circuit: Circuit, quantum_circuit_cls):
+    """The canonical model as a native ``qiskit.QuantumCircuit`` (the class is passed in because Qiskit is imported lazily).
+
+    Shared by the ideal run below and the noisy run in ``qentor.execution.noise``, so both build the SAME circuit gate for gate."""
+    qc = quantum_circuit_cls(circuit.num_qubits, circuit.num_clbits)
+    for op in circuit.ops:
+        if op.gate in _SIMPLE_GATE_METHOD:
+            getattr(qc, _SIMPLE_GATE_METHOD[op.gate])(op.targets[0])
+        elif op.gate in _ROTATION_GATE_METHOD:
+            getattr(qc, _ROTATION_GATE_METHOD[op.gate])(op.params[0], op.targets[0])
+        elif op.gate is GateName.CX:
+            qc.cx(op.controls[0], op.targets[0])
+        elif op.gate is GateName.CZ:
+            qc.cz(op.controls[0], op.targets[0])
+        elif op.gate is GateName.CP:
+            qc.cp(op.params[0], op.controls[0], op.targets[0])
+        elif op.gate is GateName.SWAP:
+            qc.swap(op.targets[0], op.targets[1])
+        elif op.gate is GateName.CCX:
+            qc.ccx(op.controls[0], op.controls[1], op.targets[0])
+        elif op.gate is GateName.MEASURE:
+            qc.measure(op.targets[0], op.clbits[0])
+        else:  # pragma: no cover - Circuit validation already restricts gate names
+            raise AdapterExecutionError(f"unsupported gate for Aer: {op.gate!r}")
+    return qc
+
+
 class AerAdapter:
     name = "qiskit-aer"
 
-    def run(self, circuit: Circuit, mode: ExecutionMode, shots: int | None = None) -> ExecutionResult:
+    def run(self, circuit: Circuit, mode: ExecutionMode, shots: int | None = None, *, seed_simulator: int | None = None) -> ExecutionResult:
+        """``seed_simulator`` (shots mode only) fixes the sampler so a run can be reproduced; ``None`` is the unseeded behaviour every caller had before."""
         try:
             import numpy as np
             from qiskit import QuantumCircuit
@@ -60,26 +88,7 @@ class AerAdapter:
                 "this circuit has none"
             )
 
-        qc = QuantumCircuit(circuit.num_qubits, circuit.num_clbits)
-        for op in circuit.ops:
-            if op.gate in _SIMPLE_GATE_METHOD:
-                getattr(qc, _SIMPLE_GATE_METHOD[op.gate])(op.targets[0])
-            elif op.gate in _ROTATION_GATE_METHOD:
-                getattr(qc, _ROTATION_GATE_METHOD[op.gate])(op.params[0], op.targets[0])
-            elif op.gate is GateName.CX:
-                qc.cx(op.controls[0], op.targets[0])
-            elif op.gate is GateName.CZ:
-                qc.cz(op.controls[0], op.targets[0])
-            elif op.gate is GateName.CP:
-                qc.cp(op.params[0], op.controls[0], op.targets[0])
-            elif op.gate is GateName.SWAP:
-                qc.swap(op.targets[0], op.targets[1])
-            elif op.gate is GateName.CCX:
-                qc.ccx(op.controls[0], op.controls[1], op.targets[0])
-            elif op.gate is GateName.MEASURE:
-                qc.measure(op.targets[0], op.clbits[0])
-            else:  # pragma: no cover - Circuit validation already restricts gate names
-                raise AdapterExecutionError(f"unsupported gate for Aer: {op.gate!r}")
+        qc = build_qiskit_circuit(circuit, QuantumCircuit)
 
         execution_id = f"aer-local-{uuid.uuid4().hex[:12]}"
         backend_version = qiskit_aer.__version__
@@ -105,7 +114,7 @@ class AerAdapter:
             if mode == "shots":
                 if shots is None or shots <= 0:
                     raise AdapterExecutionError("shots mode requires shots > 0")
-                sim = AerSimulator()
+                sim = AerSimulator() if seed_simulator is None else AerSimulator(seed_simulator=seed_simulator)
                 job = sim.run(qc, shots=shots)
                 result = job.result()
                 if not result.success:

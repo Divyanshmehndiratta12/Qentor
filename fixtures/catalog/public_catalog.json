@@ -1245,6 +1245,135 @@
         },
         "success_condition": "The circuit is one RY gate on q[0], and the backend's expectation value of Z for the state it prepares is -1 (within one millionth).",
         "title": "Find θ where ⟨Z⟩ = -1"
+      },
+      {
+        "checks": [
+          {
+            "id": "ideal.outcome",
+            "label": "Without noise, the circuit gives the outcome 11"
+          },
+          {
+            "id": "noisy.share",
+            "label": "Under the server's simulated noise, enough shots still give 11"
+          }
+        ],
+        "constraints": {
+          "allowed_gates": [
+            "x",
+            "h",
+            "z",
+            "cx",
+            "swap",
+            "measure"
+          ],
+          "anchor": [],
+          "anchor_name": "oracle",
+          "gate_qubits": {},
+          "max_ops": 12,
+          "min_gate_counts": {},
+          "must_measure": [
+            0,
+            1
+          ],
+          "num_clbits": 2,
+          "num_qubits": 2
+        },
+        "difficulty": "intermediate",
+        "fixed_oracle": false,
+        "goal": "This circuit prepares the outcome 11 and measures both qubits, but it does it with far more gates than it needs. In an ideal simulation every version gives 11. In a noisy simulation every gate is another chance for the qubits it touches to be disturbed. Rebuild it so it still gives 11 and still gives it on nine in ten of the shots when the server runs it under its fixed simulated noise (depolarizing noise after every gate). The server runs your circuit on Qiskit Aer with that noise and counts the shots itself.",
+        "hints": [
+          "The circuit is already correct in an ideal run. The task is to keep that answer while giving noise fewer chances to act.",
+          "Both qubits have to end as 1, and an X gate flips a qubit once. Which of the X gates on each qubit could you remove without changing the final answer?",
+          "Noise acts after every gate, on every qubit that gate touches. Fewer gates, and gates that touch fewer qubits, give it fewer chances.",
+          "Three X gates on one qubit do what one X gate does. One X on each qubit is enough."
+        ],
+        "id": "noise-shorten-circuit",
+        "lesson_id": "quantum-noise",
+        "starter_circuit": {
+          "num_clbits": 2,
+          "num_qubits": 2,
+          "ops": [
+            {
+              "clbits": [],
+              "controls": [],
+              "gate": "x",
+              "params": [],
+              "targets": [
+                0
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [],
+              "gate": "x",
+              "params": [],
+              "targets": [
+                0
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [],
+              "gate": "x",
+              "params": [],
+              "targets": [
+                0
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [],
+              "gate": "x",
+              "params": [],
+              "targets": [
+                1
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [],
+              "gate": "x",
+              "params": [],
+              "targets": [
+                1
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [],
+              "gate": "x",
+              "params": [],
+              "targets": [
+                1
+              ]
+            },
+            {
+              "clbits": [
+                0
+              ],
+              "controls": [],
+              "gate": "measure",
+              "params": [],
+              "targets": [
+                0
+              ]
+            },
+            {
+              "clbits": [
+                1
+              ],
+              "controls": [],
+              "gate": "measure",
+              "params": [],
+              "targets": [
+                1
+              ]
+            }
+          ],
+          "schema": "qentor.circuit/1"
+        },
+        "success_condition": "Without noise the circuit gives 11, and in the server's fixed noisy simulation at least nine in ten of the shots still land on 11. It is a simulation of simple textbook noise, not a real device.",
+        "title": "Shorten it so noise cannot spoil it"
       }
     ]
   },
@@ -5010,6 +5139,176 @@
         ],
         "short_description": "Finding the cycle length of the powers of 2 modulo 15 with phase estimation, in one fixed 7-qubit educational instance; not a factoring implementation.",
         "title": "Shor's Algorithm — Order Finding Intuition"
+      },
+      {
+        "concept": "quantum-noise",
+        "difficulty": "intermediate",
+        "estimated_minutes": 20,
+        "id": "quantum-noise",
+        "learning_objectives": [
+          "Say what is different between an ideal run and a noisy run of the same circuit.",
+          "Explain why repeated shots give a distribution of outcomes, even for an ideal circuit.",
+          "Describe gate noise and readout error, and say where each one acts.",
+          "Explain why a circuit with more gates is generally disturbed more by gate noise.",
+          "Read an ideal-versus-noisy comparison carefully, and say plainly that the noise here is simulated."
+        ],
+        "linked_circuit": {
+          "num_clbits": 2,
+          "num_qubits": 2,
+          "ops": [
+            {
+              "clbits": [],
+              "controls": [],
+              "gate": "h",
+              "params": [],
+              "targets": [
+                0
+              ]
+            },
+            {
+              "clbits": [],
+              "controls": [
+                0
+              ],
+              "gate": "cx",
+              "params": [],
+              "targets": [
+                1
+              ]
+            },
+            {
+              "clbits": [
+                0
+              ],
+              "controls": [],
+              "gate": "measure",
+              "params": [],
+              "targets": [
+                0
+              ]
+            },
+            {
+              "clbits": [
+                1
+              ],
+              "controls": [],
+              "gate": "measure",
+              "params": [],
+              "targets": [
+                1
+              ]
+            }
+          ],
+          "schema": "qentor.circuit/1"
+        },
+        "prerequisite_lesson_ids": [
+          "bell-state"
+        ],
+        "sections": [
+          {
+            "body": "An ideal simulation applies every gate perfectly. A noisy simulation applies the same gates but lets small random errors creep in, the way real devices are disturbed by their surroundings. This lesson compares the two runs of one circuit. The noise here is simulated: the server runs the circuit twice on a simulator, once ideally and once under a named noise model, and compares the results. It is a simulation of simple textbook error models, not a model of any real device, and no hardware is used.",
+            "id": "s1",
+            "title": "Ideal and noisy runs",
+            "type": "explanation"
+          },
+          {
+            "body": "Measuring a circuit once gives one outcome. Running it many times, each run called a shot, gives a spread of outcomes, and the counts are a sample of the circuit's outcome distribution. Even an ideal circuit gives a spread: a circuit that puts a qubit in an equal superposition gives zeros and ones in roughly equal numbers, and two runs of it differ a little. That is why a small difference between two runs is not by itself evidence of noise. This is textbook reasoning; the Noise Lab shows the counts the server's simulator actually returned.",
+            "id": "s2",
+            "title": "A run is a sample",
+            "type": "explanation"
+          },
+          {
+            "body": "Gate noise is an error that can happen right after a gate. In the depolarizing model, each qubit the gate touched is, with some probability, replaced by a completely random state. A bit-flip model swaps zero and one with some probability, a phase-flip model flips a sign that a plain zero-or-one measurement cannot see directly, and an amplitude-damping model lets a one decay towards zero. In every case the error acts on the qubits a gate touched, so a gate on two qubits gives noise two places to act. This is textbook reasoning about the models as the server implements them.",
+            "id": "s3",
+            "title": "Gate noise",
+            "type": "explanation"
+          },
+          {
+            "body": "Readout error is different: it does not change the quantum state, only what is reported when a qubit is measured. With some probability a measured zero is reported as a one, or the other way round. A circuit with no gates gives gate noise nothing to act on, but readout error can still change what you read. This is textbook reasoning about the readout model.",
+            "id": "s4",
+            "title": "Readout error",
+            "type": "explanation"
+          },
+          {
+            "concept": "quantum-noise",
+            "id": "s5",
+            "options": [
+              {
+                "id": "a",
+                "text": "Depolarizing noise after a gate"
+              },
+              {
+                "id": "b",
+                "text": "Readout error at measurement"
+              },
+              {
+                "id": "c",
+                "text": "Amplitude damping after a gate"
+              },
+              {
+                "id": "d",
+                "text": "A bit flip after a gate"
+              }
+            ],
+            "prompt": "Think about which noise changes the quantum state and which only changes the report.",
+            "question": "Which kind of noise can change what is reported without disturbing the quantum state before the measurement?",
+            "title": "Check: where noise acts",
+            "type": "concept_check"
+          },
+          {
+            "body": "Gate noise acts after every gate, so a circuit with more gates gives it more chances to act. Two circuits can give the same answer in an ideal simulation and different answers under noise: the one with fewer gates, and with gates that touch fewer qubits, is on average disturbed less. This is textbook reasoning for the models used here, and it is the reason shorter circuits are valued when noise is present. It describes a tendency over many shots, not a promise about any single shot.",
+            "id": "s6",
+            "title": "Why deeper circuits are more sensitive",
+            "type": "explanation"
+          },
+          {
+            "concept": "quantum-noise",
+            "id": "s7",
+            "options": [
+              {
+                "id": "a",
+                "text": "The longer one, because each extra gate is another chance for noise to act, even if it cancels in an ideal run"
+              },
+              {
+                "id": "b",
+                "text": "The shorter one, because with fewer gates it has more time to recover from any error that happens"
+              },
+              {
+                "id": "c",
+                "text": "Neither, because a gate that cancels another in an ideal run also cancels the noise that follows it"
+              },
+              {
+                "id": "d",
+                "text": "Both equally, because gate noise depends only on how the qubits are measured at the end of the run"
+              }
+            ],
+            "prompt": "Think about what each gate gives noise a chance to do, even if its effect cancels in an ideal run.",
+            "question": "Two circuits give the same outcome in an ideal simulation. One has many gates that cancel each other out and the other has none. Under gate noise that acts after every gate, which is generally disturbed more?",
+            "title": "Check: gates that cancel",
+            "type": "concept_check"
+          },
+          {
+            "body": "The Noise Lab shows the ideal counts and the noisy counts side by side, with a few numbers the server computes from them, such as how far apart the two sampled distributions are and which outcomes only the noisy run produced. The browser does not calculate them. Treat a difference with care: both runs are finite samples, so compare a difference with the number of shots before blaming noise. And remember that some noise cannot show up in some measurements: a phase flip, for example, may leave the counts of a plain zero-or-one measurement unchanged.",
+            "id": "s8",
+            "title": "Reading a comparison carefully",
+            "type": "explanation"
+          },
+          {
+            "capability": "noise_compare",
+            "id": "s9",
+            "instructions": "Open the Noise Lab with the lab circuit, a Bell pair that is measured. Run it with no noise first. Then choose depolarizing noise and run it again, and look at which outcomes appear that the ideal run never gave. Change the strength and run again. Then try readout error, and a bit flip or a phase flip, and see which models change the counts and which do not for this circuit. Every count and every difference is produced by the server's simulator, and the noise is simulated.",
+            "title": "Lab: ideal versus noisy",
+            "type": "interactive_lab"
+          },
+          {
+            "id": "s10",
+            "prompt": "Pick a noise model and a circuit. Before you run it, say what you expect to change and why. After you run it, compare: where did your expectation hold, and where did the circuit or the model surprise you?",
+            "title": "Reflect",
+            "type": "reflection"
+          }
+        ],
+        "short_description": "Run one circuit ideally and under simulated noise, and see what changes: a small educational comparison on a simulator, not a real device.",
+        "title": "Understanding Quantum Noise"
       }
     ]
   }

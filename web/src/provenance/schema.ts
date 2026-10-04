@@ -15,7 +15,7 @@ export type LessonDifficulty = z.infer<typeof LessonDifficultySchema>
 // backend/qentor/lessons/models.py::LabCapability — the set of already-real
 // backend endpoints an interactive_lab section may point at. Never a new
 // capability invented client-side.
-export const LabCapabilitySchema = z.enum(['execute', 'verify_bell_state', 'multi_input_test', 'optimize', 'variational_sweep'])
+export const LabCapabilitySchema = z.enum(['execute', 'verify_bell_state', 'multi_input_test', 'optimize', 'variational_sweep', 'noise_compare'])
 export type LabCapability = z.infer<typeof LabCapabilitySchema>
 
 // backend/qentor/lessons/models.py's four section models, discriminated on
@@ -1195,3 +1195,91 @@ export const VariationalOptimizeResponseSchema = z.object({
   notes: z.array(z.string()),
 })
 export type VariationalOptimizeResponse = z.infer<typeof VariationalOptimizeResponseSchema>
+
+
+// backend/qentor/api/noise.py - the Noise Lab. The catalog is the server's closed set of noise models with their ranges; a comparison is an
+// ideal run, optionally a noisy run and a comparison of the two, each a stored provenance record.
+export const NoiseModelInfoSchema = z.object({
+  name: z.string(),
+  label: z.string(),
+  applies_to: z.enum(['none', 'gates', 'measurement']),
+  parameter: z.string(),
+  parameter_description: z.string(),
+  min_strength: z.number(),
+  max_strength: z.number(),
+  default_strength: z.number(),
+  step: z.number(),
+  summary: z.string(),
+  how_applied: z.string(),
+  expect: z.array(z.string()),
+})
+export const NoiseModelsResponseSchema = z.object({
+  label: z.string(),
+  backend: z.string(),
+  models: z.array(NoiseModelInfoSchema).min(1),
+  limits: z.object({
+    max_qubits: z.number().int().positive(),
+    max_shots: z.number().int().positive(),
+    max_operations: z.number().int().positive(),
+    default_shots: z.number().int().positive(),
+    max_seed: z.number().int().positive(),
+    simulation_method: z.string(),
+  }),
+})
+export type NoiseModelsResponse = z.infer<typeof NoiseModelsResponseSchema>
+
+const NoiseInfoSchema = z.object({
+  model: z.string(),
+  label: z.string(),
+  strength: z.number(),
+  parameter: z.string(),
+  applies_to: z.enum(['none', 'gates', 'measurement']),
+  how_applied: z.string(),
+  simulation_method: z.string(),
+  seed: z.number().int(),
+})
+const NoiseRunSchema = z.object({
+  provenance: TraceProvenanceSchema,
+  execution_id: z.string(),
+  shots: z.number().int().positive(),
+  counts: z.record(z.string(), z.number().int().nonnegative()),
+  probabilities: z.record(z.string(), z.number()),
+  noise: NoiseInfoSchema.nullable().optional(),
+})
+const NoiseRowSchema = z.object({
+  outcome: z.string(),
+  ideal_count: z.number().int().nonnegative(),
+  noisy_count: z.number().int().nonnegative(),
+  ideal_probability: z.number(),
+  noisy_probability: z.number(),
+  delta: z.number(),
+})
+const NoiseTopOutcomeSchema = z.object({ outcome: z.string(), ideal_probability: z.number(), noisy_probability: z.number() })
+const NoiseMetricsSchema = z.object({
+  shots: z.number().int().positive(),
+  total_variation_distance: z.number(),
+  noisy_share_on_ideal_outcomes: z.number(),
+  ideal_outcomes: z.array(z.string()),
+  new_outcomes: z.array(z.string()),
+  new_outcome_shots: z.number().int().nonnegative(),
+  ideal_distinct_outcomes: z.number().int().nonnegative(),
+  noisy_distinct_outcomes: z.number().int().nonnegative(),
+  ideal_top_outcomes: z.array(NoiseTopOutcomeSchema),
+})
+const NoiseComparisonSchema = z.object({
+  provenance: TraceProvenanceSchema,
+  method: z.string(),
+  rows: z.array(NoiseRowSchema),
+  metrics: NoiseMetricsSchema,
+  explanation: z.array(z.object({ id: z.string(), text: z.string() })),
+  note: z.string(),
+})
+export const NoiseCompareResponseSchema = z.object({
+  label: z.string(),
+  backend: z.string(),
+  noise: NoiseInfoSchema,
+  ideal: NoiseRunSchema,
+  noisy: NoiseRunSchema.nullable().optional(),
+  comparison: NoiseComparisonSchema.nullable().optional(),
+})
+export type NoiseCompareResponse = z.infer<typeof NoiseCompareResponseSchema>

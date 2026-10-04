@@ -60,7 +60,7 @@ def section(section_id: str):
 
 class TestStructure(unittest.TestCase):
     def test_it_is_lesson_seventeen_after_the_error_correction_lesson(self) -> None:
-        self.assertEqual(len(LESSONS), 18)  # lesson 18 follows (test_shor_lesson.py)
+        self.assertEqual(len(LESSONS), 19)  # lessons 18 and 19 follow (test_shor_lesson.py, test_noise_lesson.py)
         self.assertEqual(LESSONS[16].id, ID)
         self.assertEqual(LESSONS[15].id, "quantum-error-correction")
 
@@ -126,7 +126,7 @@ class TestStructure(unittest.TestCase):
                 self.assertNotIn(s.explanation, blob)
 
     def test_the_challenge_is_linked_and_the_validator_passes(self) -> None:
-        self.assertEqual(CHALLENGES[-1].id, "vqe-find-theta")
+        self.assertIn("vqe-find-theta", [c.id for c in CHALLENGES])  # the noise challenge follows it (test_noise_challenge.py)
         self.assertEqual(CHALLENGE_BY_ID["vqe-find-theta"].lesson_id, ID)
         self.assertEqual(CHALLENGE_BY_ID["vqe-find-theta"].title, "Find θ where ⟨Z⟩ = -1")
         try:

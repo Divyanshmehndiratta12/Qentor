@@ -71,7 +71,7 @@ UI classes, shown as a badge on every result:
 | REAL_HARDWARE | Returned now by a live IBM job (P1) | "Real hardware · ibm_x · job …" |
 | RECORDED_HARDWARE | Stored result of a past IBM job | "Recorded hardware · ibm_x · job … · date" |
 
-A noise-model run (P1) is SIMULATION with mode detail "noise model". It is never styled like hardware.
+A noise-model run is SIMULATION with execution mode `noisy_shots` and its noise model and parameters in the record (`NOISE_LAB.md`); the badge reads "Simulated noise". It is never styled like hardware. It is not an exact ideal simulation, so the verification kinds below (equivalence, agreement, challenge verdicts on ideal results) never accept it: the places that re-read a stored run refuse a noisy record explicitly. The one verdict that uses a noisy run is the challenge check `NoisyOutcomeShare`, which the server runs itself with a fixed, seeded configuration.
 
 ## 4. Verification kinds
 

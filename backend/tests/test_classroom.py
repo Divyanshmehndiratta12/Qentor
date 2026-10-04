@@ -643,8 +643,8 @@ class TestDashboard(ClassroomCase):
             self.assertEqual((lesson["started"], lesson["completed"], lesson["developing"], lesson["assessment_answered"], lesson["assessment_correct"]), (0, 0, 0, 0, 0))
         for challenge in d["challenges"]:
             self.assertEqual((challenge["started"], challenge["attempts"], challenge["solved_learners"], challenge["failure_patterns"]), (0, 0, 0, []))
-        self.assertEqual(len(d["lessons"]), 18)
-        self.assertEqual(len(d["challenges"]), 19)
+        self.assertEqual(len(d["lessons"]), 19)
+        self.assertEqual(len(d["challenges"]), 20)
         self.assertIn("Anonymous classroom data", d["data_note"])
         self.assertEqual(d["class_info"], {"class_code": code, "title": "Empty", "created_at": d["class_info"]["created_at"]})
 

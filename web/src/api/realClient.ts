@@ -28,6 +28,8 @@ import {
   GradeErrorDetailSchema,
   LessonCatalogResponseSchema,
   MultiInputTestResponseSchema,
+  NoiseCompareResponseSchema,
+  NoiseModelsResponseSchema,
   OptimizeResponseSchema,
   ReasoningResponseSchema,
   RegradeResponseSchema,
@@ -44,6 +46,7 @@ import {
 } from '@/provenance/schema'
 import * as classroom from './classroomHttp'
 import { quantumValueFromExecuteResponse } from './executeValue'
+import { mapNoiseCatalog, mapNoiseResult } from './noiseMap'
 import { mapQubitState } from './qubitStateMap'
 import { learnerHeaders } from './learnerToken'
 import {
@@ -51,6 +54,7 @@ import {
   GenerationFailedError,
   GenerationUnavailableError,
   GradeRejectedError,
+  NoiseRejectedError,
   TraceRejectedError,
   type ApiClient,
   type AgreementResult,
@@ -89,6 +93,9 @@ import {
   type MultiInputTestCase,
   type MultiInputTestResult,
   type ModificationInput,
+  type NoiseCatalog,
+  type NoiseCompareInput,
+  type NoiseCompareResult,
   type OptimizationResult,
   type ReasoningRequestInput,
   type ReasoningResult,
@@ -627,6 +634,41 @@ export class RealApiClient implements ApiClient {
       default:
         return { ...common, intent: response.intent }
     }
+  }
+
+  /** GET /api/noise/models: the server's noise models and the Noise Lab's limits. */
+  async listNoiseModels(): Promise<NoiseCatalog> {
+    let res: Response
+    try {
+      res = await fetch(`${this.baseUrl}/api/noise/models`)
+    } catch (err) {
+      throw new BackendUnavailableError(`could not reach the Qentor backend: ${err instanceof Error ? err.message : String(err)}`)
+    }
+    if (!res.ok) throw await noiseRejection(res)
+    return mapNoiseCatalog(NoiseModelsResponseSchema.parse(await res.json()))
+  }
+
+  /**
+   * POST /api/noise/compare. The body is the circuit and the learner's choices: a model name, an optional strength, shots and an optional
+   * seed. There is no field through which a count, a probability or a distance could be sent, and nothing here adds noise to anything: the
+   * ideal and noisy runs are both made by the server's simulator and arrive as stored records.
+   */
+  async compareNoise(input: NoiseCompareInput): Promise<NoiseCompareResult> {
+    const body: Record<string, unknown> = { circuit: CircuitSchema.parse(input.circuit), noise_model: input.noiseModel, shots: input.shots }
+    if (input.noiseStrength !== null && input.noiseStrength !== undefined) body.noise_strength = input.noiseStrength
+    if (input.seed !== null && input.seed !== undefined) body.seed = input.seed
+    let res: Response
+    try {
+      res = await fetch(`${this.baseUrl}/api/noise/compare`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+    } catch (err) {
+      throw new BackendUnavailableError(`could not reach the Qentor backend: ${err instanceof Error ? err.message : String(err)}`)
+    }
+    if (!res.ok) throw await noiseRejection(res)
+    return mapNoiseResult(NoiseCompareResponseSchema.parse(await res.json()))
   }
 
   async variationalSweep(input: VariationalSweepInput): Promise<VariationalSweepResult> {
@@ -1347,6 +1389,29 @@ async function safeTutorErrorDetail(res: Response): Promise<string> {
     return (detail as { message: string }).message
   }
   return safeErrorDetail(res)
+}
+
+/**
+ * A refused or failed noise request as an error: the server's own words and its stable code. A structured refusal
+ * (`{detail: {code, message}}`), a plain string and FastAPI's list of validation problems all read as sentences, never as raw JSON.
+ */
+async function noiseRejection(res: Response): Promise<NoiseRejectedError> {
+  let message = `HTTP ${res.status}`
+  let code: string | null = null
+  try {
+    const detail = (await res.json())?.detail
+    const structured = TraceErrorDetailSchema.safeParse(detail)
+    if (typeof detail === 'string') message = detail
+    else if (structured.success) {
+      message = structured.data.message
+      code = structured.data.code
+    } else if (Array.isArray(detail)) {
+      message = detail.map((d) => `${Array.isArray(d?.loc) ? d.loc.slice(1).join('.') : 'request'}: ${String(d?.msg ?? 'invalid')}`).join('; ')
+    }
+  } catch {
+    // keep the status line
+  }
+  return new NoiseRejectedError(message, code, res.status)
 }
 
 async function safeErrorDetail(res: Response): Promise<string> {

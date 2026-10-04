@@ -37,6 +37,7 @@ HEAVY_PREFIXES = (
     "/api/test/",
     "/api/compare/",
     "/api/variational/",
+    "/api/noise/",
     "/api/reasoning/",
     "/api/debug",
     "/api/challenges/",

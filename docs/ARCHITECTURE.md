@@ -16,9 +16,9 @@ Browser (React + TypeScript)
 FastAPI  ──────────────────────────────────────────────────────────────
   api/            HTTP routes, request validation (pydantic), static serving of web/dist
   circuit/        canonical model, OpenQASM 3 emitter and parser, hashing, Qiskit/Cirq/PennyLane code views, the safe SDK-code reader (parses, never executes; see §17)
-  execution/      backend adapters (Aer, Cirq, PennyLane), trace, Bloch vectors, per-qubit reduced states, amplitude view, limits, sanity checks
-  verification/   equivalence, cross-backend agreement, multi-input harness, optimiser, experiment comparison
-  challenges/     challenge definitions, the nineteen challenges, the deterministic evaluator
+  execution/      backend adapters (Aer, Cirq, PennyLane), noise.py (Aer noise models and noisy shots, density matrix, 8 qubits), trace, Bloch vectors, per-qubit reduced states, amplitude view, limits, sanity checks
+  verification/   equivalence, cross-backend agreement, multi-input harness, optimiser, experiment comparison, noise_compare (ideal vs noisy metrics and sentences)
+  challenges/     challenge definitions, the twenty challenges, the deterministic evaluator
   lessons/        lesson models (a server-side Lesson with the answer key, a PublicLesson without it), content, registry, concept-check grading
   content/        cross-catalog content validation (lessons, challenges, gate support, routes, the simulator); run by tests and a script, never at request time
   tutor/          fact sheets, LLM adapter, claim guard, deterministic answers, debugger, comparison facts
@@ -122,7 +122,7 @@ class ExecutionAdapter(Protocol):
 
 ## 6. Backend adapters
 
-> **As built:** Qiskit Aer, Cirq and PennyLane are built and selectable in the Lab; the same circuit is compared across them on the server. **Not built:** IBM recorded and live adapters, the Aer noise model, qBraid, the stabilizer method. The UI shows Recorded and Live QPU as unavailable ("soon"); no hardware result of any kind exists in this build.
+> **As built:** Qiskit Aer, Cirq and PennyLane are built and selectable in the Lab; the same circuit is compared across them on the server. The Noise Lab (`NOISE_LAB.md`) runs a circuit ideally and under a simple noise model on Aer only. **Not built:** IBM recorded and live adapters, qBraid, the stabilizer method, noisy modes for Cirq and PennyLane. The UI shows Recorded and Live QPU as unavailable ("soon"); no hardware result of any kind exists in this build.
 
 | Adapter | Priority | Implementation | Used for |
 |---|---|---|---|
@@ -131,7 +131,7 @@ class ExecutionAdapter(Protocol):
 | PennyLane | P0, drops to P1 if install fails | `qml.device("default.qubit")` with a QNode built from the model. | Run-on-PennyLane and cross-backend agreement |
 | IBM recorded | P0 | Read-only lookup in `backend/data/hardware_runs/` by circuit hash. Files come from `backend/scripts/record_hardware.py` (not built). | Reality-check |
 | IBM live | P1 | `qiskit-ibm-runtime` SamplerV2 submit, then poll by job id over plain HTTP. No queue infrastructure. | Optional live run |
-| Aer noise model | P1 | Aer with a noise model from a fake IBM backend. Labelled SIMULATION · NOISE MODEL. | Circuits without a recorded run |
+| Aer noise model | P1, built as the Noise Lab | Aer with a simple, named, bounded noise model (not a fake IBM backend; no device calibration). Labelled "Simulated noise", SIMULATION, mode `noisy_shots`. | Seeing what noise does to a circuit's outcomes |
 | qBraid | P2 | — | — |
 | Aer stabilizer | P2 | `method="stabilizer"` for Clifford-only circuits. | Deck p4 "can use" |
 
@@ -230,6 +230,7 @@ server process. Recorded hardware runs are not built.
 | `POST /api/variational/sweep`, `POST /api/variational/optimize` | The one-parameter variational (VQE-style) demonstration of lesson 17: `⟨Z⟩` of `RY(θ)` read from backend statevectors, a parameter sweep and a parameter-shift gradient loop; every point carries its run's provenance (see `VARIATIONAL.md`) |
 | `POST /api/reasoning/analyze`, `POST /api/reasoning/what-if/preview` | The quantum reasoning engine: probability, optimise, what-if, trace change, compare, debug as structured intents; each analysis is one provenance record whose facts the tutor reads (see `REASONING_ENGINE.md`). The preview shows a what-if's counterfactual circuit before anything runs |
 | `POST /api/compare/experiments`, `POST /api/tutor/comparison` | Compare two real runs; ask the tutor about the recorded comparison |
+| `GET /api/noise/models`, `POST /api/noise/compare` | The Noise Lab: the bounded noise models and limits; run a circuit ideally and under a noise model on Aer, store three SIMULATION records (ideal, noisy `noisy_shots`, comparison) and return both runs with the comparison. Structured `NOISE_*` errors; see `NOISE_LAB.md` |
 | `POST /api/tutor`, `GET /api/lessons`, `GET /api/health` | Tutor (result, lesson, trace-step context), lesson catalog (a concept check is served as its question and options only: no answer key, no explanation), liveness |
 | `POST /api/lessons/{lesson_id}/concept-checks/{check_id}/grade`, `POST /api/assessments/regrade` | The server grades a concept-check selection against the lesson's own key and returns correctness and the explanation; the batch form grades saved selections again after a reload (each on its own, so one stale entry cannot sink the rest). A malformed body is `422 GRADE_REQUEST_INVALID`, structured like every other refusal |
 

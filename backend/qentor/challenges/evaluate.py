@@ -26,6 +26,7 @@ from qentor.circuit.hashing import circuit_hash
 from qentor.circuit.model import Circuit, GateName, GateOp
 from qentor.execution.adapter import ExecutionAdapter, ExecutionResult
 from qentor.execution.expectation import z_expectation
+from qentor.execution.noise import NoiseError, make_noise_config, run_noisy_shots
 from qentor.execution.reduced_state import qubit_bloch
 from qentor.execution.trace import (
     ExecutionTrace,
@@ -42,6 +43,7 @@ from .models import (
     EndsInBasisState,
     EquivalentTo,
     ExpectationMatches,
+    NoisyOutcomeShare,
     PassesThroughSuperposition,
     Point,
     ProbabilitiesMatch,
@@ -316,6 +318,7 @@ def _judge_states(
     anchor_start: int | None,
     circuit: Circuit,
     run_trace: Callable[[Circuit], ExecutionTrace],
+    run_noisy: "Callable[[NoisyOutcomeShare], tuple[ExecutionResult, str | None]] | None" = None,
 ) -> list[CheckOutcome]:
     steps = trace.steps
     last = len(steps) - 1
@@ -458,6 +461,29 @@ def _judge_states(
                 )
             )
 
+        elif isinstance(check, NoisyOutcomeShare):
+            assert run_noisy is not None  # evaluate_challenge always supplies it
+            try:
+                noisy, record_id = run_noisy(check)
+            except NoiseError as exc:
+                outcomes.append(CheckOutcome(**base, passed=False, detail=f"This circuit cannot be run under the challenge's simulated noise: {exc.message}", result_id=None))
+                continue
+            share = (noisy.counts or {}).get(check.outcome, 0) / check.shots
+            ok = share >= check.min_share
+            outcomes.append(
+                CheckOutcome(
+                    **base,
+                    passed=ok,
+                    detail=(
+                        "Under the challenge's simulated noise, enough shots still landed on the required outcome."
+                        if ok
+                        else "Under the challenge's simulated noise, too few shots landed on the required outcome: every gate is another chance for noise to disturb the qubits it touches."
+                    ),
+                    evidence=[Evidence(name="noisy_share_of_required_outcome", value=share), Evidence(name="required_share", value=check.min_share)],
+                    result_id=record_id,
+                )
+            )
+
         elif isinstance(check, PassesThroughSuperposition):
             middle = steps[1:last]
             maxima = [(max(probabilities(s.statevector)), s) for s in middle]
@@ -547,7 +573,12 @@ def evaluate_challenge(
             variant, adapter, max_qubits=max_qubits, max_operations=max_operations, record_execution=record_execution
         )
 
-    states = _judge_states(challenge, adapter, trace, anchor_start, circuit, run_trace)
+    def run_noisy(check: NoisyOutcomeShare) -> tuple[ExecutionResult, str | None]:
+        # The learner's circuit under the check's own fixed, seeded configuration, run by Aer's noisy simulator and recorded like any other run.
+        result = run_noisy_shots(circuit, check.shots, make_noise_config(check.noise_model, check.noise_strength, check.seed))
+        return result, (record_execution(result, chash) if record_execution else None)
+
+    states = _judge_states(challenge, adapter, trace, anchor_start, circuit, run_trace, run_noisy)
     checks = [*structure, *states]
     return ChallengeEvaluation(
         challenge_id=challenge.id,

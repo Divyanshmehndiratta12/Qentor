@@ -51,6 +51,7 @@ CAPABILITY_ROUTES: dict[str, tuple[str, str]] = {
     "multi_input_test": ("POST", "/api/test/multi-input"),
     "optimize": ("POST", "/api/optimize"),
     "variational_sweep": ("POST", "/api/variational/sweep"),
+    "noise_compare": ("POST", "/api/noise/compare"),
 }
 
 _SHOTS_PROBE = 16

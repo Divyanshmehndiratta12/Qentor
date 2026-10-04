@@ -39,9 +39,18 @@ const CAPABILITY_LABEL: Record<LabCapability, string> = {
   multi_input_test: 'multi-input test',
   optimize: 'optimize',
   variational_sweep: 'variational sweep',
+  noise_compare: 'ideal-versus-noisy comparison',
 }
 
-export function LessonPlayer({ lesson, onOpenLab }: { lesson: Lesson; onOpenLab: (circuit: Circuit) => void }) {
+export function LessonPlayer({
+  lesson,
+  onOpenLab,
+  onOpenNoiseLab,
+}: {
+  lesson: Lesson
+  onOpenLab: (circuit: Circuit) => void
+  onOpenNoiseLab?: (circuit: Circuit) => void
+}) {
   const progress = useLearnStore((s) => s.lessonProgress[lesson.id])
   const setActiveSectionIndex = useLearnStore((s) => s.setActiveSectionIndex)
   const completeSection = useLearnStore((s) => s.completeSection)
@@ -143,15 +152,22 @@ export function LessonPlayer({ lesson, onOpenLab }: { lesson: Lesson; onOpenLab:
               <button
                 type="button"
                 disabled={!lesson.linkedCircuit}
-                onClick={() => lesson.linkedCircuit && onOpenLab(lesson.linkedCircuit)}
+                onClick={() => {
+                  if (!lesson.linkedCircuit) return
+                  // A noise lab opens in the Noise Lab (the same circuit on the same canvas); every other lab opens in the Lab.
+                  if (section.capability === 'noise_compare' && onOpenNoiseLab) onOpenNoiseLab(lesson.linkedCircuit)
+                  else onOpenLab(lesson.linkedCircuit)
+                }}
                 className="rounded-lg bg-violet-glow px-3 py-1.5 text-xs font-semibold text-void-950 disabled:cursor-not-allowed disabled:opacity-40"
               >
-                Open in Lab
+                {section.capability === 'noise_compare' && onOpenNoiseLab ? 'Open in Noise Lab' : 'Open in Lab'}
               </button>
               <p className="font-mono-qasm text-[10px] text-void-200">
                 {section.capability === 'variational_sweep'
                   ? 'the sweep and the optimiser below are computed by the server — nothing is computed here'
-                  : `uses the existing ${CAPABILITY_LABEL[section.capability]} capability — nothing is computed here`}
+                  : section.capability === 'noise_compare'
+                    ? 'the ideal and the noisy run are both made by the server on a simulator, and the noise is simulated — nothing is computed here'
+                    : `uses the existing ${CAPABILITY_LABEL[section.capability]} capability — nothing is computed here`}
               </p>
               {section.capability === 'variational_sweep' && <VariationalLab />}
             </div>

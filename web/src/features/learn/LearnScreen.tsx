@@ -27,9 +27,12 @@ import { useChallengeStore } from '@/features/challenges/store'
 
 export function LearnScreen({
   onOpenLab,
+  onOpenNoiseLab,
   onOpenChallenge,
 }: {
   onOpenLab: (circuit: Circuit) => void
+  /** Opens a lesson's circuit in the Noise Lab (a lesson whose lab is the ideal-versus-noisy comparison). */
+  onOpenNoiseLab?: (circuit: Circuit) => void
   onOpenChallenge?: (challengeId: string) => void
 }) {
   const lessons = useLearnStore((s) => s.lessons)
@@ -134,6 +137,7 @@ export function LearnScreen({
             progress={lessonProgress[selectedLesson.id]}
             started={startedLessonIds.has(selectedLesson.id)}
             onOpenLab={onOpenLab}
+            onOpenNoiseLab={onOpenNoiseLab}
             onOpenChallenge={onOpenChallenge}
           />
         ) : (

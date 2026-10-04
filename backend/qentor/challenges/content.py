@@ -1,4 +1,4 @@
-"""The nineteen challenges. Data only: every verdict is computed by ``qentor.challenges.evaluate`` from backend statevectors.
+"""The twenty challenges. Data only: every verdict is computed by ``qentor.challenges.evaluate`` from backend statevectors.
 
 Hints are written to be deterministic and safe to show: they name gates and ideas, never a quantum result the learner has
 not produced (no probabilities or amplitudes appear here).
@@ -54,6 +54,7 @@ from .models import (
     EndsInBasisState,
     EquivalentTo,
     ExpectationMatches,
+    NoisyOutcomeShare,
     PassesThroughSuperposition,
     Point,
     ProbabilitiesMatch,
@@ -921,5 +922,60 @@ RAW_CHALLENGES: list[Challenge] = [
         ],
         success_message="The backend's state for your angle has the lowest expectation value of Z: the arrow points straight down. In a variational algorithm, the classical loop searches for exactly this kind of angle.",
         reference_solution=circ(1, [g("ry", 0, angle=math.pi)]),
+    ),
+    Challenge(
+        id="noise-shorten-circuit",
+        lesson_id="quantum-noise",
+        title="Shorten it so noise cannot spoil it",
+        goal=(
+            "This circuit prepares the outcome 11 and measures both qubits, but it does it with far more gates than it needs. In an ideal "
+            "simulation every version gives 11. In a noisy simulation every gate is another chance for the qubits it touches to be disturbed. "
+            "Rebuild it so it still gives 11 and still gives it on nine in ten of the shots when the server runs it under its fixed simulated noise "
+            "(depolarizing noise after every gate). The server runs your circuit on Qiskit Aer with that noise and counts the shots itself."
+        ),
+        difficulty="intermediate",
+        success_condition=(
+            "Without noise the circuit gives 11, and in the server's fixed noisy simulation at least nine in ten of the shots still land on 11. "
+            "It is a simulation of simple textbook noise, not a real device."
+        ),
+        constraints=Constraints(
+            num_qubits=2,
+            num_clbits=2,
+            allowed_gates=[GateName.X, GateName.H, GateName.Z, GateName.CX, GateName.SWAP, GateName.MEASURE],
+            max_ops=12,
+            must_measure=[0, 1],
+        ),
+        starter_circuit=circ(2, [g("x", 0), g("x", 0), g("x", 0), g("x", 1), g("x", 1), g("x", 1), m(0, 0), m(1, 1)], 2),
+        checks=[
+            ProbabilitiesMatch(
+                id="ideal.outcome",
+                label="Without noise, the circuit gives the outcome 11",
+                hint_index=1,
+                misconception="Removing gates is only allowed to make the circuit shorter, not to change its answer: both qubits must still end up as 1 in an ideal run.",
+                experiment="Run the circuit in the Lab in statevector mode and look at the final state: which outcome has all the probability?",
+                target=circ(2, [g("x", 0), g("x", 1)]),
+            ),
+            NoisyOutcomeShare(
+                id="noisy.share",
+                label="Under the server's simulated noise, enough shots still give 11",
+                hint_index=2,
+                misconception="A gate that changes nothing in an ideal simulation still gives noise a chance to disturb the qubits it touches, so extra gates can only make the noisy result worse.",
+                experiment="Open the Noise Lab, load this circuit and run it with depolarizing noise: how often does the ideal outcome appear? Remove a pair of gates that cancel and run it again.",
+                outcome="11",
+                noise_model="depolarizing",
+                noise_strength=0.08,
+                shots=8000,
+                seed=7,
+                min_share=0.9,
+            ),
+        ],
+        hints=[
+            "The circuit is already correct in an ideal run. The task is to keep that answer while giving noise fewer chances to act.",
+            "Both qubits have to end as 1, and an X gate flips a qubit once. Which of the X gates on each qubit could you remove without changing the final answer?",
+            "Noise acts after every gate, on every qubit that gate touches. Fewer gates, and gates that touch fewer qubits, give it fewer chances.",
+            "Three X gates on one qubit do what one X gate does. One X on each qubit is enough.",
+        ],
+        success_message="Same answer, fewer gates: each gate you removed was one less chance for noise to disturb a qubit. That is why shorter circuits are kinder to noisy hardware, and why this server only ever claims it simulated the noise.",
+        reference_solution=circ(2, [g("x", 0), g("x", 1), m(0, 0), m(1, 1)], 2),
     ),
 ]

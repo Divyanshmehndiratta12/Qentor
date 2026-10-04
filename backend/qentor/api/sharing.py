@@ -116,6 +116,7 @@ def create_experiment(
         record = app_module._store.get(request.result_id)
         if record is None:
             raise _error(404, SHARE_INVALID, f"no run found with result id {request.result_id!r}")
+        app_module._refuse_noise_record(record, "sharing")
         if record.circuit_hash != chash:
             raise _error(422, SHARE_INVALID, "that run is not a run of this circuit")
         if record.verification_status is not ExecutionStatus.STATE_CHECKED:

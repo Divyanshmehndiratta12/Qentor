@@ -3,7 +3,7 @@
 A challenge is data: a goal, the circuit the learner starts from, structural constraints, and a list of *checks*.
 Nothing here computes a quantum quantity. Every check is judged by ``qentor.challenges.evaluate`` from statevectors the
 execution layer produced (the learner's circuit traced on Qiskit Aer, and the reference circuits each check names, run
-the same way). An LLM is never consulted: pass/fail is a deterministic function of backend states.
+the same way), or, for ``NoisyOutcomeShare``, from the counts of a seeded noisy simulation. An LLM is never consulted: pass/fail is a deterministic function of backend states.
 
 Two things a learner never receives from the API (see ``PublicChallenge``): the reference solution, and the target
 circuits behind each check. Those are how the answer is judged, not part of the question.
@@ -20,6 +20,7 @@ from typing import Annotated, Literal, Union
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from qentor.circuit.model import Circuit, GateName, GateOp
+from qentor.execution.noise import NOISE_MAX_QUBITS, NOISE_MODEL_SPECS, NoiseModelName
 
 Difficulty = Literal["beginner", "intermediate", "advanced"]
 
@@ -124,6 +125,25 @@ class ExpectationMatches(_Check):
     tolerance: float = Field(gt=0, le=1e-3, default=1e-6)
 
 
+class NoisyOutcomeShare(_Check):
+    """Under a FIXED, named, seeded noise model, at least ``min_share`` of the noisy shots land on ``outcome``.
+
+    The learner's circuit is run on Aer's noisy simulator (``qentor.execution.noise``) with exactly the configuration written here, so the
+    verdict is a deterministic function of the simulator's own counts: the same circuit gives the same answer every time. Nothing is computed
+    from the circuit's gate count, and nothing comes from the browser. Because gate noise acts after every gate on every qubit the gate
+    touches, a circuit that reaches the right outcome with fewer disturbed qubit-steps keeps more of its shots on it; that is what this check
+    rewards, and it is why it can tell two circuits that are identical in an ideal simulation apart. ``outcome`` is a bitstring over the
+    classical bits, ``c[n-1] ... c[0]``."""
+
+    kind: Literal["noisy_outcome_share"] = "noisy_outcome_share"
+    outcome: str = Field(min_length=1, max_length=8, pattern=r"^[01]+$")
+    noise_model: Literal["depolarizing", "bit_flip", "phase_flip", "amplitude_damping", "readout_error"]
+    noise_strength: float = Field(gt=0, le=0.5)
+    shots: int = Field(ge=100, le=20_000)
+    seed: int = Field(ge=0, le=2**31 - 1)
+    min_share: float = Field(gt=0, lt=1)
+
+
 class PassesThroughSuperposition(_Check):
     """Some state after the first operation and before the last is a genuine superposition: its most likely outcome has
     probability no greater than 1/2 (within tolerance), so it is not one computational-basis state."""
@@ -145,6 +165,7 @@ Check = Annotated[
         QubitStateMatches,
         EquivalentTo,
         ExpectationMatches,
+        NoisyOutcomeShare,
         PassesThroughSuperposition,
         EndsInBasisState,
     ],
@@ -213,6 +234,16 @@ class Challenge(BaseModel):
             qubit = getattr(check, "qubit", None)
             if qubit is not None and qubit >= self.constraints.num_qubits:
                 raise ValueError(f"challenge '{self.id}': check '{check.id}' names qubit {qubit}, outside the circuit")
+            if isinstance(check, NoisyOutcomeShare):
+                if len(check.outcome) != self.constraints.num_clbits:
+                    raise ValueError(f"challenge '{self.id}': check '{check.id}' names an outcome of {len(check.outcome)} bits, but the circuit has {self.constraints.num_clbits} classical bits")
+                if sorted(self.constraints.must_measure) != list(range(self.constraints.num_qubits)):
+                    raise ValueError(f"challenge '{self.id}': check '{check.id}' reads measured outcomes, so every qubit must be in must_measure")
+                if self.constraints.num_qubits > NOISE_MAX_QUBITS:
+                    raise ValueError(f"challenge '{self.id}': a noisy check is limited to {NOISE_MAX_QUBITS} qubits")
+                spec = NOISE_MODEL_SPECS[NoiseModelName(check.noise_model)]
+                if not spec.min_strength <= check.noise_strength <= spec.max_strength:
+                    raise ValueError(f"challenge '{self.id}': check '{check.id}' uses a {check.noise_model} strength outside that model's range")
             replacement = getattr(check, "replace_anchor", None)
             if replacement is not None:
                 if not self.constraints.anchor:

@@ -1211,6 +1211,58 @@ WEB += [
 ]
 
 
+# --- Noise Lab sprint: simulated noise on Aer, the ideal-versus-noisy comparison, the noise lesson's challenge and the browser's side ---
+_NE = "backend/qentor/execution/noise.py"
+_NC = "backend/qentor/verification/noise_compare.py"
+_NA = "backend/qentor/api/noise.py"
+_EX = ["test_noise_execution.py", "test_api_noise.py"]
+_CMP = ["test_noise_compare.py", "test_api_noise.py"]
+_API = ["test_api_noise.py"]
+_CH = ["test_noise_challenge.py"]
+BACKEND += [
+    Mutant("noise: the noisy run is given no noise model", _NE, "noise_model=build_noise_model(config), seed_simulator=config.seed)", "seed_simulator=config.seed)", _EX),
+    Mutant("noise: the noisy run ignores the seed", _NE, "noise_model=build_noise_model(config), seed_simulator=config.seed)", "noise_model=build_noise_model(config))", _EX),
+    Mutant("noise: the noisy run uses Aer's automatic method (which asks for 64 GB at 16 qubits)", _NE, "AerSimulator(method=NOISE_SIMULATION_METHOD, noise_model=", "AerSimulator(noise_model=", _EX),
+    Mutant("noise: a strength outside the model's range is accepted", _NE, "elif not spec.min_strength <= value <= spec.max_strength:", "elif False:", _EX),
+    Mutant("noise: the shot limit is not enforced", _NE, "if not 1 <= shots <= NOISE_MAX_SHOTS:", "if False:", _EX),
+    Mutant("noise: the qubit limit is not enforced", _NE, "if circuit.num_qubits > NOISE_MAX_QUBITS:", "if False:", _EX),
+    Mutant("noise: depolarizing noise is built as a bit flip", _NE, "one = depolarizing_error(p, 1)", 'one = pauli_error([("X", p), ("I", 1 - p)])', _EX),
+    Mutant("noise: readout error flips with the wrong probability", _NE, "ReadoutError([[1 - p, p], [p, 1 - p]])", "ReadoutError([[p, 1 - p], [1 - p, p]])", _EX),
+    Mutant("noise: a noisy run is stored as an ordinary shots run", _NE, 'execution_mode="noisy_shots",', 'execution_mode="shots",', _EX),
+    Mutant("noise: the noise is left out of the stored record", _NE, 'payload["noise"] = self.noise', "pass", _EX),
+    Mutant("noise: the total variation distance is not halved", _NC, "for r in rows) / 2", "for r in rows)", _CMP),
+    Mutant("noise: the share on the ideal outcomes counts every noisy shot", _NC, "on_ideal = sum(c for o, c in noisy_counts.items() if ideal_counts.get(o, 0) > 0)", "on_ideal = sum(noisy_counts.values())", _CMP),
+    Mutant("noise: a tie for the ideal run's most frequent outcome reports only the first", _NC, "if ideal_counts[o] == top_count\n    ]", "if ideal_counts[o] == top_count and o == sorted(ideal_counts)[0]\n    ]", _CMP),
+    Mutant("noise: counts that do not add up to the shots are compared anyway", _NC, "if sum(counts.values()) != shots:", "if False:", _CMP),
+    Mutant("noise: the noisy block is the ideal run's record", _NA, "noisy=_run_block(noisy_record, noise_info),", "noisy=_run_block(ideal_record, noise_info),", _API),
+    Mutant("noise: the comparison is made from the noisy counts twice", _NA, 'compare_noise(ideal_record.payload["counts"], noisy_record.payload["counts"], request.shots, config)', 'compare_noise(noisy_record.payload["counts"], noisy_record.payload["counts"], request.shots, config)', _API),
+    Mutant("noise: another backend is accepted for a noisy run", _NA, 'if request.backend != "qiskit-aer":', "if False:", _API),
+    Mutant("noise: a noise record can be explained, shared or compared as an ordinary run", "backend/qentor/api/app.py", "    if record.execution_mode in NOISE_RECORD_MODES:", "    if False:", _API),
+    Mutant("noise: noise requests are not gated as heavy work", "backend/qentor/api/guards.py", '    "/api/noise/",\n', "", _API),
+    Mutant("noise: the noise challenge passes whatever the noisy simulation says", "backend/qentor/challenges/evaluate.py", "ok = share >= check.min_share", "ok = True", _CH),
+    Mutant("noise: the noise challenge asks the simulator for a different noise than it states", "backend/qentor/challenges/evaluate.py", "make_noise_config(check.noise_model, check.noise_strength, check.seed)", "make_noise_config(check.noise_model, 0.01, check.seed)", _CH),
+    Mutant("noise: the noise challenge's threshold is exclusive", "backend/qentor/challenges/evaluate.py", "ok = share >= check.min_share", "ok = share > check.min_share", _CH),
+    Mutant("noise: a noisy challenge check may leave a qubit unmeasured", "backend/qentor/challenges/models.py", "if sorted(self.constraints.must_measure) != list(range(self.constraints.num_qubits)):", "if False:", _CH),
+]
+_NW = ["src/features/noise", "src/api/realClient.noise.test.ts"]
+WEB += [
+    Mutant("noise: the noisy column is filled from the ideal counts", "web/src/api/noiseMap.ts", "noisyCount: toQuantumValue(row.noisy_count, noisy.provenance),", "noisyCount: toQuantumValue(row.ideal_count, noisy.provenance),", _NW),
+    Mutant("noise: a noisy count wears the ideal run's provenance", "web/src/api/noiseMap.ts", "noisyCount: toQuantumValue(row.noisy_count, noisy.provenance),", "noisyCount: toQuantumValue(row.noisy_count, ideal.provenance),", _NW),
+    Mutant("noise: a difference wears the ideal run's provenance", "web/src/api/noiseMap.ts", "delta: q(row.delta),", "delta: toQuantumValue(row.delta, ideal.provenance),", _NW),
+    Mutant("noise: the ideal-only note is never shown", "web/src/features/noise/NoiseResults.tsx", "{!noisy && (", "{false && (", _NW),
+    Mutant("noise: the distance shown is another metric", "web/src/features/noise/NoiseResults.tsx", "quantum={comparison.metrics.totalVariationDistance} render={freq}", "quantum={comparison.metrics.noisyShareOnIdealOutcomes} render={freq}", _NW),
+    Mutant("noise: a result is shown against a different circuit", "web/src/features/noise/NoiseResults.tsx", "if (resultKey !== circuitKey(circuit)) {", "if (false) {", _NW),
+    Mutant("noise: a failed run keeps the previous result", "web/src/features/noise/store.ts", "set({ result: null, resultCircuitKey: null, isRunning: false, error: failure(err) })", "set({ isRunning: false, error: failure(err) })", _NW),
+    Mutant("noise: a strength is sent for the no-noise model", "web/src/features/noise/store.ts", "noiseStrength: model === 'none' ? null : strength", "noiseStrength: strength", _NW),
+    Mutant("noise: choosing a model keeps the previous strength", "web/src/features/noise/store.ts", "set({ model, strength: info ? info.defaultStrength : 0 })", "set({ model })", _NW),
+    Mutant("noise: the request carries a count", "web/src/api/realClient.ts", "shots: input.shots }\n    if (input.noiseStrength", "shots: input.shots, counts: {} }\n    if (input.noiseStrength", _NW),
+    Mutant("noise: a noisy run's badge no longer says simulated noise", "web/src/provenance/ProvenanceBadge.tsx", "provenance.executionMode === NOISY_EXECUTION_MODE", "false", _NW),
+    Mutant("noise: a strength the server would refuse can be sent", "web/src/features/noise/NoiseControls.tsx", "const blocked = Boolean(sProblem || hProblem || dProblem)", "const blocked = Boolean(hProblem || dProblem)", _NW),
+    Mutant("noise: readout error is drawn as gate noise", "web/src/features/noise/NoiseWhere.tsx", "const active = stage.id === appliesTo", "const active = stage.id === 'gates'", _NW),
+    Mutant("noise: the noise lesson's lab opens the ordinary Lab", "web/src/features/learn/LessonPlayer.tsx", "if (section.capability === 'noise_compare' && onOpenNoiseLab) onOpenNoiseLab(lesson.linkedCircuit)", "if (false) onOpenNoiseLab?.(lesson.linkedCircuit)", _NW),
+]
+
+
 def run(cmd: list[str], cwd: Path) -> int:
     return subprocess.run(cmd, cwd=cwd, capture_output=True, text=True).returncode
 

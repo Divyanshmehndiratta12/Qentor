@@ -9,6 +9,9 @@
  *  - Learn: the lesson catalog (`GET /api/lessons`) and per-lesson detail —
  *    progression, explanation and objectives, not circuit editing.
  *
+ *  - Noise Lab: one circuit run ideally and under a named simulated noise model (Qiskit Aer), compared by the server. It edits the
+ *    Lab's own circuit; it computes nothing in the browser (`features/noise`).
+ *
  *  - Progress: the learner dashboard — overall progress, concept-check
  *    performance, mastery, needs-attention signals, next challenge and the
  *    local activity streak. Read-only over Learn state; it never touches Lab.
@@ -37,6 +40,7 @@ import { ChallengesScreen } from '@/features/challenges/ChallengesScreen'
 import { NextStep } from '@/features/challenges/NextStep'
 import { WelcomeCard, rememberWelcomeDismissed, welcomeDismissed } from '@/features/shell/WelcomeCard'
 import { ProgressScreen } from '@/features/progress/ProgressScreen'
+import { NoiseLabScreen } from '@/features/noise/NoiseLabScreen'
 import { TutorPanel, type Mode as TutorMode } from '@/features/tutor/TutorPanel'
 import { ClassroomScreen } from '@/features/classroom/ClassroomScreen'
 import { useClassroomStore } from '@/features/classroom/store'
@@ -157,6 +161,12 @@ function App() {
     goTo('lab')
   }
 
+  // A lesson whose lab is the ideal-versus-noisy comparison: its circuit goes onto the Lab's canvas (the one circuit) and the Noise Lab opens.
+  function openInNoiseLab(circuit: Circuit) {
+    loadCircuit(circuit)
+    goTo('noise')
+  }
+
   function openLesson(lessonId: string) {
     selectLesson(lessonId)
     goTo('learn')
@@ -229,8 +239,10 @@ function App() {
         </>
       ) : screen === 'learn' ? (
         <main id="main-content" tabIndex={-1} className="min-h-0 flex-1 outline-none">
-          <LearnScreen onOpenLab={openInLab} onOpenChallenge={openChallenge} />
+          <LearnScreen onOpenLab={openInLab} onOpenNoiseLab={openInNoiseLab} onOpenChallenge={openChallenge} />
         </main>
+      ) : screen === 'noise' ? (
+        <NoiseLabScreen />
       ) : screen === 'classroom' ? (
         <main id="main-content" tabIndex={-1} className="min-h-0 flex-1 overflow-auto bg-void-950 outline-none">
           <ClassroomScreen />

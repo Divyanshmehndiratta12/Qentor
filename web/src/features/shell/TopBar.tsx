@@ -26,7 +26,7 @@
 import { useBuildStore } from '@/features/build/store'
 import { ClassChip } from '@/features/classroom/ClassChip'
 
-export type Screen = 'lab' | 'learn' | 'challenges' | 'progress' | 'classroom' | 'shared'
+export type Screen = 'lab' | 'learn' | 'challenges' | 'progress' | 'noise' | 'classroom' | 'shared'
 
 const isMock = import.meta.env.VITE_USE_MOCK_API === 'true'
 
@@ -101,11 +101,12 @@ export function TopBar({ screen, onNavigate }: { screen: Screen; onNavigate: (sc
         <NavItem label="Learn" active={screen === 'learn'} onClick={() => onNavigate('learn')} />
         <NavItem label="Challenges" active={screen === 'challenges'} onClick={() => onNavigate('challenges')} />
         <NavItem label="Progress" active={screen === 'progress'} onClick={() => onNavigate('progress')} />
+        <NavItem label="Noise Lab" active={screen === 'noise'} onClick={() => onNavigate('noise')} />
       </nav>
       {screen === 'lab' && (
         <>
-          <span className="hidden h-4.5 w-px bg-void-400 md:block" />
-          <span className="hidden font-mono-qasm text-xs whitespace-nowrap text-slate-400 md:inline">
+          <span className="hidden h-4.5 w-px bg-void-400 2xl:block" />
+          <span className="hidden font-mono-qasm text-xs whitespace-nowrap text-slate-400 2xl:inline">
             lab / <span className="text-slate-200">{numQubits}q circuit · {numOps} op{numOps === 1 ? '' : 's'}</span>
           </span>
         </>
@@ -116,7 +117,7 @@ export function TopBar({ screen, onNavigate }: { screen: Screen; onNavigate: (sc
 
       {screen === 'lab' && (
         <div className="order-3 flex items-center gap-2.5 md:order-none">
-          <div className="hidden items-center gap-1 rounded-lg border border-void-500 bg-void-950 p-[3px] text-xs font-medium lg:flex">
+          <div className="hidden items-center gap-1 rounded-lg border border-void-500 bg-void-950 p-[3px] text-xs font-medium xl:flex">
             <ModeChip label="Simulator" dotClassName="bg-void-200" active />
             <ModeChip label="Recorded" dotClassName="bg-violet-glow" soon />
             <ModeChip label="Live QPU" dotClassName="bg-void-300" soon />
@@ -128,7 +129,7 @@ export function TopBar({ screen, onNavigate }: { screen: Screen; onNavigate: (sc
                 ? 'VITE_USE_MOCK_API=true — FIXTURE adapter, fixed at build time'
                 : 'Real backend adapter (server/qentor/execution/) — fixed at build time'
             }
-            className="hidden items-center gap-1.5 rounded-lg border border-void-400 px-2.5 py-1.5 font-mono-qasm text-xs font-medium whitespace-nowrap text-slate-200 lg:flex"
+            className="hidden items-center gap-1.5 rounded-lg border border-void-400 px-2.5 py-1.5 font-mono-qasm text-xs font-medium whitespace-nowrap text-slate-200 xl:flex"
           >
             {isMock ? 'FIXTURE · mock' : 'Qentor backend'}
             <span className="text-void-200">▾</span>

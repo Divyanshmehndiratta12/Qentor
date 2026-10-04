@@ -34,6 +34,7 @@ EXPECTED_LESSON_IDS = {
     "quantum-error-correction",
     "variational-vqe",
     "shors-algorithm",
+    "quantum-noise",
 }
 
 
@@ -101,6 +102,7 @@ class TestRealRegistryLoadsCleanly(unittest.TestCase):
             "quantum-error-correction",
             "variational-vqe",
             "shors-algorithm",
+            "quantum-noise",
         }
         with_question = {
             lesson.id

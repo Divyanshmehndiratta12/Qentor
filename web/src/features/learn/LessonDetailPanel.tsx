@@ -45,6 +45,7 @@ export function LessonDetailPanel({
   progress,
   started,
   onOpenLab,
+  onOpenNoiseLab,
   onOpenChallenge,
 }: {
   lesson: Lesson
@@ -52,6 +53,7 @@ export function LessonDetailPanel({
   progress: LessonProgress | undefined
   started: boolean
   onOpenLab: (circuit: Circuit) => void
+  onOpenNoiseLab?: (circuit: Circuit) => void
   /** Where a lesson's challenges lead. Optional: without it the practice card is not shown. */
   onOpenChallenge?: (challengeId: string) => void
 }) {
@@ -140,7 +142,7 @@ export function LessonDetailPanel({
         )}
       </div>
 
-      <LessonPlayer lesson={lesson} onOpenLab={onOpenLab} />
+      <LessonPlayer lesson={lesson} onOpenLab={onOpenLab} onOpenNoiseLab={onOpenNoiseLab} />
 
       {onOpenChallenge && <LessonChallenges lessonId={lesson.id} lessonComplete={complete} onOpenChallenge={onOpenChallenge} />}
     </div>

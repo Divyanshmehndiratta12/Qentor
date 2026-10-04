@@ -87,7 +87,7 @@ def aer_or_skip(case: unittest.TestCase) -> None:
 
 class TestStructure(unittest.TestCase):
     def test_it_is_lesson_eighteen_after_the_variational_lesson(self) -> None:
-        self.assertEqual(len(LESSONS), 18)
+        self.assertEqual(len(LESSONS), 19)  # the noise lesson follows (test_noise_lesson.py)
         self.assertEqual(LESSONS[17].id, ID)
         self.assertEqual(LESSONS[16].id, "variational-vqe")
 
@@ -150,7 +150,7 @@ class TestStructure(unittest.TestCase):
         pairs = {(m, r.path) for r in app_module.app.routes for m in getattr(r, "methods", ())}
         report = validate_content(known_routes=pairs)
         self.assertTrue(report.ok, "\n" + str(report))
-        self.assertEqual(report.checked["lessons"], 18)
+        self.assertEqual(report.checked["lessons"], 19)
 
 
 class TestProse(unittest.TestCase):

@@ -20,7 +20,7 @@ no console error or warning; no failed API response; the production process (def
 | # | Step | What is asserted |
 |---|---|---|
 | 1 | **Welcome** (J01) | The first visit shows Start learning / Try a challenge / Not now and says every number comes from a simulator on the server and the tutor never decides; the five-step path is behind "How Qentor works", closed until asked for |
-| 2 | **Learn** → Qubits & Measurement → **concept check** (J02) | The catalog has 18 lessons and no answer key; a wrong answer is "Not quite", a right one "Correct.", the explanation shown is the server's; the lab step offers **Open in Lab** |
+| 2 | **Learn** → Qubits & Measurement → **concept check** (J02) | The catalog has 19 lessons and no answer key; a wrong answer is "Not quite", a right one "Correct.", the explanation shown is the server's; the lab step offers **Open in Lab** |
 | 3 | **Open in Lab** (J02d) | The canvas holds exactly the server's circuit for the lesson |
 | 4 | **Build / edit** and **Run** (J03) | The learner clicks H, CX, M, M; Run sends the canonical circuit and the mode only; the answer carries a result id, circuit hash, backend, version and SIMULATION; every outcome and count on screen is the server's, labelled sampled, bit order stated |
 | 5 | **Trace** and **select a step** (J04) | One server record per operation plus the start; terminal measurements listed, not run; the selected step shows per-qubit Bloch cards with their provenance |
@@ -29,7 +29,7 @@ no console error or warning; no failed API response; the production process (def
 | 8 | **Optimize** (J06) | Original 3 → candidate 1 → equivalence check **Equivalent** → decision **Accepted**, all from the server's `VERIFIED_SHORTER`; the candidate has its own stored record; nothing changes until **Apply**; Apply is one undo step; the "no rule" example gives `NO_OPTIMIZATION_FOUND` with no candidate and no Apply |
 | 9 | **Challenge** (J07) | Submitting sends only the circuit; the verdict (passed, checks, result id) is the server's and the page agrees |
 | 10 | **Debug** (J08) | The report is the server's, from backend runs, with no model |
-| 11 | **Progress** (J09) | The learner's own record: one check answered, one challenge of 19 solved |
+| 11 | **Progress** (J09) | The learner's own record: one check answered, one challenge of 20 solved |
 | 12 | **Instructor / classroom** (J10) | A class is created (code and a one-time key shown once), the learner joins with an anonymous alias, answers a check and a challenge, and the dashboard shows the sample with captioned tables and no name or e-mail |
 | 13 | **Share an experiment** (J11) | The request is the circuit and a run id only; the stored share has no owner, class, token, key or path |
 | 14 | **Open the shared experiment** (J11) | A read-only page from stored data with its provenance and nothing to edit |

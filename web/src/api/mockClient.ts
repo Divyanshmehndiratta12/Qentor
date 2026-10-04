@@ -57,6 +57,9 @@ import type {
   MultiInputTestCase,
   ModificationInput,
   MultiInputTestResult,
+  NoiseCatalog,
+  NoiseCompareInput,
+  NoiseCompareResult,
   VariationalOptimizationResult,
   VariationalOptimizeInput,
   VariationalSweepInput,
@@ -188,6 +191,15 @@ export class MockApiClient implements ApiClient {
   /** Deliberately NOT faked: a comparison is computed by the server from two of its own records. */
   async compareExperiments(_a: { resultId: string; circuit: Circuit }, _b: { resultId: string; circuit: Circuit }): Promise<ExperimentComparison> {
     throw new EndpointNotImplementedError('POST /api/compare/experiments (the FIXTURE mock adapter cannot compare runs)')
+  }
+
+  /** Deliberately NOT faked: noisy counts exist only as the output of a simulator run on the server. */
+  async listNoiseModels(): Promise<NoiseCatalog> {
+    throw new EndpointNotImplementedError('GET /api/noise/models (the FIXTURE mock adapter has no noise models)')
+  }
+
+  async compareNoise(_input: NoiseCompareInput): Promise<NoiseCompareResult> {
+    throw new EndpointNotImplementedError('POST /api/noise/compare (the FIXTURE mock adapter cannot simulate noise)')
   }
 
   /** Deliberately NOT faked: every cost is read by the server from a backend run. */

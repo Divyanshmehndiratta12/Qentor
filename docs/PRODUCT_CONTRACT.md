@@ -99,7 +99,7 @@ Numbers in step 4 are whatever the backend returns for the circuit actually buil
 | PostgreSQL | Only in a draft slide. SQLite in one file does the job for one server. |
 | WebSockets, background job queue | Only in a draft slide. Live hardware is P1 and polls over plain HTTP. |
 | Live hardware as the demo path | Queue times are unpredictable. The deck promises *recorded* runs (Deck p2, p3, p4). |
-| Simulated "hardware" | Forbidden. A noise-model simulation, if built (P1), is labelled SIMULATION. |
+| Simulated "hardware" | Forbidden. A noise-model simulation (built as the Noise Lab, `NOISE_LAB.md`) is labelled SIMULATION, "Simulated noise". |
 | Executing learner or AI Python | Remote code execution risk. Code enters only as OpenQASM 3 parsed into the canonical model. |
 | Retrieval over SDK docs | Only in a draft slide. P2. |
 | Stabilizer simulation for large Clifford circuits | Deck p4 says "can use". Lesson circuits do not need it. P2. |

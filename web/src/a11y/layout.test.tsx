@@ -26,7 +26,7 @@ describe('top bar layout contract', () => {
     const nav = screen.getByRole('navigation', { name: 'Primary' })
     const run = screen.getByRole('button', { name: 'Run' })
     expect(nav.compareDocumentPosition(run) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    expect(within(nav).getAllByRole('button').map((b) => b.textContent)).toEqual(['Lab', 'Learn', 'Challenges', 'Progress'])
+    expect(within(nav).getAllByRole('button').map((b) => b.textContent)).toEqual(['Lab', 'Learn', 'Challenges', 'Progress', 'Noise Lab'])
   })
 
   it('gives each destination a touch-sized height on a phone, and the keyboard hint is not read out', () => {

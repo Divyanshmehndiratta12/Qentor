@@ -94,13 +94,13 @@ class TestTheShippedContentPassesEveryCheck(unittest.TestCase):
     def test_it_looked_at_everything_so_a_pass_is_not_vacuous(self) -> None:
         aer_or_skip(self)
         report = validate_content(known_routes=ROUTES)
-        self.assertEqual(report.checked["lessons"], 18)
+        self.assertEqual(report.checked["lessons"], 19)
         self.assertEqual(report.checked["sections"], sum(len(l.sections) for l in LESSONS))
-        self.assertEqual(report.checked["concept_checks"], 36)
-        self.assertEqual(report.checked["labs"], 18)
-        self.assertEqual(report.checked["linked_circuits"], 18)
-        self.assertEqual(report.checked["circuits_executed"], 18)
-        self.assertEqual(report.checked["challenges"], 19)
+        self.assertEqual(report.checked["concept_checks"], 38)
+        self.assertEqual(report.checked["labs"], 19)
+        self.assertEqual(report.checked["linked_circuits"], 19)
+        self.assertEqual(report.checked["circuits_executed"], 19)
+        self.assertEqual(report.checked["challenges"], 20)
 
     def test_every_lesson_has_valid_prerequisites(self) -> None:
         self.assertEqual(check_prerequisites(list(LESSONS)), [])
@@ -119,7 +119,7 @@ class TestTheShippedContentPassesEveryCheck(unittest.TestCase):
     def test_every_concept_check_is_graded_and_has_an_explanation(self) -> None:
         self.assertEqual(check_concept_checks(list(LESSONS)), [])  # strict: no prompt-only checks allowed
         checks = [(l, s) for l in LESSONS for s in l.sections if isinstance(s, ConceptCheckSection)]
-        self.assertEqual(len(checks), 36)
+        self.assertEqual(len(checks), 38)
         for lesson, section in checks:
             self.assertTrue(section.explanation and section.explanation.strip(), (lesson.id, section.id))
             self.assertIn(section.correct_option_id, [o.id for o in section.options], (lesson.id, section.id))
@@ -136,7 +136,7 @@ class TestTheShippedContentPassesEveryCheck(unittest.TestCase):
         adapter = aer_or_skip(self)
         problems, skipped, ran = check_linked_circuits_execute(list(LESSONS), adapter)
         self.assertEqual((problems, skipped), ([], []), problem_text(problems))
-        self.assertEqual(ran, 18)
+        self.assertEqual(ran, 19)
 
     def test_every_lab_capability_exists_and_is_served(self) -> None:
         self.assertEqual(check_lab_capabilities(list(LESSONS), known_routes=ROUTES), [])

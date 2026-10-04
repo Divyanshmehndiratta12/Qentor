@@ -7,7 +7,8 @@ ten are full mini-lessons; lessons 11-13 (Superdense Coding, Quantum Teleportati
 ``qentor.lessons.content_batch1``; lessons 14-16 (the Quantum Fourier Transform, Quantum Phase Estimation and Quantum Error
 Correction) live in ``qentor.lessons.content_algorithms``; lesson 17 (a one-parameter variational, VQE-style demonstration) lives in
 ``qentor.lessons.content_variational``; lesson 18 (Shor's algorithm, order-finding intuition, one fixed instance) lives in
-``qentor.lessons.content_shor``. Every ``linked_circuit`` is a single, fixed, hand-written
+``qentor.lessons.content_shor``; lesson 19 (Understanding Quantum Noise, ideal versus simulated-noisy runs) lives in
+``qentor.lessons.content_noise``. Every ``linked_circuit`` is a single, fixed, hand-written
 circuit (plain data through the existing canonical ``Circuit``/``GateOp`` model),
 never a new algorithm or oracle-family generator.
 
@@ -23,9 +24,10 @@ from .content_advanced import ADVANCED_LESSONS
 from .content_algorithms import ALGORITHM_LESSONS
 from .content_batch1 import BATCH1_LESSONS
 from .content_foundations import FOUNDATION_LESSONS
+from .content_noise import NOISE_LESSONS
 from .content_shor import SHOR_LESSONS
 from .content_variational import VARIATIONAL_LESSONS
 from .models import Lesson
 
 # Declaration order is the catalog order the API serves.
-RAW_LESSONS: list[Lesson] = [*FOUNDATION_LESSONS, *ADVANCED_LESSONS, *BATCH1_LESSONS, *ALGORITHM_LESSONS, *VARIATIONAL_LESSONS, *SHOR_LESSONS]
+RAW_LESSONS: list[Lesson] = [*FOUNDATION_LESSONS, *ADVANCED_LESSONS, *BATCH1_LESSONS, *ALGORITHM_LESSONS, *VARIATIONAL_LESSONS, *SHOR_LESSONS, *NOISE_LESSONS]

@@ -25,7 +25,8 @@ Everything below is built; what is not built is listed in [`docs/BUILD_STATE.md`
 
 **Deterministic, backend-computed (no AI involved)**
 
-- **Lessons:** 18 interactive lessons, from qubits and measurement through Bell states, phase kickback, Deutsch-Jozsa, Bernstein-Vazirani, Grover, teleportation, superdense coding, QFT, phase estimation, error correction, a one-parameter variational (VQE-style) demonstration and an order-finding intuition for Shor's algorithm. Each algorithm lesson is one small, fixed educational example, and says so. 36 concept checks are graded by the server.
+- **Lessons:** 19 interactive lessons, from qubits and measurement through Bell states, phase kickback, Deutsch-Jozsa, Bernstein-Vazirani, Grover, teleportation, superdense coding, QFT, phase estimation, error correction, a one-parameter variational (VQE-style) demonstration and an order-finding intuition for Shor's algorithm, and one on quantum noise. Each algorithm lesson is one small, fixed educational example, and says so. 38 concept checks are graded by the server.
+- **Noise Lab:** run one circuit ideally and under a simple noise model (depolarizing, bit flip, phase flip, amplitude damping, readout error) on the server's Aer simulator and compare the two. Both runs are simulations, labelled "Simulated noise", with their own provenance; it is not a model of any real device (see `docs/NOISE_LAB.md`).
 - **Circuit editor:** drag-and-drop or keyboard editing with undo/redo, synchronised with an OpenQASM 3 editor.
 - **Simulator backends:** Qiskit Aer, Cirq and PennyLane, in statevector or shots mode, with cross-backend agreement checks.
 - **Visualization:** probability charts (sampled vs theoretical, labelled), a per-operation trace, an interactive 3D Bloch sphere for every qubit (drawn from states the server derives), and an amplitude/phase view. See [`docs/VISUALIZATION.md`](docs/VISUALIZATION.md).
@@ -127,7 +128,7 @@ Status, stated plainly: the production process was verified locally, but the Doc
 
 ## Documentation
 
-[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) · [`docs/VERIFICATION_ARCHITECTURE.md`](docs/VERIFICATION_ARCHITECTURE.md) · [`docs/AI_BOUNDARY.md`](docs/AI_BOUNDARY.md) · [`docs/REASONING_ENGINE.md`](docs/REASONING_ENGINE.md) · [`docs/VISUALIZATION.md`](docs/VISUALIZATION.md) · [`docs/VARIATIONAL.md`](docs/VARIATIONAL.md) · [`docs/SHOR_LESSON.md`](docs/SHOR_LESSON.md) · [`docs/BUILD_STATE.md`](docs/BUILD_STATE.md)
+[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) · [`docs/VERIFICATION_ARCHITECTURE.md`](docs/VERIFICATION_ARCHITECTURE.md) · [`docs/AI_BOUNDARY.md`](docs/AI_BOUNDARY.md) · [`docs/REASONING_ENGINE.md`](docs/REASONING_ENGINE.md) · [`docs/VISUALIZATION.md`](docs/VISUALIZATION.md) · [`docs/VARIATIONAL.md`](docs/VARIATIONAL.md) · [`docs/SHOR_LESSON.md`](docs/SHOR_LESSON.md) · [`docs/NOISE_LAB.md`](docs/NOISE_LAB.md) · [`docs/BUILD_STATE.md`](docs/BUILD_STATE.md)
 
 ## Team
 

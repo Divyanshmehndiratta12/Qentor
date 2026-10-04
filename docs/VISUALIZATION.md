@@ -17,7 +17,7 @@ exactly as the server sends it (`prerequisite_lesson_ids`) and still drives the 
 - the recommendation (`recommendation.ts`, `learnerInsights.ts`), mastery, concept-check state, challenge progress, local persistence (the v1
   progress blob is unchanged) and classroom events are untouched: opening a lesson out of order changes none of them.
 
-There was never a server-side lock, and none was added. Tests: `lessonAccess.test.tsx` (every one of the real 18 lessons opens from a fresh
+There was never a server-side lock, and none was added. Tests: `lessonAccess.test.tsx` (every one of the real 19 lessons opens from a fresh
 start; prerequisites preserved; recommendation still follows them; mastery unaffected; an old saved v1 blob loads), `lessonState.test.ts`, and the
 rewritten locked-lesson tests in the curriculum and progress suites.
 

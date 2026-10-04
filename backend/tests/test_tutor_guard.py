@@ -435,7 +435,7 @@ class TestHonestAnswersAreNeverFlagged(unittest.TestCase):
                         violations = find_violations(text, list(context.facts))
                         checked += 1
                         self.assertEqual(violations, [], f"{lesson.id}/{section.id} {language} {question!r}: {[str(v) for v in violations]}")
-        self.assertEqual(checked, (7 * 9 + 11 * 10) * 3 * 3)  # seven 9-section lessons and eleven 10-section ones
+        self.assertEqual(checked, (7 * 9 + 12 * 10) * 3 * 3)  # seven 9-section lessons and twelve 10-section ones
 
     def test_result_answers_for_real_shots_and_statevector_runs(self) -> None:
         from qentor.tutor.deterministic import answer_question
