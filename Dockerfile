@@ -20,7 +20,6 @@ COPY --from=web /web/dist web/dist
 ENV QENTOR_DB_PATH=/data/qentor.db
 RUN useradd --system --create-home qentor && mkdir -p /data && chown qentor /data
 USER qentor
-VOLUME ["/data"]
 
 # Never bake a key into the image: QENTOR_TUTOR_LLM_ENABLED / QENTOR_TUTOR_LLM_API_KEY are optional and set on the host only.
 ENV PORT=8000
