@@ -26,7 +26,7 @@
  * A refused edit (a wire that does not exist, a gate that would leave the register) leaves the circuit untouched and says why in the
  * palette's status line.
  */
-import { useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import type { DragEvent, KeyboardEvent } from 'react'
 import { useBuildStore } from './store'
 import { GATE_DND_MIME } from './GatePalette'
@@ -118,8 +118,9 @@ function GateBox({
   )
 }
 
-/** `lockQubits`: a challenge fixes the number of qubits, so the add/remove controls are not offered. */
-export function CircuitCanvas({ lockQubits = false }: { lockQubits?: boolean } = {}) {
+/** `lockQubits`: a challenge fixes the number of qubits, so the add/remove controls are not offered.
+ * `expandable`: the Lab offers "Expand canvas" (the full-window view, laid out by `BuildScreen`); other screens do not. */
+export function CircuitCanvas({ lockQubits = false, expandable = false }: { lockQubits?: boolean; expandable?: boolean } = {}) {
   const circuit = useBuildStore((s) => s.circuit)
   const onWireClick = useBuildStore((s) => s.onWireClick)
   const removeOpAt = useBuildStore((s) => s.removeOpAt)
@@ -137,6 +138,8 @@ export function CircuitCanvas({ lockQubits = false }: { lockQubits?: boolean } =
   const dropOp = useBuildStore((s) => s.dropOp)
   const undo = useBuildStore((s) => s.undo)
   const redo = useBuildStore((s) => s.redo)
+  const expanded = useBuildStore((s) => s.canvasExpanded)
+  const setExpanded = useBuildStore((s) => s.setCanvasExpanded)
   const canUndo = useBuildStore((s) => s.past.length > 0)
   const canRedo = useBuildStore((s) => s.future.length > 0)
   const tracedOp = useBuildStore((s) => s.trace?.steps[s.selectedTraceStep]?.operationIndex ?? null)
@@ -144,7 +147,20 @@ export function CircuitCanvas({ lockQubits = false }: { lockQubits?: boolean } =
   const selectedGateStep = useBuildStore((s) => (s.selectedOpIndex === null || !s.trace ? -1 : s.trace.steps.findIndex((st) => st.operationIndex === s.selectedOpIndex)))
   const traceLength = useBuildStore((s) => s.trace?.steps.length ?? 0)
   const root = useRef<HTMLDivElement>(null)
+  const expandButton = useRef<HTMLButtonElement>(null)
   useEditShortcuts()
+
+  // Esc leaves the full view (and hands focus back to the toggle, which stays in the same place on the page).
+  useEffect(() => {
+    if (!expandable || !expanded) return
+    const onEscape = (e: globalThis.KeyboardEvent) => {
+      if (e.key !== 'Escape' || e.defaultPrevented) return
+      setExpanded(false)
+      expandButton.current?.focus()
+    }
+    document.addEventListener('keydown', onEscape)
+    return () => document.removeEventListener('keydown', onEscape)
+  }, [expandable, expanded, setExpanded])
 
   const numQubits = circuit.num_qubits
   const total = circuit.ops.length
@@ -255,6 +271,19 @@ export function CircuitCanvas({ lockQubits = false }: { lockQubits?: boolean } =
                 +
               </button>
             </>
+          )}
+          {expandable && (
+            <button
+              ref={expandButton}
+              type="button"
+              onClick={() => setExpanded(!expanded)}
+              aria-pressed={expanded}
+              aria-label={expanded ? 'Exit full view' : 'Expand canvas'}
+              title={expanded ? 'Exit full view (Esc)' : 'Expand the canvas to the whole window'}
+              className={ACTION_BUTTON}
+            >
+              {expanded ? 'Exit full view' : '⤢ Expand canvas'}
+            </button>
           )}
         </div>
       </div>

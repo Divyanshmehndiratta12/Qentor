@@ -83,7 +83,7 @@ function NavItem({
 }
 
 /** The top bar. The empty space between the navigation and the Lab toolbar is a flexible spacer that pushes the toolbar right. */
-export function TopBar({ screen, onNavigate }: { screen: Screen; onNavigate: (screen: Screen) => void }) {
+export function TopBar({ screen, onNavigate, hidden = false }: { screen: Screen; onNavigate: (screen: Screen) => void; hidden?: boolean }) {
   const numQubits = useBuildStore((s) => s.circuit.num_qubits)
   const numOps = useBuildStore((s) => s.circuit.ops.length)
   const isExecuting = useBuildStore((s) => s.isExecuting)
@@ -94,7 +94,7 @@ export function TopBar({ screen, onNavigate }: { screen: Screen; onNavigate: (sc
   // used to share one row and Run sat on top of "Progress". Everything is a direct child of the header so that only CSS `order`
   // decides which row it is on; the DOM order (logo, navigation, Lab summary, spacer, Lab controls) is the reading order.
   return (
-    <header className="flex shrink-0 flex-wrap items-center gap-x-4 border-b border-void-500 bg-void-900 pt-1.5 pr-3.5 pl-4 md:h-[52px] md:flex-nowrap md:py-0">
+    <header hidden={hidden} className="flex shrink-0 flex-wrap items-center gap-x-4 border-b border-void-500 bg-void-900 pt-1.5 pr-3.5 pl-4 md:h-[52px] md:flex-nowrap md:py-0">
       <Logo />
       <nav aria-label="Primary" className="order-4 -mx-4 flex basis-full gap-0.5 px-2 pt-1 pb-1.5 text-[13px] md:order-none md:mx-0 md:basis-auto md:p-0">
         <NavItem label="Lab" active={screen === 'lab'} onClick={() => onNavigate('lab')} />

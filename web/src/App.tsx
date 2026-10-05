@@ -68,6 +68,7 @@ function App() {
   const guideButtonRef = useRef<HTMLButtonElement>(null)
   const isFirstScreen = useRef(true)
   const loadCircuit = useBuildStore((s) => s.loadCircuit)
+  const canvasExpanded = useBuildStore((s) => s.canvasExpanded)
   const labQubits = useBuildStore((s) => s.circuit.num_qubits) // on a phone the Lab's canvas column is as tall as its register needs
   // A share link (`/#c=…`) carries a circuit and nothing else. It is validated, loaded onto the canvas WITHOUT any result, and the
   // fragment is removed so a reload does not silently replace the learner's work again.
@@ -96,6 +97,8 @@ function App() {
 
   // The Guide is offered where there is something to be guided through.
   const guideScreen = screen === 'lab' || screen === 'learn' ? screen : null
+  // The Lab's "Expand canvas" full view: the canvas fills the window, so the banner, the top bar, the results, the tutor footer and Qubi are hidden.
+  const labExpanded = screen === 'lab' && canvasExpanded
 
   // Back/Forward: the address changed under us, so follow it.
   useEffect(() => {
@@ -180,9 +183,9 @@ function App() {
       >
         Skip to main content
       </a>
-      <TopBar screen={screen} onNavigate={goTo} />
+      <TopBar screen={screen} onNavigate={goTo} hidden={labExpanded} />
 
-      {screen === 'lab' && welcomeShown && !startedAny && !sharedNotice && (
+      {screen === 'lab' && welcomeShown && !startedAny && !sharedNotice && !labExpanded && (
         <WelcomeCard
           onStartLearning={() => goTo('learn')}
           onOpenChallenges={() => goTo('challenges')}
@@ -193,7 +196,7 @@ function App() {
         />
       )}
 
-      {sharedNotice && (
+      {sharedNotice && !labExpanded && (
         <div
           role={sharedNotice.ok ? 'status' : 'alert'}
           data-testid="shared-notice"
@@ -224,12 +227,13 @@ function App() {
               <BuildScreen />
             </main>
 
-            <aside aria-label="Results" className="h-[32rem] w-full shrink-0 bg-void-900 lg:h-auto lg:w-96">
+            <aside hidden={labExpanded} aria-label="Results" className="h-[32rem] w-full shrink-0 bg-void-900 lg:h-auto lg:w-96">
               <ResultsPanel />
             </aside>
           </div>
 
           <footer
+            hidden={labExpanded}
             aria-label="Tutor"
             data-compact={tutorEmpty && tutorMode === 'explain'}
             className={`shrink-0 border-t border-void-500 bg-void-900 ${tutorEmpty && tutorMode === 'explain' ? 'h-48 lg:h-44' : 'h-72 lg:h-64'}`}
@@ -267,10 +271,10 @@ function App() {
         </main>
       )}
 
-      {guideScreen && guideOpen && <GuidePanel screen={guideScreen} onClose={closeGuide} />}
+      {guideScreen && guideOpen && !labExpanded && <GuidePanel screen={guideScreen} onClose={closeGuide} />}
 
       {/* Qubi roams the visible screen (fixed), so it lives at the root rather than in any one region. */}
-      {guideScreen && <GuideLauncher open={guideOpen} onToggle={() => setGuideOpen((open) => !open)} buttonRef={guideButtonRef} />}
+      {guideScreen && !labExpanded && <GuideLauncher open={guideOpen} onToggle={() => setGuideOpen((open) => !open)} buttonRef={guideButtonRef} />}
     </div>
   )
 }

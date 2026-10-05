@@ -161,6 +161,8 @@ interface BuildState {
   circuit: Circuit
   qasmText: string
   canvasError: string | null
+  /** The Lab's "Expand canvas" full view: a presentation flag only. It never touches the circuit, Undo/Redo or any result. */
+  canvasExpanded: boolean
 
   /** Circuits before and after the current one, for Undo and Redo. Immutable snapshots of the canonical model, nothing else:
    * there is no canvas-only state, so undoing restores exactly what the QASM editor and the server would see. */
@@ -242,6 +244,7 @@ interface BuildState {
   selectedTraceStep: number
 
   setNumQubits: (n: number) => void
+  setCanvasExpanded: (on: boolean) => void
   selectGate: (gate: GateName | null) => void
   setPendingAngle: (angle: number) => void
   onWireClick: (qubitIndex: number) => void
@@ -321,6 +324,7 @@ function syncFromCircuit(circuit: Circuit) {
 export const useBuildStore = create<BuildState>((set, get) => ({
   ...syncFromCircuit(emptyCircuit(3)),
   canvasError: null,
+  canvasExpanded: false,
   past: [],
   future: [],
   selectedOpIndex: null,
@@ -375,6 +379,8 @@ export const useBuildStore = create<BuildState>((set, get) => ({
   setNumQubits: (n) => {
     commit(set, get, emptyCircuit(Math.max(1, Math.min(8, n))), { extra: { pendingQubits: [] } })
   },
+
+  setCanvasExpanded: (on) => set({ canvasExpanded: on }),
 
   selectGate: (gate) => set({ selectedGate: gate, pendingQubits: [], canvasError: null }),
 
