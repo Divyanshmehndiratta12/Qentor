@@ -14,6 +14,7 @@ from __future__ import annotations
 from qentor.provenance.models import ExecutionStatus, ProvenanceRecord
 
 from .deterministic import answer_failed_execution, answer_question
+from .fallback_log import log_llm_fallback
 from .guard import GuardRejection, validate_llm_draft
 from .lesson_answers import answer_lesson_question, is_lesson_route, route_question
 from .lesson_context import LessonContext
@@ -43,8 +44,8 @@ def answer_question_with_llm(
             draft = llm.generate(question, facts, language)
             answer = validate_llm_draft(draft, facts)
             return answer, False
-        except (LLMUnavailable, GuardRejection):
-            pass  # fall through to the deterministic template below
+        except (LLMUnavailable, GuardRejection) as exc:
+            log_llm_fallback("answer_question_with_llm", exc)  # then fall through to the deterministic template below
 
     return answer_question(question, facts, record, language), True
 
@@ -85,8 +86,8 @@ def answer_step_aware_question(
             draft = llm.generate(question, result_facts, language, **kwargs)
             answer = validate_llm_draft(draft, [*(lesson.facts if lesson else ()), *step.facts, *result_facts])
             return answer, False
-        except (LLMUnavailable, GuardRejection):
-            pass  # fall through to the deterministic answer below
+        except (LLMUnavailable, GuardRejection) as exc:
+            log_llm_fallback("answer_step_aware_question", exc)  # then fall through to the deterministic answer below
 
     intent = step_intent(question)
     if intent is not None:
@@ -138,7 +139,7 @@ def answer_lesson_aware_question(
             draft = llm.generate(question, result_facts, language, lesson_facts=list(lesson.facts))
             answer = validate_llm_draft(draft, [*lesson.facts, *result_facts])
             return answer, False
-        except (LLMUnavailable, GuardRejection):
-            pass  # fall through to the deterministic answer below
+        except (LLMUnavailable, GuardRejection) as exc:
+            log_llm_fallback("answer_lesson_aware_question", exc)  # then fall through to the deterministic answer below
 
     return answer_lesson_question(question, lesson, result_facts, record if result_usable else None, language), True

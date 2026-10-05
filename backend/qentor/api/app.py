@@ -85,6 +85,7 @@ from qentor.reasoning import Intent as ReasoningIntent, ReasoningError
 from qentor.tutor.intents import route_question as route_reasoning_question
 from qentor.tutor.step_answers import step_intent
 from qentor.tutor.reasoning_facts import GUIDANCE as REASONING_GUIDANCE, REFUSAL as REASONING_REFUSAL, answer_reasoning_lead
+from qentor.tutor.fallback_log import log_llm_fallback
 from qentor.tutor.llm import LLMUnavailable
 from qentor.tutor.trace_context import TRACE_RESULT_NOT_FOUND
 from qentor.tutor.lesson_context import LESSON_NOT_FOUND, SECTION_MISMATCH, SECTION_NOT_FOUND
@@ -1070,6 +1071,7 @@ def generate_circuit_endpoint(request: GenerateCircuitRequest) -> GenerateCircui
     try:
         draft = llm.generate_circuit(request.prompt.strip(), context, request.language)
     except LLMUnavailable as exc:
+        log_llm_fallback("generate_circuit_endpoint", exc, "answering 502 AI_GENERATION_FAILED")
         raise HTTPException(
             status_code=502,
             detail={"code": AI_GENERATION_FAILED, "message": "The language model could not be reached or gave an unusable reply. Try again."},

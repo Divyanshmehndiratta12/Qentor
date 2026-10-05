@@ -19,6 +19,7 @@ import urllib.error
 import urllib.request
 from typing import Protocol
 
+from .fallback_log import logger as _tutor_log
 from .models import TutorFact
 
 DEFAULT_MODEL = "claude-opus-5-5"
@@ -418,9 +419,17 @@ class OpenAICompatibleAdapter:
         except (urllib.error.URLError, TimeoutError, OSError, ValueError) as exc:
             raise LLMUnavailable(f"openai-compatible request failed: {exc}") from exc
         try:
-            return _json_from_text(payload["choices"][0]["message"]["content"])
-        except (KeyError, IndexError, TypeError, ValueError) as exc:
+            content = payload["choices"][0]["message"]["content"]
+        except (KeyError, IndexError, TypeError) as exc:
             raise LLMUnavailable(f"openai-compatible response was not the expected shape: {exc}") from exc
+        if not isinstance(content, str):
+            raise LLMUnavailable("openai-compatible reply had no text content")
+        try:
+            return _json_from_text(content)
+        except ValueError as exc:  # includes json.JSONDecodeError
+            # The model's own reply (never the prompt or the key), cut to 300 characters and kept on one line by repr().
+            _tutor_log.warning("openai-compatible reply was not valid JSON (%s); first 300 characters of the reply: %r", exc, content[:300])
+            raise LLMUnavailable(f"openai-compatible reply was not valid JSON: {exc}") from exc
 
     def generate(
         self,

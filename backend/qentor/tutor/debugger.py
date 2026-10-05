@@ -27,6 +27,7 @@ from qentor.provenance.models import ExecutionStatus, ProvenanceRecord
 
 from .claims import find_violations
 from .facts import _describe_op, build_fact_sheet
+from .fallback_log import log_llm_fallback
 from .llm import DebugDraft, LLMAdapter, LLMUnavailable
 from .models import TutorFact
 from .trace_context import TraceStepContext
@@ -405,7 +406,8 @@ def debug_circuit(inputs: DebugInputs, llm: LLMAdapter | None, language: str = "
     try:
         draft = llm.generate_debug(facts, clean_goal(inputs.goal), language)  # type: ignore[attr-defined]
         validate_debug_draft(draft, facts, inputs.attempt.passed if inputs.attempt else None)
-    except (LLMUnavailable, DebugGuardRejection):
+    except (LLMUnavailable, DebugGuardRejection) as exc:
+        log_llm_fallback("debug_circuit", exc)
         return report
     cited = list(dict.fromkeys(draft.cited_fact_ids))
     return report.model_copy(

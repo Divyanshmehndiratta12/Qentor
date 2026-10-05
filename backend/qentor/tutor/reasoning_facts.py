@@ -15,6 +15,7 @@ from __future__ import annotations
 from qentor.provenance.models import ProvenanceRecord
 
 from .comparison import comparison_facts_from_payload, pick
+from .fallback_log import log_llm_fallback
 from .guard import GuardRejection, validate_llm_draft
 from .llm import LLMAdapter, LLMUnavailable
 from .models import TutorFact
@@ -314,8 +315,8 @@ def answer_reasoning(
         try:
             draft = llm.generate(question, facts, language)
             return validate_llm_draft(draft, facts), False
-        except (LLMUnavailable, GuardRejection):
-            pass
+        except (LLMUnavailable, GuardRejection) as exc:
+            log_llm_fallback("answer_reasoning", exc)
     return answer_reasoning_deterministic(record, facts, language), True
 
 

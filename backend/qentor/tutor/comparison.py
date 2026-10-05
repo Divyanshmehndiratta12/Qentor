@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from qentor.provenance.models import ProvenanceRecord
 
+from .fallback_log import log_llm_fallback
 from .guard import GuardRejection, validate_llm_draft
 from .llm import LLMAdapter, LLMUnavailable
 from .models import TutorFact
@@ -168,6 +169,6 @@ def answer_comparison(
         try:
             draft = llm.generate(question, facts, language)
             return validate_llm_draft(draft, facts), False
-        except (LLMUnavailable, GuardRejection):
-            pass
+        except (LLMUnavailable, GuardRejection) as exc:
+            log_llm_fallback("answer_comparison", exc)
     return answer_comparison_question(question, facts, language), True
