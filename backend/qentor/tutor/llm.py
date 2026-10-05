@@ -121,6 +121,23 @@ def _user_message(
     return "\n\n".join(blocks)
 
 
+def normalise_cited_fact_ids(raw: object) -> list[str]:
+    """The fact ids a model says it cited, cleaned for the guard: string items only, whitespace stripped, empty ones dropped, duplicates
+    removed in order. Models often pad the list with an empty string (``[""]``) when they cite nothing; that is "no citation", not a citation of
+    an unknown fact. A value that is not a list at all is malformed and raises ``TypeError`` (the adapters turn that into ``LLMUnavailable``).
+    The guard is unchanged: a non-empty id that is not in the fact sheet is still rejected there."""
+    if not isinstance(raw, list):
+        raise TypeError("cited_fact_ids must be a list")
+    cleaned: list[str] = []
+    for item in raw:
+        if not isinstance(item, str):
+            continue
+        fact_id = item.strip()
+        if fact_id and fact_id not in cleaned:
+            cleaned.append(fact_id)
+    return cleaned
+
+
 class LLMDraft:
     """Raw output from an LLM adapter, not yet validated or trusted."""
 
@@ -282,7 +299,7 @@ class AnthropicAdapter:
             parsed = json.loads(text)
             return LLMDraft(
                 answer=parsed["answer"],
-                cited_fact_ids=list(parsed.get("cited_fact_ids", [])),
+                cited_fact_ids=normalise_cited_fact_ids(parsed.get("cited_fact_ids", [])),
             )
         except (KeyError, IndexError, TypeError, ValueError) as exc:
             raise LLMUnavailable(f"anthropic response was not the expected shape: {exc}") from exc
@@ -315,7 +332,7 @@ class AnthropicAdapter:
                 observed=parsed["observed"],
                 mismatch=parsed["mismatch"],
                 next_experiment=parsed["next_experiment"],
-                cited_fact_ids=list(parsed.get("cited_fact_ids", [])),
+                cited_fact_ids=normalise_cited_fact_ids(parsed.get("cited_fact_ids", [])),
             )
         except (KeyError, IndexError, TypeError, ValueError) as exc:
             raise LLMUnavailable(f"anthropic response was not the expected shape: {exc}") from exc
@@ -446,7 +463,7 @@ class OpenAICompatibleAdapter:
             REQUEST_TIMEOUT_SECONDS,
         )
         try:
-            return LLMDraft(answer=parsed["answer"], cited_fact_ids=list(parsed.get("cited_fact_ids", [])))
+            return LLMDraft(answer=parsed["answer"], cited_fact_ids=normalise_cited_fact_ids(parsed.get("cited_fact_ids", [])))
         except (KeyError, TypeError) as exc:
             raise LLMUnavailable(f"openai-compatible response was not the expected shape: {exc}") from exc
 
@@ -463,7 +480,7 @@ class OpenAICompatibleAdapter:
                 observed=parsed["observed"],
                 mismatch=parsed["mismatch"],
                 next_experiment=parsed["next_experiment"],
-                cited_fact_ids=list(parsed.get("cited_fact_ids", [])),
+                cited_fact_ids=normalise_cited_fact_ids(parsed.get("cited_fact_ids", [])),
             )
         except (KeyError, TypeError) as exc:
             raise LLMUnavailable(f"openai-compatible response was not the expected shape: {exc}") from exc
