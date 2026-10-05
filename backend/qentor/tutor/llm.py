@@ -353,3 +353,119 @@ class AnthropicAdapter:
             return CircuitDraft(qasm=qasm, explanation=explanation)
         except (KeyError, IndexError, TypeError, ValueError) as exc:
             raise LLMUnavailable(f"anthropic response was not the expected shape: {exc}") from exc
+
+
+# ---------------------------------------------------------------------------
+# OpenAI-compatible providers (Groq, Cerebras, OpenRouter, Gemini's OpenAI endpoint, ...)
+# ---------------------------------------------------------------------------
+
+# Groq's endpoint is the default because its free tier needs no card; any provider that speaks the
+# OpenAI "chat completions" format works by setting QENTOR_TUTOR_LLM_BASE_URL.
+DEFAULT_OPENAI_COMPATIBLE_BASE_URL = "https://api.groq.com/openai/v1"
+
+
+def _json_from_text(text: str) -> dict:
+    """Parse the model's JSON reply. Some open models wrap JSON in ```json fences; strip them, nothing more."""
+    t = text.strip()
+    if t.startswith("```"):
+        t = t.split("\n", 1)[1] if "\n" in t else ""
+        if t.rstrip().endswith("```"):
+            t = t.rstrip()[:-3]
+    parsed = json.loads(t)
+    if not isinstance(parsed, dict):
+        raise ValueError("reply is not a JSON object")
+    return parsed
+
+
+class OpenAICompatibleAdapter:
+    """Calls any OpenAI-compatible ``/chat/completions`` endpoint with the SAME prompts as ``AnthropicAdapter``.
+
+    Only the transport differs. Every draft still goes through ``qentor.tutor.guard`` exactly as before,
+    and every failure raises ``LLMUnavailable`` so the deterministic fallback is used.
+    """
+
+    name = "openai-compatible"
+
+    def __init__(self, api_key: str, model: str, base_url: str = DEFAULT_OPENAI_COMPATIBLE_BASE_URL) -> None:
+        self._api_key = api_key
+        self._model = model
+        self._url = base_url.rstrip("/") + "/chat/completions"
+
+    @property
+    def model_name(self) -> str:
+        return self._model
+
+    def _complete(self, system: str, user: str, max_tokens: int, timeout: float) -> dict:
+        body = json.dumps(
+            {
+                "model": self._model,
+                "max_tokens": max_tokens,
+                "temperature": 0.2,
+                "response_format": {"type": "json_object"},
+                "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
+            }
+        ).encode("utf-8")
+        request = urllib.request.Request(
+            self._url,
+            data=body,
+            method="POST",
+            headers={"content-type": "application/json", "authorization": f"Bearer {self._api_key}",
+                     "user-agent": "qentor-tutor"},
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=timeout) as response:
+                payload = json.loads(response.read())
+        except (urllib.error.URLError, TimeoutError, OSError, ValueError) as exc:
+            raise LLMUnavailable(f"openai-compatible request failed: {exc}") from exc
+        try:
+            return _json_from_text(payload["choices"][0]["message"]["content"])
+        except (KeyError, IndexError, TypeError, ValueError) as exc:
+            raise LLMUnavailable(f"openai-compatible response was not the expected shape: {exc}") from exc
+
+    def generate(
+        self,
+        question: str,
+        facts: list[TutorFact],
+        language: str = "en",
+        lesson_facts: list[TutorFact] | None = None,
+        trace_facts: list[TutorFact] | None = None,
+    ) -> LLMDraft:
+        parsed = self._complete(
+            _system_prompt(language, with_lesson_context=bool(lesson_facts), with_trace_context=bool(trace_facts)),
+            _user_message(question, facts, language, lesson_facts, trace_facts),
+            512,
+            REQUEST_TIMEOUT_SECONDS,
+        )
+        try:
+            return LLMDraft(answer=parsed["answer"], cited_fact_ids=list(parsed.get("cited_fact_ids", [])))
+        except (KeyError, TypeError) as exc:
+            raise LLMUnavailable(f"openai-compatible response was not the expected shape: {exc}") from exc
+
+    def generate_debug(self, facts: list[TutorFact], goal: str | None, language: str = "en") -> DebugDraft:
+        language_name = _LANGUAGE_NAMES.get(language, _LANGUAGE_NAMES[_DEFAULT_LANGUAGE])
+        parsed = self._complete(
+            _DEBUG_SYSTEM_PROMPT_TEMPLATE.format(language_name=language_name),
+            _debug_user_message(facts, goal, language),
+            700,
+            REQUEST_TIMEOUT_SECONDS,
+        )
+        try:
+            return DebugDraft(
+                observed=parsed["observed"],
+                mismatch=parsed["mismatch"],
+                next_experiment=parsed["next_experiment"],
+                cited_fact_ids=list(parsed.get("cited_fact_ids", [])),
+            )
+        except (KeyError, TypeError) as exc:
+            raise LLMUnavailable(f"openai-compatible response was not the expected shape: {exc}") from exc
+
+    def generate_circuit(self, request: str, context: list[TutorFact], language: str = "en") -> CircuitDraft:
+        parsed = self._complete(_PROPOSAL_SYSTEM_PROMPT, _proposal_user_message(request, context, language), 900,
+                                PROPOSAL_TIMEOUT_SECONDS)
+        try:
+            qasm, explanation = parsed["qasm"], parsed.get("explanation", "")
+            if not isinstance(qasm, str) or not isinstance(explanation, str):
+                raise TypeError("qasm and explanation must be strings")
+            return CircuitDraft(qasm=qasm, explanation=explanation)
+        except (KeyError, TypeError) as exc:
+            raise LLMUnavailable(f"openai-compatible response was not the expected shape: {exc}") from exc

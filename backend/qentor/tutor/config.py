@@ -16,17 +16,24 @@ from __future__ import annotations
 import os
 from typing import Callable
 
-from .llm import AnthropicAdapter, DEFAULT_MODEL, LLMAdapter
+from .llm import AnthropicAdapter, DEFAULT_MODEL, DEFAULT_OPENAI_COMPATIBLE_BASE_URL, LLMAdapter, OpenAICompatibleAdapter
 
 ENABLE_LLM_ENV_VAR = "QENTOR_TUTOR_LLM_ENABLED"
 PROVIDER_ENV_VAR = "QENTOR_TUTOR_LLM_PROVIDER"
 API_KEY_ENV_VAR = "QENTOR_TUTOR_LLM_API_KEY"
 MODEL_ENV_VAR = "QENTOR_TUTOR_LLM_MODEL"
+BASE_URL_ENV_VAR = "QENTOR_TUTOR_LLM_BASE_URL"
 
 DEFAULT_PROVIDER = "anthropic"
 
 _PROVIDERS: dict[str, Callable[[str, str], LLMAdapter]] = {
     "anthropic": lambda api_key, model: AnthropicAdapter(api_key=api_key, model=model),
+    # Groq, Cerebras, OpenRouter, Gemini (OpenAI endpoint) ... chosen by QENTOR_TUTOR_LLM_BASE_URL.
+    "openai-compatible": lambda api_key, model: OpenAICompatibleAdapter(
+        api_key=api_key,
+        model=model,
+        base_url=os.environ.get(BASE_URL_ENV_VAR, "").strip() or DEFAULT_OPENAI_COMPATIBLE_BASE_URL,
+    ),
 }
 
 
@@ -52,5 +59,9 @@ def build_default_llm_adapter() -> LLMAdapter | None:
     if factory is None:
         return None
 
-    model = os.environ.get(MODEL_ENV_VAR, "").strip() or DEFAULT_MODEL
+    model = os.environ.get(MODEL_ENV_VAR, "").strip()
+    if not model:
+        if provider != "anthropic":
+            return None  # an OpenAI-compatible provider has no sensible default model: stay deterministic
+        model = DEFAULT_MODEL
     return factory(api_key, model)
