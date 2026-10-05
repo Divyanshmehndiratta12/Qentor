@@ -42,7 +42,7 @@ verification (see "Verification" for the commands). If this file and the code di
 - A Lab/UI control for the 72-oracle sweep. The family itself exists and is tested (`verification/dj_family.py`, `VERIFICATION_ARCHITECTURE.md` §4.2); the hero path's "press Test, see 70 of 72" step is not wired to it, and the two oracle challenges still use one fixed oracle each.
 - Real-time co-editing, comments, live cursors, WebSockets. A shared page is public to whoever has its address and cannot be edited, listed, expired or revoked from the product. Code input reads only the documented subset: no loops, functions, registers, parameters, other devices, or other SDK calls, however harmless.
 - Accounts, identity, real names, e-mail, single sign-on, roles beyond "instructor key holder", multiple instructors per class, recovering a lost key or token, per-learner erasure, an export of class data. Lesson progress itself is browser-local; the server holds only the anonymous classroom events of a learner who joined a class. The classroom's rate limits are in memory and per process (see `ARCHITECTURE.md` §15 for the limits of the capability model).
-- A public deployment. The production process was verified locally; the Docker image has not been built (no Docker on the build machine) and nothing has been hosted.
+- Hosted-deployment verification. The production process was verified locally in real Chrome. The image is deployed on Railway (<https://qentor-production-52dc.up.railway.app/>), but the browser journeys and resource measurements recorded here were run against the local process, not re-run against the hosted instance.
 
 ## Verification (last full run)
 

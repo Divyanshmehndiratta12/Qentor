@@ -1,7 +1,7 @@
 # Qentor Architecture
 
-Goal: the smallest system that makes every promise in `PPT_REQUIREMENTS_MATRIX.md` real, and that
-two or three people can build in 48 hours.
+Goal: the smallest system that makes the promises in `PRODUCT_CONTRACT.md` real, and that a small
+student team can build in a hackathon.
 
 ## 1. Shape of the system
 
@@ -200,7 +200,7 @@ server process. Recorded hardware runs are not built.
 - **Resource guards:** `api/guards.py` refuses a request body over 1 MB (413) and lets only 4 heavy requests run at once (the rest wait up to 30 s, then 503 `SERVER_BUSY`); the provenance log prunes its oldest unreferenced records past 20,000 rows or 512 MiB. Measurements and the numbers behind them are in `BUILD_STATE.md` "Resource limits".
 - **Image:** the `Dockerfile` builds the web app in a Node stage and runs the backend as a non-root user with the database on a mountable volume (`/data`). `render.yaml` is a blueprint with a health check on `GET /api/health`. `backend/scripts/serve_production.sh` does the same without Docker.
 - **Secrets:** the LLM is off unless the host sets `QENTOR_TUTOR_LLM_ENABLED` and `QENTOR_TUTOR_LLM_API_KEY`. No key or database is in git or the image (tested).
-- **Status:** the production process was verified locally in real Chrome (see `BUILD_STATE.md`). The Docker image has not been built here (no Docker on the build machine), and nothing has been deployed to a public host.
+- **Status:** the production process was verified locally in real Chrome (see `BUILD_STATE.md`). The same image is deployed as a single service on Railway (<https://qentor-production-52dc.up.railway.app/>). The `Dockerfile` has no `VOLUME` instruction because Railway rejects it; persistent storage is attached through the platform instead, for the database path. The image is not built on the development machine (no Docker there).
 - **Python version:** 3.12 in `backend/.venv` (WSL2 for development, per `BUILD_STATE.md`).
 - **Web fonts** are loaded from Google Fonts; the app otherwise makes no third-party request.
 

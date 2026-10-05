@@ -1,7 +1,7 @@
 # Qentor — Product Contract
 
 SIH 2026 · Problem statement SIH26140 · AI-Based Interactive Quantum Algorithm Learning Platform.
-Source of promises: the final submitted deck, summarised in `docs/source/PPT_SOURCES.md`.
+Source of promises: the idea deck submitted for SIH26140.
 
 ## 1. One-sentence product
 
@@ -108,5 +108,5 @@ Numbers in step 4 are whatever the backend returns for the circuit actually buil
 
 ## 9. Change control
 
-Any requirement not traceable to `docs/source/PPT_SOURCES.md` is labelled "not in PPT" wherever
+Any requirement not traceable to the submitted idea deck is labelled "not in PPT" wherever
 it appears, and cannot displace a P0 item.

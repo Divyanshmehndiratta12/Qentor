@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="180" viewBox="0 0 720 180" role="img" aria-labelledby="title desc">
+  <title id="title">Qentor</title>
+  <desc id="desc">The Qentor mark: a ring crossed by an orbit, with a glowing cyan dot, beside the word Qentor.</desc>
+  <defs>
+    <filter id="glow" x="-100%" y="-100%" width="300%" height="300%">
+      <feGaussianBlur stdDeviation="1.2" />
+    </filter>
+  </defs>
+  <rect width="720" height="180" rx="24" fill="#0e1014" />
+  <!-- The mark, drawn to the same geometry as the logo in the app's top bar (24 x 24 units, scaled by 5). -->
+  <g transform="translate(36 30) scale(5)">
+    <circle cx="12" cy="12" r="10.75" fill="none" stroke="#e2e8f0" stroke-width="2.5" />
+    <ellipse cx="12" cy="12" rx="7.75" ry="2.75" fill="none" stroke="#e2e8f0" stroke-opacity="0.45" stroke-width="1.5" />
+    <circle cx="20.5" cy="20.5" r="4.6" fill="#4cd1ee" fill-opacity="0.7" filter="url(#glow)" />
+    <circle cx="20.5" cy="20.5" r="4" fill="#4cd1ee" />
+  </g>
+  <text x="196" y="94" font-family="'Instrument Sans', 'Segoe UI', Helvetica, Arial, sans-serif" font-size="68" font-weight="600" letter-spacing="-1.5" fill="#f1f5f9">Qentor</text>
+  <text x="198" y="130" font-family="'Instrument Sans', 'Segoe UI', Helvetica, Arial, sans-serif" font-size="20" fill="#94a3b8">Interactive quantum-computing learning platform</text>
+</svg>
